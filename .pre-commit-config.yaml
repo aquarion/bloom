@@ -1,0 +1,47 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v3.2.0
+      hooks:
+          - id: trailing-whitespace
+          - id: end-of-file-fixer
+          - id: check-yaml
+          - id: check-added-large-files
+    - repo: local
+      hooks:
+          - id: biome
+            name: Biome
+            entry: npx biome check --write --unsafe --no-errors-on-unmatched
+            language: system
+            types_or: [javascript, ts, json]
+            pass_filenames: true
+          - id: laravel-pint
+            name: Laravel Pint
+            entry: bash -c 'if command -v php >/dev/null 2>&1; then vendor/bin/pint "$@"; else vendor/bin/sail pint "$@"; fi' --
+            language: system
+            types: [php]
+            pass_filenames: true
+            additional_dependencies: []
+          - id: phpstan
+            name: PHPStan
+            entry: bash -c 'if command -v php >/dev/null 2>&1; then vendor/bin/phpstan analyse --memory-limit=512M; else vendor/bin/sail php vendor/bin/phpstan analyse --memory-limit=512M; fi'
+            language: system
+            types: [php]
+            pass_filenames: false
+          - id: composer-validate
+            name: Composer lock file in sync
+            entry: bash -c 'if command -v composer >/dev/null 2>&1; then composer validate --no-check-publish; else vendor/bin/sail composer validate --no-check-publish; fi'
+            language: system
+            files: composer\.(json|lock)$
+            pass_filenames: false
+    - repo: https://github.com/rhysd/actionlint
+      rev: v1.7.11
+      hooks:
+          - id: actionlint
+    - repo: https://github.com/Yelp/detect-secrets
+      rev: v1.5.0
+      hooks:
+          - id: detect-secrets
+            args: ['--baseline', '.secrets.baseline']
+            exclude: package.lock.json

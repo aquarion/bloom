@@ -4,6 +4,7 @@ use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Social\BlueskyController;
 use App\Http\Controllers\Social\MastodonController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -26,11 +27,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('settings/appearance', 'settings/appearance')->name('appearance.edit');
 
     // Connections settings page
-    Route::get('settings/connections', function () {
+    Route::get('settings/connections', function (Request $request) {
         return Inertia::render('settings/connections', [
-            'connections' => auth()->user()->socialAccounts()
+            'connections' => $request->user()->socialAccounts()
                 ->select('provider', 'handle', 'instance_url')
                 ->get(),
+            'status' => $request->session()->get('status'),
         ]);
     })->name('connections.edit');
 

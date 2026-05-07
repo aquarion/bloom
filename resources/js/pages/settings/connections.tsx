@@ -1,5 +1,6 @@
 import { Form, Head } from '@inertiajs/react';
 import Heading from '@/components/heading';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,8 +16,10 @@ interface SocialConnection {
 
 export default function Connections({
     connections,
+    status,
 }: {
     connections: SocialConnection[];
+    status?: string;
 }) {
     const mastodonConnection = connections.find((c) => c.provider === 'mastodon');
     const blueskyConnection = connections.find((c) => c.provider === 'bluesky');
@@ -33,6 +36,19 @@ export default function Connections({
                     title="Connected accounts"
                     description="Connect your Mastodon and Bluesky accounts to populate your feed."
                 />
+
+                {status === 'mastodon-connected' && (
+                    <div className="text-sm font-medium text-green-600">Mastodon account connected.</div>
+                )}
+                {status === 'mastodon-disconnected' && (
+                    <div className="text-sm font-medium text-green-600">Mastodon account disconnected.</div>
+                )}
+                {status === 'bluesky-connected' && (
+                    <div className="text-sm font-medium text-green-600">Bluesky account connected.</div>
+                )}
+                {status === 'bluesky-disconnected' && (
+                    <div className="text-sm font-medium text-green-600">Bluesky account disconnected.</div>
+                )}
 
                 {/* Mastodon */}
                 <div className="rounded-lg border p-6">
@@ -61,7 +77,7 @@ export default function Connections({
                             {...mastodon.redirect.form()}
                             className="space-y-4"
                         >
-                            {({ processing }) => (
+                            {({ processing, errors }) => (
                                 <>
                                     <div className="space-y-1">
                                         <Label htmlFor="instance_url">
@@ -72,6 +88,7 @@ export default function Connections({
                                             name="instance_url"
                                             placeholder="https://mastodon.social"
                                         />
+                                        <InputError message={errors.instance_url} />
                                     </div>
                                     <Button type="submit" disabled={processing}>
                                         Connect Mastodon
@@ -109,7 +126,7 @@ export default function Connections({
                             {...bluesky.store.form()}
                             className="space-y-4"
                         >
-                            {({ processing }) => (
+                            {({ processing, errors }) => (
                                 <>
                                     <div className="space-y-1">
                                         <Label htmlFor="bsky_handle">
@@ -120,6 +137,7 @@ export default function Connections({
                                             name="handle"
                                             placeholder="alice.bsky.social"
                                         />
+                                        <InputError message={errors.handle} />
                                     </div>
                                     <div className="space-y-1">
                                         <Label htmlFor="app_password">
@@ -131,6 +149,7 @@ export default function Connections({
                                             type="password"
                                             placeholder="xxxx-xxxx-xxxx-xxxx"
                                         />
+                                        <InputError message={errors.app_password} />
                                         <p className="text-xs text-muted-foreground">
                                             Generate one at Settings &rarr;
                                             Privacy and Security &rarr; App

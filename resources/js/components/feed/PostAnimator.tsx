@@ -33,6 +33,10 @@ export function PostAnimator({ post }: { post: Post }) {
 		return () => { tl.kill(); };
 	}, [post.id]);
 
+	const body = post.body || post.media[0]?.alt_text || "";
+
+	if (!body) return null;
+
 	return (
 		<div
 			ref={containerRef}
@@ -41,9 +45,9 @@ export function PostAnimator({ post }: { post: Post }) {
 			<div
 				key={post.id}
 				ref={textRef}
-				className="text-2xl font-extrabold leading-tight tracking-tight text-white"
+				className="mx-auto max-w-[40ch] text-2xl font-extrabold leading-tight tracking-tight text-white"
 			>
-				{post.body}
+				{body}
 			</div>
 		</div>
 	);

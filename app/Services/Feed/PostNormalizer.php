@@ -6,16 +6,21 @@ class PostNormalizer
 {
     public function fromMastodon(array $status, string $host): array
     {
+        $source = $status['reblog'] ?? $status;
+        $sourceHost = isset($status['reblog'])
+            ? (parse_url($source['url'], PHP_URL_HOST) ?? $host)
+            : $host;
+
         return [
             'id' => "mastodon_{$status['id']}",
             'source' => 'mastodon',
-            'author_name' => $status['account']['display_name'] ?: $status['account']['acct'],
-            'author_handle' => "@{$status['account']['acct']}@{$host}",
-            'author_avatar' => $status['account']['avatar'],
-            'body' => trim(html_entity_decode(strip_tags(str_replace(['</p>', '<br>', '<br/>'], ' ', $status['content'])), ENT_QUOTES | ENT_HTML5, 'UTF-8')),
-            'media' => $this->normaliseMastodonMedia($status['media_attachments'] ?? []),
-            'created_at' => $status['created_at'],
-            'original_url' => $status['url'],
+            'author_name' => $source['account']['display_name'] ?: $source['account']['acct'],
+            'author_handle' => "@{$source['account']['acct']}@{$sourceHost}",
+            'author_avatar' => $source['account']['avatar'],
+            'body' => trim(html_entity_decode(strip_tags(str_replace(['</p>', '<br>', '<br/>'], ' ', $source['content'])), ENT_QUOTES | ENT_HTML5, 'UTF-8')),
+            'media' => $this->normaliseMastodonMedia($source['media_attachments'] ?? []),
+            'created_at' => $source['created_at'],
+            'original_url' => $source['url'],
         ];
     }
 

@@ -19,7 +19,7 @@ export function PostAnimator({ post }: { post: Post }) {
 		if (!container || !textEl) return;
 
 		const split = new SplitText(textEl, { type: "words" });
-		if (split.words.length === 0) return () => split.revert();
+		if (split.words.length === 0) return;
 
 		const template = pickTemplate(lastTemplate.current);
 		lastTemplate.current = template;
@@ -27,10 +27,10 @@ export function PostAnimator({ post }: { post: Post }) {
 		const tl = gsap.timeline();
 		template(tl, split.words as Element[], container);
 
-		return () => {
-			split.revert();
-			tl.kill();
-		};
+		// Don't call split.revert() in cleanup — it writes the old innerHTML back
+		// into the DOM after React has already committed the new post body, causing
+		// the next SplitText to operate on stale content.
+		return () => { tl.kill(); };
 	}, [post.id]);
 
 	return (

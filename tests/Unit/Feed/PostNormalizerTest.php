@@ -104,6 +104,32 @@ it('returns empty media array when post has no attachments', function () {
     expect($post['media'])->toBe([]);
 });
 
+it('uses reblogged content and author for mastodon boosts', function () {
+    $status = [
+        'id' => '999',
+        'content' => '',
+        'created_at' => '2024-01-15T12:00:00.000Z',
+        'url' => 'https://fosstodon.org/@booster/999',
+        'account' => ['display_name' => 'Booster', 'acct' => 'booster', 'avatar' => ''],
+        'media_attachments' => [],
+        'reblog' => [
+            'id' => '456',
+            'content' => '<p>original content</p>',
+            'created_at' => '2024-01-14T10:00:00.000Z',
+            'url' => 'https://mastodon.social/@original/456',
+            'account' => ['display_name' => 'Original', 'acct' => 'original', 'avatar' => 'https://mastodon.social/avatar.jpg'],
+            'media_attachments' => [],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['body'])->toBe('original content')
+        ->and($post['author_name'])->toBe('Original')
+        ->and($post['author_handle'])->toBe('@original@mastodon.social')
+        ->and($post['original_url'])->toBe('https://mastodon.social/@original/456');
+});
+
 it('falls back to acct when mastodon display_name is empty', function () {
     $status = [
         'id' => '1',

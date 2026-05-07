@@ -12,6 +12,8 @@ class SocialAccount extends Model
         'access_token', 'token_secret', 'handle',
     ];
 
+    protected $hidden = ['access_token', 'token_secret'];
+
     protected $casts = [
         'access_token' => 'encrypted',  // pragma: allowlist secret
         'token_secret' => 'encrypted',

@@ -12,7 +12,7 @@ class PostNormalizer
             'author_name' => $status['account']['display_name'] ?: $status['account']['acct'],
             'author_handle' => "@{$status['account']['acct']}@{$host}",
             'author_avatar' => $status['account']['avatar'],
-            'body' => strip_tags($status['content']),
+            'body' => trim(html_entity_decode(strip_tags(str_replace(['</p>', '<br>', '<br/>'], ' ', $status['content'])), ENT_QUOTES | ENT_HTML5, 'UTF-8')),
             'media' => $this->normaliseMastodonMedia($status['media_attachments'] ?? []),
             'created_at' => $status['created_at'],
             'original_url' => $status['url'],

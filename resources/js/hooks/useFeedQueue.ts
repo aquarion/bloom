@@ -11,7 +11,7 @@ export function useFeedQueue({
 	initialPosts: Post[];
 	initialCursor: string | null;
 }) {
-	const [queue, setQueue] = useState<Post[]>(initialPosts);
+	const [queue, setQueue] = useState<Post[]>(initialPosts.slice(1));
 	const [current, setCurrent] = useState<Post | null>(initialPosts[0] ?? null);
 	const [cursor, setCursor] = useState<string | null>(initialCursor);
 	const fetching = useRef(false);
@@ -39,9 +39,8 @@ export function useFeedQueue({
 
 	const advance = useCallback(() => {
 		setQueue((q) => {
-			const next = q.slice(1);
-			setCurrent(next[0] ?? null);
-			return next;
+			setCurrent(q[0] ?? null);
+			return q.slice(1);
 		});
 	}, []);
 

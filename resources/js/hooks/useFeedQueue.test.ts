@@ -23,7 +23,8 @@ it("initialises with provided posts", () => {
 	const { result } = renderHook(() =>
 		useFeedQueue({ initialPosts: posts, initialCursor: null }),
 	);
-	expect(result.current.queue).toHaveLength(2);
+	expect(result.current.current?.id).toBe("1");
+	expect(result.current.queue).toHaveLength(1);
 });
 
 it("dequeues the head of the queue", () => {
@@ -33,7 +34,7 @@ it("dequeues the head of the queue", () => {
 	);
 	act(() => result.current.advance());
 	expect(result.current.current?.id).toBe("2");
-	expect(result.current.queue).toHaveLength(2);
+	expect(result.current.queue).toHaveLength(1);
 });
 
 it("fetches more posts when queue drops to 5", async () => {

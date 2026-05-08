@@ -217,4 +217,5 @@ export function PostAnimator({
 			})()}
 		</div>
 	</div>
+	);
 }

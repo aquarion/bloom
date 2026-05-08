@@ -35,3 +35,18 @@ it('throws on invalid credentials', function () {
     expect(fn () => $service->createSession('bad@bsky.social', 'wrong'))
         ->toThrow(RequestException::class);
 });
+
+it('refreshes a session with a refresh token', function () {
+    Http::fake([
+        'bsky.social/xrpc/com.atproto.server.refreshSession' => Http::response([
+            'accessJwt' => 'new-access-jwt',
+            'refreshJwt' => 'new-refresh-jwt',
+        ]),
+    ]);
+
+    $service = new BlueskyAuthService;
+    $result = $service->refreshSession('old-refresh-jwt');
+
+    expect($result['access_token'])->toBe('new-access-jwt')
+        ->and($result['refresh_token'])->toBe('new-refresh-jwt');
+});

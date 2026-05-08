@@ -21,4 +21,17 @@ class BlueskyAuthService
             'handle' => '@'.$response['handle'],
         ];
     }
+
+    public function refreshSession(string $refreshToken): array
+    {
+        $response = Http::withToken($refreshToken)
+            ->post(self::BASE.'/com.atproto.server.refreshSession')
+            ->throw()
+            ->json();
+
+        return [
+            'access_token' => $response['accessJwt'],
+            'refresh_token' => $response['refreshJwt'],
+        ];
+    }
 }

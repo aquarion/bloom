@@ -24,8 +24,9 @@ class BlueskyAuthService
 
     public function refreshSession(string $refreshToken): array
     {
+        // ATProto refreshSession expects an authenticated POST with no request body.
         $response = Http::withToken($refreshToken)
-            ->post(self::BASE.'/com.atproto.server.refreshSession')
+            ->send('POST', self::BASE.'/com.atproto.server.refreshSession')
             ->throw()
             ->json();
 

@@ -47,6 +47,13 @@ it('refreshes a session with a refresh token', function () {
     $service = new BlueskyAuthService;
     $result = $service->refreshSession('old-refresh-jwt');
 
+    Http::assertSent(function ($request) {
+        return $request->url() === 'https://bsky.social/xrpc/com.atproto.server.refreshSession'
+            && $request->method() === 'POST'
+            && $request->hasHeader('Authorization', 'Bearer old-refresh-jwt')
+            && $request->data() === [];
+    });
+
     expect($result['access_token'])->toBe('new-access-jwt')
         ->and($result['refresh_token'])->toBe('new-refresh-jwt');
 });

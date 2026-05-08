@@ -4,11 +4,14 @@ namespace App\Services\Bluesky;
 
 use App\Models\SocialAccount;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class BlueskyFeedService
 {
     private const BASE = 'https://bsky.social/xrpc';
+
+    private const TIMELINE_TTL = 120; // 2 minutes
 
     public function __construct(private BlueskyAuthService $auth) {}
 
@@ -19,16 +22,20 @@ class BlueskyFeedService
             $params['cursor'] = $cursor;
         }
 
-        $response = $this->request($account, fn (string $token) => Http::withToken($token)
-            ->get(self::BASE.'/app.bsky.feed.getTimeline', $params)
-            ->throw()
-            ->json()
-        );
+        $key = 'bluesky:timeline:'.$account->id.':'.($cursor ?? 'head');
 
-        return [
-            'posts' => $response['feed'] ?? [],
-            'cursor' => $response['cursor'] ?? null,
-        ];
+        return Cache::tags(["user:{$account->user_id}"])->remember($key, self::TIMELINE_TTL, function () use ($account, $params) {
+            $response = $this->request($account, fn (string $token) => Http::withToken($token)
+                ->get(self::BASE.'/app.bsky.feed.getTimeline', $params)
+                ->throw()
+                ->json()
+            );
+
+            return [
+                'posts' => $response['feed'] ?? [],
+                'cursor' => $response['cursor'] ?? null,
+            ];
+        });
     }
 
     private function request(SocialAccount $account, callable $call): array

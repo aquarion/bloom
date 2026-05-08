@@ -15,9 +15,7 @@ it('returns the timeline on a successful request', function () {
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'bluesky',
-        'access_token' => 'valid-token', // pragma: allowlist secret
-        'token_secret' => 'refresh-token', // pragma: allowlist secret
-    ]);
+        'access_token' => 'valid-token',        'token_secret' => 'refresh-token',    ]);
 
     Http::fake([
         'bsky.social/xrpc/app.bsky.feed.getTimeline*' => Http::response([
@@ -38,9 +36,7 @@ it('refreshes the token and retries when the access token is expired', function 
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'bluesky',
-        'access_token' => 'expired-token', // pragma: allowlist secret
-        'token_secret' => 'valid-refresh-token', // pragma: allowlist secret
-    ]);
+        'access_token' => 'expired-token',        'token_secret' => 'valid-refresh-token',    ]);
 
     Http::fake([
         'bsky.social/xrpc/com.atproto.server.refreshSession' => Http::response([
@@ -67,9 +63,7 @@ it('does not retry on non-expiry errors', function () {
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'bluesky',
-        'access_token' => 'some-token', // pragma: allowlist secret
-        'token_secret' => 'refresh-token', // pragma: allowlist secret
-    ]);
+        'access_token' => 'some-token',        'token_secret' => 'refresh-token',    ]);
 
     Http::fake([
         'bsky.social/xrpc/app.bsky.feed.getTimeline*' => Http::response(

@@ -16,6 +16,12 @@ repos:
             language: system
             types_or: [javascript, ts, json]
             pass_filenames: true
+          - id: eslint
+            name: ESLint
+            entry: npx eslint --fix
+            language: system
+            types_or: [javascript, ts]
+            pass_filenames: true
           - id: laravel-pint
             name: Laravel Pint
             entry: bash -c 'if command -v php >/dev/null 2>&1; then vendor/bin/pint "$@"; else vendor/bin/sail pint "$@"; fi' --

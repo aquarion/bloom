@@ -1,6 +1,6 @@
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { pickTemplate, SplitText } from "@/lib/animations";
 import type { AnimationTemplate } from "@/lib/animations/types";
 import type { Post } from "@/types/post";
@@ -19,13 +19,18 @@ export function PostAnimator({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const textRef = useRef<HTMLDivElement>(null);
 	const onReadyRef = useRef(onReady);
-	onReadyRef.current = onReady;
+
+	useLayoutEffect(() => {
+		onReadyRef.current = onReady;
+	});
 
 	useGSAP(() => {
 		const container = containerRef.current;
 		const textEl = textRef.current;
+
 		if (!container || !textEl) {
 			onReadyRef.current?.();
+
 			return;
 		}
 
@@ -34,8 +39,10 @@ export function PostAnimator({
 		gsap.set(container, { clearProps: "all" });
 
 		const split = new SplitText(textEl, { type: "words" });
+
 		if (split.words.length === 0) {
 			onReadyRef.current?.();
+
 			return;
 		}
 
@@ -55,7 +62,9 @@ export function PostAnimator({
 
 	const body = post.body || post.media[0]?.alt_text || "";
 
-	if (!body) return null;
+	if (!body) {
+return null;
+}
 
 	return (
 		<div

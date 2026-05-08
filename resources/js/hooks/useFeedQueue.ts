@@ -1,8 +1,39 @@
 import axios from "axios";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { FeedResponse, Post } from "@/types/post";
 
 const REFILL_THRESHOLD = 5;
+
+type State = { current: Post | null; queue: Post[]; cursor: string | null };
+type Action =
+	| { type: "advance" }
+	| { type: "enqueue"; posts: Post[]; cursor: string | null };
+
+function reducer(state: State, action: Action): State {
+	switch (action.type) {
+		case "advance": {
+			const [next, ...rest] = state.queue;
+
+			return { ...state, current: next ?? null, queue: rest };
+		}
+
+		case "enqueue": {
+			const merged = [...state.queue, ...action.posts];
+
+			// If current drained to null (e.g. fetchMore lagged behind advances),
+			// promote the first incoming post automatically.
+			if (state.current === null && merged.length > 0) {
+				return {
+					current: merged[0],
+					queue: merged.slice(1),
+					cursor: action.cursor,
+				};
+			}
+
+			return { ...state, queue: merged, cursor: action.cursor };
+		}
+	}
+}
 
 export function useFeedQueue({
 	initialPosts,
@@ -11,50 +42,45 @@ export function useFeedQueue({
 	initialPosts: Post[];
 	initialCursor: string | null;
 }) {
-	const [queue, setQueue] = useState<Post[]>(initialPosts.slice(1));
-	const [current, setCurrent] = useState<Post | null>(initialPosts[0] ?? null);
-	const [cursor, setCursor] = useState<string | null>(initialCursor);
+	const [state, dispatch] = useReducer(reducer, {
+		current: initialPosts[0] ?? null,
+		queue: initialPosts.slice(1),
+		cursor: initialCursor,
+	});
+
 	const fetching = useRef(false);
 
 	const fetchMore = useCallback(async (activeCursor: string) => {
-		if (fetching.current) return;
+		if (fetching.current) {
+			return;
+		}
+
 		fetching.current = true;
+
 		try {
 			const { data } = await axios.get<FeedResponse>("/feed", {
 				params: { cursor: activeCursor },
 				headers: { Accept: "application/json" },
 			});
-			setQueue((q) => [...q, ...data.posts]);
-			setCursor(data.next_cursor);
+			dispatch({
+				type: "enqueue",
+				posts: data.posts,
+				cursor: data.next_cursor,
+			});
 		} finally {
 			fetching.current = false;
 		}
 	}, []);
 
 	useEffect(() => {
-		if (queue.length <= REFILL_THRESHOLD && cursor) {
-			fetchMore(cursor);
+		if (state.queue.length <= REFILL_THRESHOLD && state.cursor) {
+			fetchMore(state.cursor);
 		}
-	}, [queue.length, cursor, fetchMore]);
-
-	// If current drained to null but the queue has posts (e.g. fetchMore completed
-	// after the last advance), promote the first queued post without waiting for a
-	// manual advance call.
-	useEffect(() => {
-		if (current !== null) return;
-		setQueue((q) => {
-			if (q.length === 0) return q;
-			setCurrent(q[0]);
-			return q.slice(1);
-		});
-	}, [current]);
+	}, [state.queue.length, state.cursor, fetchMore]);
 
 	const advance = useCallback(() => {
-		setQueue((q) => {
-			setCurrent(q[0] ?? null);
-			return q.slice(1);
-		});
+		dispatch({ type: "advance" });
 	}, []);
 
-	return { current, queue, advance };
+	return { current: state.current, queue: state.queue, advance };
 }

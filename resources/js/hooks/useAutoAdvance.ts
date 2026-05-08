@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const TICK_MS = 100;
 
@@ -14,17 +14,17 @@ export function useAutoAdvance({
 	const [progress, setProgress] = useState(1);
 	const elapsedRef = useRef(0);
 	const onAdvanceRef = useRef(onAdvance);
-	onAdvanceRef.current = onAdvance;
 
-	const reset = useCallback(() => {
-		elapsedRef.current = 0;
-		setProgress(1);
-	}, []);
+	useLayoutEffect(() => {
+		onAdvanceRef.current = onAdvance;
+	});
 
 	useEffect(() => {
-		reset();
+		elapsedRef.current = 0;
 
-		if (paused) return;
+		if (paused) {
+			return;
+		}
 
 		const interval = setInterval(() => {
 			elapsedRef.current += TICK_MS;
@@ -38,7 +38,7 @@ export function useAutoAdvance({
 		}, TICK_MS);
 
 		return () => clearInterval(interval);
-	}, [paused, duration, reset]);
+	}, [paused, duration]);
 
-	return { progress, reset };
+	return { progress };
 }

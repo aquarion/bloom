@@ -1,4 +1,5 @@
 import { Link } from "@inertiajs/react";
+import { postColors } from "@/lib/post-colors";
 import type { Post } from "@/types/post";
 import { Attribution } from "./Attribution";
 import { MediaBackground } from "./MediaBackground";
@@ -19,9 +20,15 @@ export function PostCard({
 	onTogglePause: () => void;
 	onReady?: () => void;
 }) {
+	const hasMedia = post.media.length > 0;
+	const colors = hasMedia ? null : postColors(post.author_handle);
+
 	return (
-		<div className="relative flex h-full w-full flex-col overflow-hidden bg-black">
-			<MediaBackground media={post.media} />
+		<div
+			className="relative flex h-full w-full flex-col overflow-hidden bg-black"
+			style={colors ? { backgroundColor: colors.background } : undefined}
+		>
+			{hasMedia && <MediaBackground media={post.media} />}
 
 			<div className="relative z-10 flex flex-1 flex-col p-4">
 				<div className="flex items-center gap-2">
@@ -37,7 +44,7 @@ export function PostCard({
 					<SourceBadge post={post} />
 				</div>
 				<div className="flex flex-1 items-center justify-center">
-					<PostAnimator post={post} onReady={onReady} />
+					<PostAnimator post={post} colors={colors} onReady={onReady} />
 				</div>
 			</div>
 

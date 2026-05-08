@@ -73,6 +73,7 @@ export default function Feed({
 			<div className="h-screen w-screen overflow-hidden bg-black">
 				<div ref={currentRef} className="h-full w-full">
 					<PostCard
+						key={current.id}
 						post={current}
 						progress={progress}
 						paused={paused}

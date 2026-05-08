@@ -10,6 +10,11 @@ export interface ReplyTo {
 	body: string;
 }
 
+export interface QuotedPost {
+	author_handle: string;
+	body: string;
+}
+
 export interface Post {
 	id: string;
 	source: "mastodon" | "bluesky";
@@ -21,6 +26,8 @@ export interface Post {
 	created_at: string;
 	original_url: string;
 	reply_to: ReplyTo | null;
+	quoted_post: QuotedPost | null;
+	boosted_by: string | null;
 }
 
 export interface FeedResponse {

@@ -144,7 +144,124 @@ it('uses reblogged content and author for mastodon boosts', function () {
     expect($post['body'])->toBe('original content')
         ->and($post['author_name'])->toBe('Original')
         ->and($post['author_handle'])->toBe('@original@mastodon.social')
-        ->and($post['original_url'])->toBe('https://mastodon.social/@original/456');
+        ->and($post['original_url'])->toBe('https://mastodon.social/@original/456')
+        ->and($post['boosted_by'])->toBe('Booster');
+});
+
+it('sets boosted_by to null for non-reblog mastodon posts', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>hi</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['boosted_by'])->toBeNull();
+});
+
+it('preserves paragraph breaks in mastodon post body', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>First paragraph</p><p>Second paragraph</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['body'])->toBe("First paragraph\nSecond paragraph");
+});
+
+it('sets boosted_by for bluesky reposts', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'reposted content', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Author', 'handle' => 'author.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+        'reason' => [
+            '$type' => 'app.bsky.feed.defs#reasonRepost',
+            'by' => ['displayName' => 'Reposter', 'handle' => 'reposter.bsky.social'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['boosted_by'])->toBe('Reposter');
+});
+
+it('sets boosted_by to null for regular bluesky posts', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'regular post', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Author', 'handle' => 'author.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['boosted_by'])->toBeNull();
+});
+
+it('sets quoted_post for bluesky record embeds', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'post body', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Author', 'handle' => 'author.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.record#view',
+                'record' => [
+                    '$type' => 'app.bsky.embed.record#viewRecord',
+                    'author' => ['handle' => 'quoted.bsky.social'],
+                    'value' => ['text' => 'quoted body'],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['quoted_post'])->toBe([
+        'author_handle' => '@quoted.bsky.social',
+        'body' => 'quoted body',
+    ]);
+});
+
+it('sets quoted_post for bluesky recordWithMedia embeds', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'post body', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Author', 'handle' => 'author.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.recordWithMedia#view',
+                'record' => [
+                    'record' => [
+                        '$type' => 'app.bsky.embed.record#viewRecord',
+                        'author' => ['handle' => 'quoted.bsky.social'],
+                        'value' => ['text' => 'quoted body with media'],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['quoted_post'])->toBe([
+        'author_handle' => '@quoted.bsky.social',
+        'body' => 'quoted body with media',
+    ]);
 });
 
 it('falls back to acct when mastodon display_name is empty', function () {

@@ -16,6 +16,9 @@ const makePost = (id: string): Post => ({
 	media: [],
 	created_at: new Date().toISOString(),
 	original_url: "https://example.com",
+	reply_to: null,
+	quoted_post: null,
+	boosted_by: null,
 });
 
 it("initialises with provided posts", () => {

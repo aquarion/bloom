@@ -1,10 +1,11 @@
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { pickTemplate, SplitText } from "@/lib/animations";
 import type { AnimationTemplate } from "@/lib/animations/types";
 import { splitIntoLines } from "@/lib/block-text";
-import { postColors, type PostColors } from "@/lib/post-colors";
+import { postColors } from "@/lib/post-colors";
+import type { PostColors } from "@/lib/post-colors";
 import type { Post } from "@/types/post";
 
 gsap.registerPlugin(SplitText);
@@ -26,8 +27,9 @@ export function PostAnimator({
 	const textRef = useRef<HTMLDivElement>(null);
 	const onReadyRef = useRef(onReady);
 	const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
-	const [lines, setLines] = useState<string[]>([]);
-	const [fontSizes, setFontSizes] = useState<number[] | null>(null);
+	// Tracks which body the font sizes were computed for so they naturally
+	// become null when body changes without needing setState inside an effect.
+	const [fontSizeState, setFontSizeState] = useState<{ body: string; sizes: number[] } | null>(null);
 
 	useLayoutEffect(() => {
 		onReadyRef.current = onReady;
@@ -39,54 +41,63 @@ export function PostAnimator({
 		.filter(Boolean);
 	const body = paragraphs.join(" ");
 
-	// Phase 1: split text into lines when body changes
+	// Derive lines synchronously — splitIntoLines is pure, no DOM access needed.
+	const lines = useMemo(() => (body ? splitIntoLines(body) : []), [body]);
+
+	// Font sizes are only valid for the current body; treat as null when body changes.
+	const fontSizes = fontSizeState?.body === body ? fontSizeState.sizes : null;
+
+	// Fire onReady immediately for media-only posts (no text to animate).
 	useLayoutEffect(() => {
 		if (!body) {
-			// Media-only post (e.g. a GIF with no caption/alt text): nothing to
-			// animate, but onReady must still fire so the auto-advance timer starts.
 			onReadyRef.current?.();
-			return;
 		}
-		const newLines = splitIntoLines(body);
-		lineRefs.current = new Array(newLines.length).fill(null);
-		setLines(newLines);
-		setFontSizes(null);
 	}, [body]);
 
 	// Phase 2: measure rendered line widths and compute font sizes
 	useLayoutEffect(() => {
-		if (lines.length === 0 || !containerRef.current) return;
+		if (lines.length === 0 || !containerRef.current) {
+			return;
+		}
 
 		const els = lineRefs.current.slice(0, lines.length);
-		if (els.some((el) => !el)) return;
+
+		if (els.some((el) => !el)) {
+			return;
+		}
 
 		const { width, height } = containerRef.current.getBoundingClientRect();
 		const targetWidth = width * 0.9;
 
 		let sizes = els.map((el) => {
 			const w = el?.getBoundingClientRect().width ?? 0;
+
 			return w > 0 ? BASE_FONT_SIZE * (targetWidth / w) : BASE_FONT_SIZE;
 		});
 
 		const totalHeight = sizes.reduce((sum, s) => sum + s * LINE_HEIGHT, 0);
 		const heightBudget = height * 0.45;
+
 		if (totalHeight > heightBudget) {
 			const scale = heightBudget / totalHeight;
 			sizes = sizes.map((s) => s * scale);
 		}
 
-		setFontSizes(sizes);
-	}, [lines]);
+		setFontSizeState({ body, sizes });
+	}, [lines, body]);
 
 	// Phase 3: run GSAP animation once font sizes are applied
 	useGSAP(() => {
-		if (!fontSizes) return;
+		if (!fontSizes) {
+			return;
+		}
 
 		const container = containerRef.current;
 		const textEl = textRef.current;
 
 		if (!container || !textEl) {
 			onReadyRef.current?.();
+
 			return;
 		}
 
@@ -96,6 +107,7 @@ export function PostAnimator({
 
 		if (split.words.length === 0) {
 			onReadyRef.current?.();
+
 			return;
 		}
 
@@ -121,7 +133,10 @@ export function PostAnimator({
 
 	if (!body) {
 		const firstMedia = post.media[0];
-		if (!firstMedia) return null;
+
+		if (!firstMedia) {
+			return null;
+		}
 
 		return (
 			<div className="flex h-full w-full items-center justify-center p-4">
@@ -166,6 +181,7 @@ export function PostAnimator({
 				>
 					{lines.map((line) => {
 						const charOffset = body.indexOf(line);
+
 						return (
 							<div
 								key={charOffset}
@@ -186,36 +202,40 @@ export function PostAnimator({
 							</div>
 						);
 					})}
-			</div>
-			{post.link_url && (() => {
-				let hostname = post.link_url;
-				try { hostname = new URL(post.link_url).hostname; } catch { /* keep raw */ }
-				return (
-					<a
-						href={post.link_url}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="max-w-[40ch] rounded border border-white/20 bg-white/10 px-4 py-3 text-left text-sm text-white/70 backdrop-blur-sm hover:bg-white/20"
-					>
-						<div className="flex items-center gap-3">
-							{post.link_favicon && (
-								<img
-									src={post.link_favicon}
-									alt=""
-									className="h-5 w-5 flex-shrink-0 rounded"
-								/>
-							)}
-							<div className="flex-1 min-w-0">
-								{post.link_title && (
-									<p className="font-semibold text-white/90 truncate">{post.link_title}</p>
+				</div>
+				{post.link_url && (() => {
+					let hostname = post.link_url;
+
+					try {
+						hostname = new URL(post.link_url).hostname;
+					} catch { /* keep raw */ }
+
+					return (
+						<a
+							href={post.link_url}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="max-w-[40ch] rounded border border-white/20 bg-white/10 px-4 py-3 text-left text-sm text-white/70 backdrop-blur-sm hover:bg-white/20"
+						>
+							<div className="flex items-center gap-3">
+								{post.link_favicon && (
+									<img
+										src={post.link_favicon}
+										alt=""
+										className="h-5 w-5 flex-shrink-0 rounded"
+									/>
 								)}
-								<p className="text-xs text-white/50 truncate">{hostname}</p>
+								<div className="flex-1 min-w-0">
+									{post.link_title && (
+										<p className="font-semibold text-white/90 truncate">{post.link_title}</p>
+									)}
+									<p className="text-xs text-white/50 truncate">{hostname}</p>
+								</div>
 							</div>
-						</div>
-					</a>
-				);
-			})()}
+						</a>
+					);
+				})()}
+			</div>
 		</div>
-	</div>
 	);
 }

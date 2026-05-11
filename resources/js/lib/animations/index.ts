@@ -19,6 +19,7 @@ export function pickTemplate(exclude?: AnimationTemplate): AnimationTemplate {
 	const candidates = exclude
 		? templates.filter((t) => t !== exclude)
 		: templates;
+
 	return candidates[Math.floor(Math.random() * candidates.length)];
 }
 

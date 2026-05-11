@@ -2,7 +2,10 @@ import type { MediaAttachment } from "@/types/post";
 
 export function MediaBackground({ media }: { media: MediaAttachment[] }) {
 	const first = media[0];
-	if (!first) return null;
+
+	if (!first) {
+return null;
+}
 
 	const src = first.type === "video" ? first.preview_url : first.url;
 

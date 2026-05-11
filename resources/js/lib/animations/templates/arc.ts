@@ -1,7 +1,9 @@
 import type { AnimationTemplate } from "../types";
 
 export const arc: AnimationTemplate = (tl, words) => {
-	if (words.length === 0) return;
+	if (words.length === 0) {
+		return;
+	}
 
 	const longest = [...words].reduce((a, b) =>
 		(a.textContent?.length ?? 0) >= (b.textContent?.length ?? 0) ? a : b,

@@ -15,6 +15,16 @@ Route::get('site.webmanifest', function () {
                 'src' => Vite::asset('resources/icons/web-app-manifest-192x192.png'),
                 'sizes' => '192x192',
                 'type' => 'image/png',
+            ],
+            [
+                'src' => Vite::asset('resources/icons/web-app-manifest-512x512.png'),
+                'sizes' => '512x512',
+                'type' => 'image/png',
+            ],
+            [
+                'src' => Vite::asset('resources/icons/web-app-manifest-192x192.png'),
+                'sizes' => '192x192',
+                'type' => 'image/png',
                 'purpose' => 'maskable',
             ],
             [

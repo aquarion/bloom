@@ -1,0 +1,32 @@
+import type { ReactNode } from "react";
+import { EmojiText } from "@/lib/emoji-text";
+
+export function AuthorChip({
+	name,
+	avatar,
+	emojis,
+	subtext,
+}: {
+	name: string;
+	avatar: string;
+	emojis: Record<string, string>;
+	subtext?: ReactNode;
+}) {
+	return (
+		<div className="flex min-w-0 flex-1 items-center gap-2">
+			<img
+				src={avatar}
+				alt={name}
+				className="h-7 w-7 flex-shrink-0 rounded-full object-cover"
+			/>
+			<div className="min-w-0 flex-1">
+				<p className="truncate text-xs font-bold text-white">
+					<EmojiText text={name} emojis={emojis} />
+				</p>
+				{subtext !== undefined && (
+					<p className="truncate text-[0.65rem] text-white/50">{subtext}</p>
+				)}
+			</div>
+		</div>
+	);
+}

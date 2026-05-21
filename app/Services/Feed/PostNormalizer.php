@@ -84,7 +84,10 @@ class PostNormalizer
         $parentHost = parse_url($parent['url'] ?? '', PHP_URL_HOST) ?? $fallbackHost;
 
         return [
+            'author_name' => $parent['account']['display_name'] ?: $parent['account']['acct'],
             'author_handle' => "@{$parent['account']['acct']}@{$parentHost}",
+            'author_avatar' => $this->safeUrl($parent['account']['avatar'] ?? ''),
+            'original_url' => $this->safeUrl($parent['url'] ?? ''),
             'body' => $this->truncateBody(
                 $this->extractBody($parent['content'])
             ),

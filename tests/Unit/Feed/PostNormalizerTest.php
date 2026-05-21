@@ -437,3 +437,91 @@ it('prefers bluesky external embed url over text url', function () {
 
     expect($post['link_url'])->toBe('https://embed-url.com/article');
 });
+
+it('includes author identity and url in mastodon reply_to', function () {
+    $parent = [
+        'url' => 'https://mastodon.social/@original/456',
+        'content' => '<p>This is the parent post body</p>',
+        'account' => [
+            'display_name' => 'Original User',
+            'acct' => 'original',
+            'avatar' => 'https://mastodon.social/avatars/original.jpg',
+        ],
+    ];
+
+    $status = [
+        'id' => '789',
+        'content' => '<p>Reply text</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/789',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', $parent);
+
+    expect($post['reply_to'])->toBe([
+        'author_name' => 'Original User',
+        'author_handle' => '@original@mastodon.social',
+        'author_avatar' => 'https://mastodon.social/avatars/original.jpg',
+        'original_url' => 'https://mastodon.social/@original/456',
+        'body' => 'This is the parent post body',
+    ]);
+});
+
+it('falls back to acct when mastodon reply_to parent has no display_name', function () {
+    $parent = [
+        'url' => 'https://mastodon.social/@noname/1',
+        'content' => '<p>body</p>',
+        'account' => ['display_name' => '', 'acct' => 'noname', 'avatar' => ''],
+    ];
+
+    $status = [
+        'id' => '2',
+        'content' => '<p>reply</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/2',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', $parent);
+
+    expect($post['reply_to']['author_name'])->toBe('noname');
+});
+
+it('sets mastodon reply_to original_url to empty string when parent url is non-http', function () {
+    $parent = [
+        'url' => 'javascript:alert(1)',
+        'content' => '<p>body</p>',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+    ];
+
+    $status = [
+        'id' => '3',
+        'content' => '<p>reply</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/3',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', $parent);
+
+    expect($post['reply_to']['original_url'])->toBe('');
+});
+
+it('returns null reply_to when mastodon parentStatus is null', function () {
+    $status = [
+        'id' => '4',
+        'content' => '<p>standalone post</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/4',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['reply_to'])->toBeNull();
+});

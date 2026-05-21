@@ -6,7 +6,10 @@ export interface MediaAttachment {
 }
 
 export interface ReplyTo {
+	author_name: string;
 	author_handle: string;
+	author_avatar: string;
+	original_url: string;
 	body: string;
 }
 

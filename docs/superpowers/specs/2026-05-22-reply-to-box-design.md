@@ -37,7 +37,7 @@ Small, reusable author identity row:
 - Display name: bold, `text-xs`
 - Handle: muted, `text-[0.65rem]`
 - No link logic — callers wrap it in `<a>` or `<div>` as needed
-- Props: `name`, `handle`, `avatar`, `emojis`
+- Props: `name`, `avatar`, `emojis`, `subtext?: ReactNode` — callers pass either a handle string or richer JSX (e.g. the "Posted X ago" line); no link logic in the component itself
 
 ### Updated component — `Attribution.tsx`
 
@@ -79,5 +79,5 @@ Add test cases covering `reply_to` normalisation for both sources:
 
 ## Out of Scope
 
-- Quoted posts (`quoted_post`) are not changed in this iteration
+- Mastodon quoted posts — `quoted_post` is hardcoded `null` for Mastodon until instance support is widespread (tracked in #29)
 - No changes to emoji handling within the reply-to box body text

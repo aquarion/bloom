@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { EmojiText } from "@/lib/emoji-text";
+import sprouter from "../../../icons/sprouter-standard.svg";
 
 export function AuthorChip({
 	name,
@@ -15,7 +16,7 @@ export function AuthorChip({
 	return (
 		<div className="flex min-w-0 flex-1 items-center gap-2">
 			<img
-				src={avatar}
+				src={avatar || sprouter}
 				alt={name}
 				className="h-7 w-7 flex-shrink-0 rounded-full object-cover"
 			/>

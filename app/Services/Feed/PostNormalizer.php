@@ -279,9 +279,10 @@ class PostNormalizer
         );
     }
 
-    private function truncateBody(string $text, int $limit = 300): string
+    private function truncateBody(string $text, ?int $limit = null): string
     {
         $text = $this->truncateUrls($text);
+        $limit ??= config('feed.context_body_limit', 300);
 
         return mb_strlen($text) > $limit ? mb_substr($text, 0, $limit).'…' : $text;
     }

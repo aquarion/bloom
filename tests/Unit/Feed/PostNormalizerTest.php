@@ -1,6 +1,9 @@
 <?php
 
 use App\Services\Feed\PostNormalizer;
+use Tests\TestCase;
+
+uses(TestCase::class);
 
 it('normalises a mastodon status to unified post format', function () {
     $status = [

@@ -25,6 +25,7 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 8000
+ENV OCTANE_PORT=8000
+EXPOSE ${OCTANE_PORT}
 
 ENTRYPOINT ["/entrypoint.sh"]

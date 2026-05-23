@@ -235,19 +235,27 @@ export function PostAnimator({
 	if (!body) {
 		const firstMedia = post.media[0];
 
-		if (!firstMedia) {
-			return null;
+		if (firstMedia) {
+			return (
+				<div className="flex h-full w-full items-center justify-center p-4">
+					<img
+						src={firstMedia.url}
+						alt={firstMedia.alt_text ?? ""}
+						className="max-h-full max-w-full rounded object-contain"
+					/>
+				</div>
+			);
 		}
 
-		return (
-			<div className="flex h-full w-full items-center justify-center p-4">
-				<img
-					src={firstMedia.url}
-					alt={firstMedia.alt_text ?? ""}
-					className="max-h-full max-w-full rounded object-contain"
-				/>
-			</div>
-		);
+		if (post.link_url) {
+			return (
+				<div className="flex h-full w-full items-center justify-center p-8">
+					<LinkCard url={post.link_url} title={post.link_title} favicon={post.link_favicon} />
+				</div>
+			);
+		}
+
+		return null;
 	}
 
 	const textColor = colors?.text ?? "white";

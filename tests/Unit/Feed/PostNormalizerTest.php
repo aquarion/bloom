@@ -539,6 +539,117 @@ it('prefers bluesky external embed url over text url', function () {
     expect($post['link_url'])->toBe('https://embed-url.com/article');
 });
 
+it('uses mastodon card title as link_title', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Check this out https://example.com/article</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => [
+            'url' => 'https://example.com/article',
+            'title' => 'An Example Article',
+            'description' => 'Some description',
+            'image' => 'https://example.com/og.jpg',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['link_title'])->toBe('An Example Article');
+});
+
+it('prefers mastodon card url over extracted link_url', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Check this out https://t.co/short</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => [
+            'url' => 'https://example.com/full-article',
+            'title' => 'Article',
+            'description' => '',
+            'image' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['link_url'])->toBe('https://example.com/full-article');
+});
+
+it('derives link_favicon from link_url domain using favicone for mastodon posts', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>article</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => ['url' => 'https://www.bbc.co.uk/news/article', 'title' => 'News', 'description' => '', 'image' => null],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['link_favicon'])->toBe('https://favicone.com/www.bbc.co.uk');
+});
+
+it('sets link_favicon to null when mastodon post has no link', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Just a plain post</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['link_favicon'])->toBeNull();
+});
+
+it('derives link_favicon from link_url domain using favicone for bluesky external embed', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'article', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.external#view',
+                'external' => [
+                    'uri' => 'https://www.theverge.com/article',
+                    'title' => 'The Article',
+                    'description' => '',
+                    'thumb' => 'https://cdn.bsky.app/img/thumbnail.jpg',
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_favicon'])->toBe('https://favicone.com/www.theverge.com');
+});
+
+it('sets link_favicon to null when bluesky post has no external embed', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'just text', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_favicon'])->toBeNull();
+});
+
 it('includes author identity and url in mastodon reply_to', function () {
     $parent = [
         'url' => 'https://mastodon.social/@original/456',

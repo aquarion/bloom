@@ -21,6 +21,12 @@ class PostNormalizer
             $status['account']['emojis'] ?? [],
         ));
 
+        $card = $source['card'] ?? null;
+        $cardUrl = $card ? ($this->safeUrl($card['url'] ?? '') ?: null) : null;
+        $linkUrl = $cardUrl
+            ?? $this->extractFirstLinkFromHtml($source['content'])
+            ?? $this->extractFirstLink(html_entity_decode(strip_tags($source['content']), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
         return [
             'id' => "mastodon_{$status['id']}",
             'source' => 'mastodon',
@@ -32,10 +38,9 @@ class PostNormalizer
             'media' => $this->normaliseMastodonMedia($source['media_attachments'] ?? []),
             'created_at' => $source['created_at'],
             'original_url' => $this->safeUrl($source['url']),
-            'link_url' => $this->extractFirstLinkFromHtml($source['content'])
-                ?? $this->extractFirstLink(html_entity_decode(strip_tags($source['content']), ENT_QUOTES | ENT_HTML5, 'UTF-8')),
-            'link_title' => null,
-            'link_favicon' => null,
+            'link_url' => $linkUrl,
+            'link_title' => $card['title'] ?? null,
+            'link_favicon' => $this->faviconUrl($linkUrl),
             'reply_to' => $this->mastodonReplyTo($parentStatus, $host),
             'quoted_post' => null,
             'boosted_by' => $booster,
@@ -69,7 +74,7 @@ class PostNormalizer
             'original_url' => $this->blueskyPostUrl($author['handle'], $post['uri']),
             'link_url' => $externalData['url'] ?? $this->extractFirstLink($record['text']),
             'link_title' => $externalData['title'] ?? null,
-            'link_favicon' => $externalData['favicon'] ?? null,
+            'link_favicon' => $this->faviconUrl($externalData['url'] ?? null),
             'reply_to' => $this->blueskyReplyTo($feedPost['reply']['parent'] ?? null),
             'quoted_post' => $this->blueskyQuotedPost($post['embed'] ?? null),
             'boosted_by' => $booster,
@@ -293,6 +298,17 @@ class PostNormalizer
         }
 
         return $map;
+    }
+
+    private function faviconUrl(?string $linkUrl): ?string
+    {
+        if (! $linkUrl) {
+            return null;
+        }
+
+        $domain = parse_url($linkUrl, PHP_URL_HOST);
+
+        return $domain ? "https://favicone.com/{$domain}" : null;
     }
 
     private function safeUrl(?string $url): string

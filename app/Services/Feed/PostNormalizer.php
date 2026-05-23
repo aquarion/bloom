@@ -279,7 +279,7 @@ class PostNormalizer
         );
     }
 
-    private function truncateBody(string $text, int $limit = 120): string
+    private function truncateBody(string $text, int $limit = 300): string
     {
         $text = $this->truncateUrls($text);
 

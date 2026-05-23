@@ -103,6 +103,11 @@ class BlueskyFeedService
                 Log::warning('Failed to fetch Bluesky profiles for banner enrichment', [
                     'error' => $e->getMessage(),
                 ]);
+                // Cache a short-TTL negative result so repeated failures don't
+                // hammer the endpoint on every timeline refresh during an outage.
+                foreach ($batch as $did) {
+                    $cache->put("bluesky:profile:{$did}:banner", '', 300);
+                }
             }
         }
 

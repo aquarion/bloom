@@ -117,6 +117,20 @@ export function PostAnimator({
 		[body],
 	);
 
+	// Pre-compute a unique key per line using sequential character offsets so
+	// identical lines in different positions still get distinct keys.
+	const lineKeys = useMemo(() => {
+		const keys: number[] = [];
+		let search = 0;
+		for (const line of lines) {
+			const pos = body.indexOf(line, search);
+			const key = pos >= 0 ? pos : search;
+			keys.push(key);
+			search = key + line.length;
+		}
+		return keys;
+	}, [lines, body]);
+
 	// Font sizes are only valid for the current body; treat as null when body changes.
 	const fontSizes = fontSizeState?.body === body ? fontSizeState.sizes : null;
 
@@ -274,7 +288,7 @@ export function PostAnimator({
 				>
 					{lines.map((line, idx) => (
 						<div
-							key={line}
+							key={lineKeys[idx]}
 							style={{
 								fontSize: fontSizes ? `${fontSizes[idx]}px` : `${BASE_FONT_SIZE}px`,
 								whiteSpace: "nowrap",

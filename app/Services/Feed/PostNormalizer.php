@@ -40,7 +40,7 @@ class PostNormalizer
             'created_at' => $source['created_at'],
             'original_url' => $this->safeUrl($source['url']),
             'link_url' => $linkUrl,
-            'link_title' => $card['title'] ?? null,
+            'link_title' => $card ? ($card['title'] ?? null) : null,
             'link_favicon' => $this->faviconUrl($linkUrl),
             'reply_to' => $this->mastodonReplyTo($parentStatus, $host),
             'quoted_post' => null,
@@ -66,6 +66,7 @@ class PostNormalizer
             : null;
 
         $externalData = $this->blueskyExternalData($post['embed'] ?? null);
+        $linkUrl = $externalData['url'] ?? $this->extractFirstLink($record['text']);
 
         return [
             'id' => "bluesky_{$post['uri']}",
@@ -78,9 +79,9 @@ class PostNormalizer
             'media' => $this->normaliseBlueskyMedia($post['embed'] ?? null),
             'created_at' => $record['createdAt'],
             'original_url' => $this->blueskyPostUrl($author['handle'], $post['uri']),
-            'link_url' => $externalData['url'] ?? $this->extractFirstLink($record['text']),
+            'link_url' => $linkUrl,
             'link_title' => $externalData['title'] ?? null,
-            'link_favicon' => $this->faviconUrl($externalData['url'] ?? null),
+            'link_favicon' => $this->faviconUrl($linkUrl),
             'reply_to' => $this->blueskyReplyTo($feedPost['reply']['parent'] ?? null),
             'quoted_post' => $this->blueskyQuotedPost($post['embed'] ?? null),
             'boosted_by' => $booster,

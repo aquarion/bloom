@@ -265,10 +265,36 @@ export function PostAnimator({
 			);
 		}
 
-		if (post.link_url) {
+		if (post.link_url || post.quoted_post || post.reply_to) {
 			return (
 				<div className="flex h-full w-full items-center justify-center p-8">
-					<LinkCard url={post.link_url} title={post.link_title} favicon={post.link_favicon} />
+					<div className="flex flex-col items-center gap-4">
+						{post.reply_to && (
+							<ContextPanel
+								icon="↩"
+								author_name={post.reply_to.author_name}
+								author_avatar={post.reply_to.author_avatar}
+								author_handle={post.reply_to.author_handle}
+								emojis={post.emojis}
+								body={post.reply_to.body}
+								original_url={post.reply_to.original_url}
+							/>
+						)}
+						{post.quoted_post && (
+							<ContextPanel
+								icon="❝"
+								author_name={post.quoted_post.author_name}
+								author_avatar={post.quoted_post.author_avatar}
+								author_handle={post.quoted_post.author_handle}
+								emojis={post.emojis}
+								body={post.quoted_post.body}
+								original_url={post.quoted_post.original_url}
+							/>
+						)}
+						{post.link_url && (
+							<LinkCard url={post.link_url} title={post.link_title} favicon={post.link_favicon} />
+						)}
+					</div>
 				</div>
 			);
 		}

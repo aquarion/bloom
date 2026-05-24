@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
 
   mysql:
-    image: mysql:8.0
+    image: mysql:8.0.46
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-sprouter}
       MYSQL_USER: ${DB_USERNAME:-sprouter}
@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.9-alpine
     volumes:
       - redis_data:/data
     healthcheck:

@@ -16,11 +16,15 @@ RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interactio
 
 COPY --from=node-deps /app/node_modules node_modules
 COPY . .
-RUN npm run build && rm -rf node_modules
-
-RUN mkdir -p bootstrap/cache \
+RUN mkdir -p bootstrap/cache storage/framework/sessions storage/framework/views storage/framework/cache storage/logs \
+    && cp .env.example .env \
+    && php artisan key:generate --force \
     && php artisan package:discover --ansi \
-    && chown -R www-data:www-data storage bootstrap/cache \
+    && npm run build \
+    && rm .env \
+    && rm -rf node_modules
+
+RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 COPY docker/entrypoint.sh /entrypoint.sh

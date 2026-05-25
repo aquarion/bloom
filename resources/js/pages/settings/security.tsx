@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import PasskeyList from '@/components/passkey-list';
 import PasswordInput from '@/components/password-input';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
@@ -17,12 +18,14 @@ type Props = {
     canManageTwoFactor?: boolean;
     requiresConfirmation?: boolean;
     twoFactorEnabled?: boolean;
+    passkeys?: Array<{ id: string; name: string; last_used_at: string | null; created_at: string }>;
 };
 
 export default function Security({
     canManageTwoFactor = false,
     requiresConfirmation = false,
     twoFactorEnabled = false,
+    passkeys = [],
 }: Props) {
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
@@ -235,6 +238,15 @@ export default function Security({
                     />
                 </div>
             )}
+
+            <div className="space-y-6">
+                <Heading
+                    variant="small"
+                    title="Passkeys"
+                    description="Manage passkeys for passwordless sign-in"
+                />
+                <PasskeyList passkeys={passkeys} />
+            </div>
         </>
     );
 }

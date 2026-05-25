@@ -1,4 +1,4 @@
-import { Form } from '@inertiajs/react';
+import { Form, router } from '@inertiajs/react';
 import { KeyRound, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { usePasskey } from '@/hooks/use-passkey';
@@ -29,7 +29,7 @@ export default function PasskeyList({ passkeys }: Props) {
         if (ok) {
             setAdding(false);
             setNewName('');
-            window.location.reload();
+            router.reload({ only: ['passkeys'] });
         }
     };
 

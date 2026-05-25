@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\PasskeyController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Social\BlueskyController;
@@ -44,4 +45,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Bluesky app password
     Route::post('auth/bluesky', [BlueskyController::class, 'store'])->name('bluesky.store');
     Route::delete('auth/bluesky', [BlueskyController::class, 'destroy'])->name('bluesky.destroy');
+
+    // Passkey management
+    Route::get('settings/passkeys/register/options', [PasskeyController::class, 'registerOptions'])
+        ->name('passkey.register.options');
+    Route::post('settings/passkeys/register', [PasskeyController::class, 'store'])
+        ->name('passkey.register.store');
+    Route::delete('settings/passkeys/{passkey}', [PasskeyController::class, 'destroy'])
+        ->name('passkey.destroy');
 });

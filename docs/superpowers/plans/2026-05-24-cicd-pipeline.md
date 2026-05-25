@@ -170,7 +170,7 @@ jobs:
         with:
           host: firth.water.gkhs.net
           username: sprouter
-          key: ${{ secrets.SPROUTER_SSH_KEY }}
+          key: ${{ secrets.FIRTH_SSH_KEY }}
           script: |
             set -e
             cd /home/docker/sprouter-staging
@@ -196,7 +196,7 @@ jobs:
         with:
           host: firth.water.gkhs.net
           username: sprouter
-          key: ${{ secrets.SPROUTER_SSH_KEY }}
+          key: ${{ secrets.FIRTH_SSH_KEY }}
           script: |
             set -e
             cd /home/docker/sprouter
@@ -397,7 +397,7 @@ gh pr create --draft --title "⚙️ Add CI/CD pipeline" --body "$(cat <<'EOF'
 
 ## Pre-merge checklist
 
-- [ ] Add `SPROUTER_SSH_KEY` secret to repo settings (Settings → Secrets → Actions)
+- [ ] Add `FIRTH_SSH_KEY` secret to repo settings (Settings → Secrets → Actions)
 - [ ] Confirm `/home/docker/sprouter-staging` and `/home/docker/sprouter` exist on `firth.water.gkhs.net` with a `docker-compose.yml` configured to pull from `ghcr.io/aquarion/sprouter`
 - [ ] Confirm `sprouter` SSH user on firth has Docker access
 EOF
@@ -410,7 +410,7 @@ EOF
 
 These are one-time manual steps on the server before the first deploy will succeed:
 
-1. Add `SPROUTER_SSH_KEY` secret in GitHub repo settings (Settings → Secrets and variables → Actions)
+1. Add `FIRTH_SSH_KEY` secret in GitHub repo settings (Settings → Secrets and variables → Actions)
 2. Ensure `/home/docker/sprouter-staging/docker-compose.yml` exists and references `ghcr.io/aquarion/sprouter:staging`
 3. Ensure `/home/docker/sprouter/docker-compose.yml` exists and references `ghcr.io/aquarion/sprouter:latest`
 4. Ensure `sprouter` user on firth is in the `docker` group

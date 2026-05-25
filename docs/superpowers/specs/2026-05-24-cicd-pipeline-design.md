@@ -50,7 +50,7 @@ test → build-and-push → deploy-staging   (PR only)
 **deploy-staging**
 - Depends on `build-and-push`
 - Condition: `github.event_name == 'pull_request'`
-- SSH: `host: firth.water.gkhs.net`, `username: sprouter`, `key: ${{ secrets.SPROUTER_SSH_KEY }}`
+- SSH: `host: firth.water.gkhs.net`, `username: sprouter`, `key: ${{ secrets.FIRTH_SSH_KEY }}`
 - Script:
   ```bash
   set -e
@@ -94,7 +94,7 @@ Triggers: `workflow_dispatch` (with `version_bump` input: patch/minor/major), `w
 
 | Secret | Purpose |
 |---|---|
-| `SPROUTER_SSH_KEY` | Private key for SSH deploy to firth |
+| `FIRTH_SSH_KEY` | Private key for SSH deploy to firth |
 | `GITHUB_TOKEN` | Auto-provided — GHCR push |
 
 ## Server Details

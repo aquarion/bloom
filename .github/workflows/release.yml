@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version_bump:
-        description: "Version bump type"
+        description: 'Version bump type'
         required: true
         type: choice
         options:
@@ -15,7 +15,7 @@ on:
     inputs:
       version_bump:
         type: string
-        description: "Version bump type"
+        description: 'Version bump type'
         required: true
 
 jobs:
@@ -148,5 +148,5 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       tag: ${{ needs.tag.outputs.next_version }}
-    # Pass caller secrets into the reusable workflow (required for SPROUTER_SSH_KEY, GITHUB_TOKEN, etc.)
-    secrets: inherit  # pragma: allowlist secret
+    # Pass caller secrets into the reusable workflow (required for FIRTH_SSH_KEY, GITHUB_TOKEN, etc.)
+    secrets: inherit # pragma: allowlist secret

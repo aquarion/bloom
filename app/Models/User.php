@@ -38,4 +38,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(SocialAccount::class);
     }
+
+    /** @return HasMany<Passkey, $this> */
+    public function passkeys(): HasMany
+    {
+        return $this->hasMany(Passkey::class);
+    }
 }

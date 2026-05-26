@@ -4,13 +4,14 @@ use App\Mail\PasskeyInvalidated;
 use App\Models\Passkey;
 use App\Models\User;
 use App\Services\WebAuthn\WebAuthnService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Uid\Uuid;
 use Webauthn\CredentialRecord;
 use Webauthn\PublicKeyCredentialRequestOptions;
 use Webauthn\TrustPath\EmptyTrustPath;
 
-test('options endpoint returns a challenge and stores it in session', function () {
+test('options endpoint returns a challenge and stores it in cache', function () {
     $options = new PublicKeyCredentialRequestOptions(
         challenge: random_bytes(32),
         rpId: 'localhost',
@@ -27,7 +28,9 @@ test('options endpoint returns a challenge and stores it in session', function (
 
     $response->assertOk();
     $response->assertJsonStructure(['challenge']);
-    expect(session('passkey.auth.options'))->not->toBeNull();
+    $token = $response->headers->get('X-Passkey-Token');
+    expect($token)->not->toBeNull();
+    expect(Cache::get("passkey_auth:{$token}"))->not->toBeNull();
 });
 
 test('authenticate endpoint logs in user with valid assertion', function () {
@@ -57,9 +60,9 @@ test('authenticate endpoint logs in user with valid assertion', function () {
         allowCredentials: [],
         userVerification: PublicKeyCredentialRequestOptions::USER_VERIFICATION_REQUIREMENT_PREFERRED,
     );
-    session(['passkey.auth.options' => serialize($options)]);
+    $token = 'test-token-authenticate';
+    Cache::put("passkey_auth:{$token}", serialize($options), 300);
 
-    // rawId as base64url of the credential_id bytes
     $rawId = rtrim(strtr(base64_encode(base64_decode($passkey->credential_id)), '+/', '-_'), '=');
 
     $response = $this->postJson(route('passkey.auth.authenticate'), [
@@ -71,7 +74,7 @@ test('authenticate endpoint logs in user with valid assertion', function () {
             'clientDataJSON' => base64_encode('{}'),
             'signature' => base64_encode('sig'),
         ],
-    ]);
+    ], ['X-Passkey-Token' => $token]);
 
     $response->assertOk();
     $this->assertAuthenticatedAs($user);
@@ -86,7 +89,8 @@ test('authenticate endpoint returns 401 when passkey not found', function () {
         allowCredentials: [],
         userVerification: PublicKeyCredentialRequestOptions::USER_VERIFICATION_REQUIREMENT_PREFERRED,
     );
-    session(['passkey.auth.options' => serialize($options)]);
+    $token = 'test-token-not-found';
+    Cache::put("passkey_auth:{$token}", serialize($options), 300);
 
     $response = $this->postJson(route('passkey.auth.authenticate'), [
         'id' => base64_encode('unknown-cred'),
@@ -97,13 +101,13 @@ test('authenticate endpoint returns 401 when passkey not found', function () {
             'clientDataJSON' => base64_encode('{}'),
             'signature' => base64_encode('sig'),
         ],
-    ]);
+    ], ['X-Passkey-Token' => $token]);
 
     $response->assertUnauthorized();
     $this->assertGuest();
 });
 
-test('authenticate endpoint returns 422 when session challenge is missing', function () {
+test('authenticate endpoint returns 422 when cache challenge is missing', function () {
     $response = $this->postJson(route('passkey.auth.authenticate'), [
         'id' => base64_encode('cred'),
         'rawId' => base64_encode('cred'),
@@ -147,7 +151,8 @@ test('authenticate endpoint deletes passkey and sends email on sign_count regres
         allowCredentials: [],
         userVerification: PublicKeyCredentialRequestOptions::USER_VERIFICATION_REQUIREMENT_PREFERRED,
     );
-    session(['passkey.auth.options' => serialize($options)]);
+    $token = 'test-token-regression';
+    Cache::put("passkey_auth:{$token}", serialize($options), 300);
 
     $rawId = rtrim(strtr(base64_encode(base64_decode($passkey->credential_id)), '+/', '-_'), '=');
 
@@ -160,7 +165,7 @@ test('authenticate endpoint deletes passkey and sends email on sign_count regres
             'clientDataJSON' => base64_encode('{}'),
             'signature' => base64_encode('sig'),
         ],
-    ]);
+    ], ['X-Passkey-Token' => $token]);
 
     $response->assertUnauthorized();
     $this->assertGuest();

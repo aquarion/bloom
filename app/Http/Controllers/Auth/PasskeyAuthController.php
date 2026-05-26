@@ -11,7 +11,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Throwable;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
 use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
@@ -24,7 +26,8 @@ class PasskeyAuthController extends Controller
     public function options(): Response
     {
         $options = $this->webAuthn->generateAuthenticationOptions();
-        session(['passkey.auth.options' => serialize($options)]);
+        $token = Str::random(40);
+        Cache::put("passkey_auth:{$token}", serialize($options), 300);
 
         $serializer = (new WebauthnSerializerFactory(
             new AttestationStatementSupportManager([new NoneAttestationStatementSupport])
@@ -32,18 +35,19 @@ class PasskeyAuthController extends Controller
 
         return response($serializer->serialize($options, 'json'), 200, [
             'Content-Type' => 'application/json',
+            'X-Passkey-Token' => $token,
         ]);
     }
 
     public function authenticate(Request $request): JsonResponse
     {
-        $serialized = session('passkey.auth.options');
+        $token = $request->header('X-Passkey-Token');
+        $serialized = $token ? Cache::pull("passkey_auth:{$token}") : null;
         if (! $serialized) {
             return response()->json(['message' => 'No active challenge. Please try again.'], 422);
         }
 
         $options = unserialize($serialized);
-        session()->forget('passkey.auth.options');
 
         $rawId = $request->input('rawId');
         if (! is_string($rawId) || $rawId === '') {

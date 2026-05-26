@@ -25,7 +25,14 @@ export default function Login({
     canResetPassword,
     canRegister,
 }: Props) {
-    const { isSupported, loading, error: passkeyError, authenticate, startConditional, abortConditional } = usePasskey();
+    const {
+        isSupported,
+        loading,
+        error: passkeyError,
+        authenticate,
+        startConditional,
+        abortConditional,
+    } = usePasskey();
 
     useEffect(() => {
         if (isSupported) {
@@ -109,7 +116,9 @@ export default function Login({
                                 <>
                                     <div className="relative flex items-center gap-3">
                                         <div className="h-px flex-1 bg-border" />
-                                        <span className="text-sm text-muted-foreground">or</span>
+                                        <span className="text-sm text-muted-foreground">
+                                            or
+                                        </span>
                                         <div className="h-px flex-1 bg-border" />
                                     </div>
 
@@ -122,7 +131,11 @@ export default function Login({
                                         onClick={authenticate}
                                         data-test="passkey-login-button"
                                     >
-                                        {loading ? <Spinner /> : <KeyRound className="h-4 w-4" />}
+                                        {loading ? (
+                                            <Spinner />
+                                        ) : (
+                                            <KeyRound className="h-4 w-4" />
+                                        )}
                                         Sign in with passkey
                                     </Button>
 

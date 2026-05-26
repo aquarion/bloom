@@ -45,11 +45,19 @@ class PasskeyAuthController extends Controller
         $options = unserialize($serialized);
         session()->forget('passkey.auth.options');
 
-        // The browser sends credential_id as base64url; normalize to standard base64 for DB lookup
         $rawId = $request->input('rawId');
-        $credentialId = base64_encode(
-            base64_decode(strtr($rawId, '-_', '+/'))
-        );
+        if (! is_string($rawId) || $rawId === '') {
+            return response()->json(['message' => 'Invalid credential.'], 422);
+        }
+
+        // base64url → base64: swap alphabet chars and restore padding
+        $base64 = strtr($rawId, '-_', '+/');
+        $padded = str_pad($base64, (int) ceil(strlen($base64) / 4) * 4, '=');
+        $decoded = base64_decode($padded, strict: true);
+        if ($decoded === false) {
+            return response()->json(['message' => 'Invalid credential.'], 422);
+        }
+        $credentialId = base64_encode($decoded);
 
         $passkey = Passkey::where('credential_id', $credentialId)->first();
         if (! $passkey) {

@@ -36,7 +36,9 @@ export default function PasskeyList({ passkeys }: Props) {
     return (
         <div className="space-y-4">
             {passkeys.length === 0 && (
-                <p className="text-sm text-muted-foreground">No passkeys registered yet.</p>
+                <p className="text-sm text-muted-foreground">
+                    No passkeys registered yet.
+                </p>
             )}
 
             <ul className="space-y-2">
@@ -56,7 +58,10 @@ export default function PasskeyList({ passkeys }: Props) {
                                 </p>
                             </div>
                         </div>
-                        <Form method="delete" action={destroy.url({ passkey: pk.id })}>
+                        <Form
+                            method="delete"
+                            action={destroy.url({ passkey: pk.id })}
+                        >
                             {({ processing }) => (
                                 <Button
                                     type="submit"
@@ -73,10 +78,10 @@ export default function PasskeyList({ passkeys }: Props) {
                 ))}
             </ul>
 
-            {isSupported && (
-                adding ? (
+            {isSupported &&
+                (adding ? (
                     <div className="flex items-end gap-2">
-                        <div className="flex-1 grid gap-2">
+                        <div className="grid flex-1 gap-2">
                             <Label htmlFor="passkey-name">Passkey name</Label>
                             <Input
                                 id="passkey-name"
@@ -86,10 +91,19 @@ export default function PasskeyList({ passkeys }: Props) {
                                 autoFocus
                             />
                         </div>
-                        <Button onClick={handleAdd} disabled={loading || !newName.trim()}>
+                        <Button
+                            onClick={handleAdd}
+                            disabled={loading || !newName.trim()}
+                        >
                             {loading ? 'Adding…' : 'Add'}
                         </Button>
-                        <Button variant="ghost" onClick={() => { setAdding(false); setNewName(''); }}>
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                setAdding(false);
+                                setNewName('');
+                            }}
+                        >
                             Cancel
                         </Button>
                     </div>
@@ -97,8 +111,7 @@ export default function PasskeyList({ passkeys }: Props) {
                     <Button variant="outline" onClick={() => setAdding(true)}>
                         Add passkey
                     </Button>
-                )
-            )}
+                ))}
 
             {error && <p className="text-sm text-destructive">{error}</p>}
         </div>

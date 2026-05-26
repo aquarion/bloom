@@ -119,7 +119,9 @@ export function usePasskey(): UsePasskeyReturn {
 	const abortRef = useRef<AbortController | null>(null);
 
 	const fetchOptions = useCallback(async (url: string) => {
-		const res = await fetch(url, { headers: { Accept: "application/json" } });
+		const res = await fetch(url, {
+			headers: { Accept: "application/json" },
+		});
 
 		if (!res.ok) {
 			throw new Error("Failed to fetch WebAuthn options");
@@ -191,7 +193,10 @@ export function usePasskey(): UsePasskeyReturn {
 						Accept: "application/json",
 						"X-XSRF-TOKEN": getXsrfToken(),
 					},
-					body: JSON.stringify({ name, ...serializeCredential(credential) }),
+					body: JSON.stringify({
+						name,
+						...serializeCredential(credential),
+					}),
 				});
 
 				if (!res.ok) {

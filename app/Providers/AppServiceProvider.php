@@ -26,7 +26,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Passkeys::ignoreRoutes();
+        // laravel/passkeys is a transitive dep of fortify that auto-discovers and registers
+        // its own routes + route model binding; suppress both so our own take precedence.
+        if (class_exists(Passkeys::class)) {
+            Passkeys::ignoreRoutes();
+        }
         Route::model('passkey', Passkey::class);
 
         if (! $this->app->environment('local')) {

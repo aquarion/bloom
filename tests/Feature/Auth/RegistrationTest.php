@@ -25,17 +25,6 @@ test('new users can register', function () {
     $response->assertRedirect(route('passkey.setup'));
 });
 
-test('after registration user is redirected to passkey setup', function () {
-    $response = $this->post(route('register.store'), [
-        'name' => 'Test User',
-        'email' => 'newuser@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
-    ]);
-
-    $response->assertRedirect(route('passkey.setup'));
-});
-
 test('passkey setup page is accessible to authenticated users', function () {
     $user = User::factory()->create();
 

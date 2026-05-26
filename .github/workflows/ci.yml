@@ -100,7 +100,7 @@ jobs:
         run: cp .env.example .env
 
       - name: Generate application key
-        run: php artisan key:generate
+        run: echo "APP_KEY=$(php artisan key:generate --show --no-ansi)" >> "$GITHUB_ENV"
 
       - name: Directory permissions
         run: sudo chmod -R 777 storage bootstrap/cache
@@ -128,6 +128,7 @@ jobs:
       - name: Start Laravel server
         run: php artisan serve --host=0.0.0.0 --port=8000 &
         env:
+          APP_KEY: ${{ env.APP_KEY }}
           APP_URL: http://${{ steps.host-ip.outputs.ip }}:8000
           SESSION_DRIVER: file
           CACHE_STORE: file
@@ -148,6 +149,8 @@ jobs:
 
       - name: Run Dusk tests
         run: php artisan dusk
+        env:
+          APP_KEY: ${{ env.APP_KEY }}
 
   build-and-push:
     needs: [test, dusk-tests]

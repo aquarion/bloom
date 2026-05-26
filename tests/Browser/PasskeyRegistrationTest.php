@@ -10,9 +10,10 @@ test('session is preserved between passkey options GET and register POST', funct
         // Log in via the form with "remember me" so the browser gets a
         // remember_web_* cookie — this is what triggers the session rotation.
         $browser->visit('/login')
+            ->waitFor('#email')
             ->type('email', $user->email)
             ->type('password', 'password')
-            ->check('#remember')
+            ->click('#remember')
             ->press('Log in')
             ->waitForLocation('/dashboard');
 

@@ -151,6 +151,7 @@ jobs:
               echo "Attempt ${i}/30: container not ready, waiting..."
               sleep 2
             done
+            mkdir -p public/build && docker compose cp app:/var/www/html/public/build/assets public/build/
             docker compose exec -T app php artisan migrate --force || {
               echo "ERROR: Migration failed"
               docker compose exec -T app php artisan migrate:status || true
@@ -200,6 +201,7 @@ jobs:
               echo "Attempt ${i}/30: container not ready, waiting..."
               sleep 2
             done
+            mkdir -p public/build && docker compose cp app:/var/www/html/public/build/assets public/build/
             docker compose exec -T app php artisan migrate --force || {
               echo "ERROR: Migration failed"
               docker compose exec -T app php artisan migrate:status || true

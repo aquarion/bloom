@@ -38,6 +38,7 @@ class PasskeyController extends Controller
         $request->validate(['name' => ['required', 'string', 'max:255']]);
 
         $serialized = session('passkey.register.options');
+
         if (! $serialized) {
             return response()->json(['message' => 'No active challenge. Please try again.'], 422);
         }

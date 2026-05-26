@@ -105,6 +105,12 @@ jobs:
       - name: Directory permissions
         run: sudo chmod -R 777 storage bootstrap/cache
 
+      - name: Create database
+        run: touch /tmp/sprouter-dusk.sqlite
+
+      - name: Run migrations
+        run: php artisan migrate --env=dusk.local --force
+
       - name: Build assets
         run: npm run build
 
@@ -115,7 +121,7 @@ jobs:
           echo "ip=${HOST_IP}" >> "$GITHUB_OUTPUT"
 
       - name: Start Laravel server
-        run: php artisan serve --host=0.0.0.0 --port=8000 &
+        run: php artisan serve --env=dusk.local --host=0.0.0.0 --port=8000 &
         env:
           APP_URL: http://${{ steps.host-ip.outputs.ip }}:8000
 

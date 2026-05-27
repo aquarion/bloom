@@ -172,8 +172,8 @@ class PostNormalizer
 
             return [
                 'type' => $a['type'],
-                'url' => $a['url'],
-                'preview_url' => $a['preview_url'],
+                'url' => $this->safeUrl($a['url'] ?? ''),
+                'preview_url' => $this->safeUrl($a['preview_url'] ?? '') ?: null,
                 'alt_text' => $a['description'] ?: null,
             ];
         }, $attachments)));

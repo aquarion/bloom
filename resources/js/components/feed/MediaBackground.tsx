@@ -7,7 +7,7 @@ export function MediaBackground({ media }: { media: MediaAttachment[] }) {
 return null;
 }
 
-	const src = first.type === "video" ? first.preview_url : first.url;
+	const src = first.type === "video" ? (first.preview_url ?? undefined) : first.url;
 
 	return (
 		<div className="pointer-events-none absolute inset-0 z-0">

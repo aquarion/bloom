@@ -36,7 +36,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('settings/connections', function (Request $request) {
         return Inertia::render('settings/connections', [
             'connections' => $request->user()->socialAccounts()
-                ->select('provider', 'handle', 'instance_url')
+                ->select('id', 'provider', 'handle', 'instance_url', 'auth_failed_at')
                 ->get(),
             'status' => $request->session()->get('status'),
         ]);

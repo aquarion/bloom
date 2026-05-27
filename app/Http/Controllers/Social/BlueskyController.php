@@ -16,32 +16,45 @@ class BlueskyController extends Controller
         $request->validate([
             'handle' => 'required|string',
             'app_password' => 'required|string',
+            'pds_url' => 'nullable|url',
         ]);
+
+        $pdsUrl = $request->input('pds_url') ?: 'https://bsky.social';
 
         $result = $this->auth->createSession(
             $request->input('handle'),
             $request->input('app_password'),
+            $pdsUrl,
         );
 
-        SocialAccount::updateOrCreate(
-            ['user_id' => $request->user()->id, 'provider' => 'bluesky'],
-            [
-                'instance_url' => 'https://bsky.social',
-                'access_token' => $result['access_token'],
-                'token_secret' => $result['refresh_token'],
-                'handle' => $result['handle'],
-            ]
-        );
+        $exists = $request->user()->socialAccounts()
+            ->where('provider', 'bluesky')
+            ->where('instance_url', $pdsUrl)
+            ->where('handle', $result['handle'])
+            ->exists();
+
+        if ($exists) {
+            return redirect()->route('connections.edit')
+                ->with('status', 'bluesky-already-connected');
+        }
+
+        $request->user()->socialAccounts()->create([
+            'provider' => 'bluesky',
+            'instance_url' => $pdsUrl,
+            'access_token' => $result['access_token'],
+            'token_secret' => $result['refresh_token'],
+            'handle' => $result['handle'],
+        ]);
 
         return redirect()->route('connections.edit')
             ->with('status', 'bluesky-connected');
     }
 
-    public function destroy(Request $request)
+    public function destroy(Request $request, SocialAccount $account)
     {
-        $request->user()->socialAccounts()
-            ->where('provider', 'bluesky')
-            ->delete();
+        abort_unless($account->user_id === $request->user()->id, 403);
+
+        $account->delete();
 
         return redirect()->route('connections.edit')
             ->with('status', 'bluesky-disconnected');

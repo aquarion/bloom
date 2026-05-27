@@ -45,11 +45,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Mastodon OAuth
     Route::post('auth/mastodon', [MastodonController::class, 'redirect'])->name('mastodon.redirect');
     Route::get('auth/mastodon/callback', [MastodonController::class, 'callback'])->name('mastodon.callback');
-    Route::delete('auth/mastodon', [MastodonController::class, 'destroy'])->name('mastodon.destroy');
+    Route::delete('auth/mastodon/{account}', [MastodonController::class, 'destroy'])->name('mastodon.destroy');
 
     // Bluesky app password
     Route::post('auth/bluesky', [BlueskyController::class, 'store'])->name('bluesky.store');
-    Route::delete('auth/bluesky', [BlueskyController::class, 'destroy'])->name('bluesky.destroy');
+    Route::delete('auth/bluesky/{account}', [BlueskyController::class, 'destroy'])->name('bluesky.destroy');
 
     // Passkey management
     Route::get('settings/passkeys/register/options', [PasskeyController::class, 'registerOptions'])

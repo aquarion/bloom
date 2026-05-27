@@ -37,7 +37,7 @@ it('validates instance_url on redirect', function () {
     $response->assertSessionHasErrors('instance_url');
 });
 
-it('saves the mastodon account on callback and redirects', function () {
+it('saves a new mastodon account on callback', function () {
     $user = User::factory()->create();
     $service = Mockery::mock(MastodonOAuthService::class);
     $service->shouldReceive('getStoredCredentials')
@@ -64,46 +64,107 @@ it('saves the mastodon account on callback and redirects', function () {
     ]);
 });
 
-it('updates an existing mastodon account on re-connect', function () {
+it('allows connecting a second mastodon account on a different instance', function () {
     $user = User::factory()->create();
     SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',
-        'handle' => '@old@fosstodon.org',
         'instance_url' => 'https://fosstodon.org',
+        'handle' => '@alice@fosstodon.org',
     ]);
 
     $service = Mockery::mock(MastodonOAuthService::class);
     $service->shouldReceive('getStoredCredentials')->andReturn(['client_id' => 'cid', 'client_secret' => 'csecret']);
-    $service->shouldReceive('exchangeCode')->andReturn(['access_token' => 'newtok', 'handle' => '@new@fosstodon.org']);
+    $service->shouldReceive('exchangeCode')->andReturn(['access_token' => 'tok', 'handle' => '@alice@mastodon.social']);
     $this->app->instance(MastodonOAuthService::class, $service);
 
-    $this->actingAs($user)
-        ->withSession(['mastodon_instance' => 'https://fosstodon.org', 'mastodon_oauth_state' => 'teststate'])
-        ->get('/auth/mastodon/callback?code=authcode&state=teststate');
+    $response = $this->actingAs($user)
+        ->withSession(['mastodon_instance' => 'https://mastodon.social', 'mastodon_oauth_state' => 'state'])
+        ->get('/auth/mastodon/callback?code=code&state=state');
 
-    $this->assertDatabaseCount('social_accounts', 1);
-    $this->assertDatabaseHas('social_accounts', ['handle' => '@new@fosstodon.org']);
+    $response->assertSessionHas('status', 'mastodon-connected');
+    $this->assertDatabaseCount('social_accounts', 2);
 });
 
-it('disconnects mastodon and redirects', function () {
+it('allows connecting accounts with the same handle on different instances', function () {
     $user = User::factory()->create();
-    SocialAccount::factory()->create(['user_id' => $user->id, 'provider' => 'mastodon']);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'handle' => '@alice@fosstodon.org',
+    ]);
 
-    $response = $this->actingAs($user)->delete('/auth/mastodon');
+    $service = Mockery::mock(MastodonOAuthService::class);
+    $service->shouldReceive('getStoredCredentials')->andReturn(['client_id' => 'cid', 'client_secret' => 'csecret']);
+    $service->shouldReceive('exchangeCode')->andReturn(['access_token' => 'tok', 'handle' => '@alice@fosstodon.org']);
+    $this->app->instance(MastodonOAuthService::class, $service);
+
+    // Different instance, same handle — should succeed
+    $response = $this->actingAs($user)
+        ->withSession(['mastodon_instance' => 'https://social.coop', 'mastodon_oauth_state' => 'state'])
+        ->get('/auth/mastodon/callback?code=code&state=state');
+
+    $response->assertSessionHas('status', 'mastodon-connected');
+    $this->assertDatabaseCount('social_accounts', 2);
+});
+
+it('redirects with mastodon-already-connected for a duplicate instance and handle', function () {
+    $user = User::factory()->create();
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'handle' => '@alice@fosstodon.org',
+    ]);
+
+    $service = Mockery::mock(MastodonOAuthService::class);
+    $service->shouldReceive('getStoredCredentials')->andReturn(['client_id' => 'cid', 'client_secret' => 'csecret']);
+    $service->shouldReceive('exchangeCode')->andReturn(['access_token' => 'tok', 'handle' => '@alice@fosstodon.org']);
+    $this->app->instance(MastodonOAuthService::class, $service);
+
+    $response = $this->actingAs($user)
+        ->withSession(['mastodon_instance' => 'https://fosstodon.org', 'mastodon_oauth_state' => 'state'])
+        ->get('/auth/mastodon/callback?code=code&state=state');
+
+    $response->assertSessionHas('status', 'mastodon-already-connected');
+    $this->assertDatabaseCount('social_accounts', 1);
+});
+
+it('disconnects a specific mastodon account by id', function () {
+    $user = User::factory()->create();
+    $first = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'handle' => '@first@fosstodon.org',
+    ]);
+    $second = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://mastodon.social',
+        'handle' => '@first@mastodon.social',
+    ]);
+
+    $response = $this->actingAs($user)->delete("/auth/mastodon/{$first->id}");
 
     $response->assertRedirect(route('connections.edit'));
     $response->assertSessionHas('status', 'mastodon-disconnected');
-    $this->assertDatabaseMissing('social_accounts', ['user_id' => $user->id, 'provider' => 'mastodon']);
+    $this->assertDatabaseMissing('social_accounts', ['id' => $first->id]);
+    $this->assertDatabaseHas('social_accounts', ['id' => $second->id]);
 });
 
-it('only disconnects the authenticated users mastodon account', function () {
+it('returns 403 when attempting to disconnect another users mastodon account', function () {
     $user = User::factory()->create();
     $other = User::factory()->create();
-    SocialAccount::factory()->create(['user_id' => $user->id, 'provider' => 'mastodon']);
-    $othersAccount = SocialAccount::factory()->create(['user_id' => $other->id, 'provider' => 'mastodon']);
+    $othersAccount = SocialAccount::factory()->create([
+        'user_id' => $other->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://mastodon.social',
+    ]);
 
-    $this->actingAs($user)->delete('/auth/mastodon');
+    $response = $this->actingAs($user)->delete("/auth/mastodon/{$othersAccount->id}");
 
+    $response->assertForbidden();
     $this->assertDatabaseHas('social_accounts', ['id' => $othersAccount->id]);
 });

@@ -265,15 +265,17 @@ export function PostAnimator({
 					? firstMedia.preview_url
 					: firstMedia.url;
 
-			return (
-				<div className="flex h-full w-full items-center justify-center p-4">
-					<img
-						src={displaySrc ?? ""}
-						alt={firstMedia.alt_text ?? ""}
-						className="max-h-full max-w-full rounded object-contain"
-					/>
-				</div>
-			);
+			if (displaySrc) {
+				return (
+					<div className="flex h-full w-full items-center justify-center p-4">
+						<img
+							src={displaySrc}
+							alt={firstMedia.alt_text ?? ""}
+							className="max-h-full max-w-full rounded object-contain"
+						/>
+					</div>
+				);
+			}
 		}
 
 		if (post.link_url || post.quoted_post || post.reply_to) {

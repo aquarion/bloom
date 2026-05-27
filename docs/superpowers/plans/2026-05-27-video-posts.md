@@ -58,11 +58,11 @@ it('normalises a bluesky video embed post', function () {
 
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
-    expect($post->media)->toHaveCount(1)
-        ->and($post->media[0]['type'])->toBe('video')
-        ->and($post->media[0]['url'])->toBe('https://video.bsky.app/watch/did:plc:abc/playlist.m3u8')
-        ->and($post->media[0]['preview_url'])->toBe('https://video.bsky.app/watch/did:plc:abc/thumbnail.jpg')
-        ->and($post->media[0]['alt_text'])->toBe('A test video');
+    expect($post['media'])->toHaveCount(1)
+        ->and($post['media'][0]['type'])->toBe('video')
+        ->and($post['media'][0]['url'])->toBe('https://video.bsky.app/watch/did:plc:abc/playlist.m3u8')
+        ->and($post['media'][0]['preview_url'])->toBe('https://video.bsky.app/watch/did:plc:abc/thumbnail.jpg')
+        ->and($post['media'][0]['alt_text'])->toBe('A test video');
 });
 
 it('normalises a bluesky video embed post with no thumbnail', function () {
@@ -85,11 +85,11 @@ it('normalises a bluesky video embed post with no thumbnail', function () {
 
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
-    expect($post->media)->toHaveCount(1)
-        ->and($post->media[0]['type'])->toBe('video')
-        ->and($post->media[0]['url'])->toBe('https://video.bsky.app/watch/did:plc:abc/playlist2.m3u8')
-        ->and($post->media[0]['preview_url'])->toBeNull()
-        ->and($post->media[0]['alt_text'])->toBeNull();
+    expect($post['media'])->toHaveCount(1)
+        ->and($post['media'][0]['type'])->toBe('video')
+        ->and($post['media'][0]['url'])->toBe('https://video.bsky.app/watch/did:plc:abc/playlist2.m3u8')
+        ->and($post['media'][0]['preview_url'])->toBeNull()
+        ->and($post['media'][0]['alt_text'])->toBeNull();
 });
 ```
 
@@ -198,11 +198,11 @@ it('normalises a mastodon video attachment', function () {
 
     $post = (new PostNormalizer)->fromMastodon($status);
 
-    expect($post->media)->toHaveCount(1)
-        ->and($post->media[0]['type'])->toBe('video')
-        ->and($post->media[0]['url'])->toBe('https://fosstodon.org/media/video.mp4')
-        ->and($post->media[0]['preview_url'])->toBe('https://fosstodon.org/media/video_thumb.jpg')
-        ->and($post->media[0]['alt_text'])->toBe('A cat video');
+    expect($post['media'])->toHaveCount(1)
+        ->and($post['media'][0]['type'])->toBe('video')
+        ->and($post['media'][0]['url'])->toBe('https://fosstodon.org/media/video.mp4')
+        ->and($post['media'][0]['preview_url'])->toBe('https://fosstodon.org/media/video_thumb.jpg')
+        ->and($post['media'][0]['alt_text'])->toBe('A cat video');
 });
 ```
 

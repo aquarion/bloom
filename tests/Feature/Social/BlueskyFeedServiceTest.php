@@ -211,3 +211,58 @@ it('does not retry on non-expiry errors', function () {
     expect(fn () => $service->getHomeTimeline($account))
         ->toThrow(RequestException::class);
 });
+
+it('sets auth_failed_at when the refresh token is rejected', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'expired-token',
+        'token_secret' => 'revoked-refresh-token',
+        'auth_failed_at' => null,
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getTimeline*' => Http::response(
+            ['error' => 'ExpiredToken', 'message' => 'Token has expired'], 400
+        ),
+        'bsky.social/xrpc/com.atproto.server.refreshSession' => Http::response(
+            ['error' => 'ExpiredToken', 'message' => 'Token has expired'], 400
+        ),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+
+    expect(fn () => $service->getHomeTimeline($account))
+        ->toThrow(RequestException::class);
+
+    expect($account->fresh()->auth_failed_at)->not->toBeNull();
+});
+
+it('clears auth_failed_at on successful token refresh', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'expired-token',
+        'token_secret' => 'valid-refresh-token',
+        'auth_failed_at' => now()->subHour(),
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/com.atproto.server.refreshSession' => Http::response([
+            'accessJwt' => 'new-access-token',
+            'refreshJwt' => 'new-refresh-token',
+        ]),
+        'bsky.social/xrpc/app.bsky.feed.getTimeline*' => Http::sequence()
+            ->push(['error' => 'ExpiredToken', 'message' => 'Token has expired'], 400)
+            ->push(['feed' => [['post' => ['uri' => 'at://did/app.bsky.feed.post/abc', 'record' => []]]], 'cursor' => null]),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $service->getHomeTimeline($account);
+
+    expect($account->fresh()->auth_failed_at)->toBeNull();
+});

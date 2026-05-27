@@ -124,17 +124,36 @@ class BlueskyFeedService
     private function request(SocialAccount $account, callable $call): array
     {
         try {
-            return $call($account->access_token);
+            $result = $call($account->access_token);
+
+            // Clear any previous auth failure on success
+            if ($account->auth_failed_at !== null) {
+                $account->update(['auth_failed_at' => null]);
+            }
+
+            return $result;
         } catch (RequestException $e) {
             if (($e->response->json('error') ?? '') !== 'ExpiredToken') {
                 throw $e;
             }
 
-            $tokens = $this->auth->refreshSession($account->token_secret);
+            try {
+                $tokens = $this->auth->refreshSession(
+                    $account->token_secret,
+                    $account->instance_url ?? 'https://bsky.social',
+                );
+            } catch (RequestException $refreshException) {
+                // 4xx means credentials are gone (expired/revoked), not a transient error
+                if ($refreshException->response->status() < 500) {
+                    $account->update(['auth_failed_at' => now()]);
+                }
+                throw $refreshException;
+            }
 
             $account->update([
                 'access_token' => $tokens['access_token'],
                 'token_secret' => $tokens['refresh_token'],
+                'auth_failed_at' => null,
             ]);
 
             return $call($tokens['access_token']);

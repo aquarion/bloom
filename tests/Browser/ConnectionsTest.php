@@ -8,14 +8,8 @@ test('connections page loads with provider sections', function () {
     $user = User::factory()->create();
 
     $this->browse(function (Browser $browser) use ($user) {
-        $browser->visit('/login')
-            ->waitFor('#email')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('Log in')
-            ->waitForLocation('/dashboard');
-
-        $browser->visit('/settings/connections')
+        $browser->loginAs($user)
+            ->visit('/settings/connections')
             ->assertPathIs('/settings/connections')
             ->assertSee('Mastodon')
             ->assertSee('Bluesky');
@@ -33,14 +27,8 @@ test('connected mastodon account is displayed with disconnect button', function 
     ]);
 
     $this->browse(function (Browser $browser) use ($user) {
-        $browser->visit('/login')
-            ->waitFor('#email')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('Log in')
-            ->waitForLocation('/dashboard');
-
-        $browser->visit('/settings/connections')
+        $browser->loginAs($user)
+            ->visit('/settings/connections')
             ->assertSee('@alice@fosstodon.org')
             ->assertSee('Disconnect');
     });
@@ -57,14 +45,8 @@ test('connected bluesky account is displayed with disconnect button', function (
     ]);
 
     $this->browse(function (Browser $browser) use ($user) {
-        $browser->visit('/login')
-            ->waitFor('#email')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('Log in')
-            ->waitForLocation('/dashboard');
-
-        $browser->visit('/settings/connections')
+        $browser->loginAs($user)
+            ->visit('/settings/connections')
             ->assertSee('@alice.bsky.social')
             ->assertSee('Disconnect');
     });
@@ -88,14 +70,8 @@ test('multiple mastodon accounts all appear', function () {
     ]);
 
     $this->browse(function (Browser $browser) use ($user) {
-        $browser->visit('/login')
-            ->waitFor('#email')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('Log in')
-            ->waitForLocation('/dashboard');
-
-        $browser->visit('/settings/connections')
+        $browser->loginAs($user)
+            ->visit('/settings/connections')
             ->assertSee('@alice@fosstodon.org')
             ->assertSee('@alice@mastodon.social');
     });
@@ -119,14 +95,8 @@ test('multiple bluesky accounts all appear', function () {
     ]);
 
     $this->browse(function (Browser $browser) use ($user) {
-        $browser->visit('/login')
-            ->waitFor('#email')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('Log in')
-            ->waitForLocation('/dashboard');
-
-        $browser->visit('/settings/connections')
+        $browser->loginAs($user)
+            ->visit('/settings/connections')
             ->assertSee('@alice.bsky.social')
             ->assertSee('@work.bsky.social');
     });
@@ -150,14 +120,8 @@ test('disconnecting a mastodon account removes it and leaves others', function (
     ]);
 
     $this->browse(function (Browser $browser) use ($user, $remove) {
-        $browser->visit('/login')
-            ->waitFor('#email')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('Log in')
-            ->waitForLocation('/dashboard');
-
-        $browser->visit('/settings/connections')
+        $browser->loginAs($user)
+            ->visit('/settings/connections')
             ->assertSee('@remove@mastodon.social');
 
         $browser->within('@account-'.$remove->id, function (Browser $li) {
@@ -188,14 +152,8 @@ test('disconnecting a bluesky account removes it and leaves others', function ()
     ]);
 
     $this->browse(function (Browser $browser) use ($user, $remove) {
-        $browser->visit('/login')
-            ->waitFor('#email')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('Log in')
-            ->waitForLocation('/dashboard');
-
-        $browser->visit('/settings/connections')
+        $browser->loginAs($user)
+            ->visit('/settings/connections')
             ->assertSee('@remove.bsky.social');
 
         $browser->within('@account-'.$remove->id, function (Browser $li) {
@@ -219,14 +177,8 @@ test('account with auth_failed_at shows reconnect warning', function () {
     ]);
 
     $this->browse(function (Browser $browser) use ($user) {
-        $browser->visit('/login')
-            ->waitFor('#email')
-            ->type('email', $user->email)
-            ->type('password', 'password')
-            ->press('Log in')
-            ->waitForLocation('/dashboard');
-
-        $browser->visit('/settings/connections')
+        $browser->loginAs($user)
+            ->visit('/settings/connections')
             ->assertSee('@stale.bsky.social')
             ->assertSee('needs reconnecting');
     });

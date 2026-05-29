@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { CircleAlert, FolderGit2, LayoutGrid, Rss, Users } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -49,6 +49,8 @@ const mainNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { appVersion } = usePage().props;
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -69,6 +71,22 @@ export function AppSidebar() {
 
             <SidebarFooter>
                 <NavFooter items={footerNavItems} className="mt-auto" />
+                {appVersion && (
+                    <div className="group-data-[collapsible=icon]:hidden px-3 pb-1 text-xs text-neutral-500 dark:text-neutral-400">
+                        {appVersion.url ? (
+                            <a
+                                href={appVersion.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                            >
+                                {appVersion.label}
+                            </a>
+                        ) : (
+                            <span>{appVersion.label}</span>
+                        )}
+                    </div>
+                )}
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

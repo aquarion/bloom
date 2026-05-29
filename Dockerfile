@@ -39,6 +39,10 @@ ARG APP_VERSION=dev
 ARG APP_PR_NUMBER=
 ARG APP_BRANCH=
 
+ENV APP_VERSION=$APP_VERSION
+ENV APP_PR_NUMBER=$APP_PR_NUMBER
+ENV APP_BRANCH=$APP_BRANCH
+
 LABEL org.opencontainers.image.version=$APP_VERSION \
       org.opencontainers.image.revision=$APP_PR_NUMBER \
       org.opencontainers.image.ref.name=$APP_BRANCH

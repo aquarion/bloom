@@ -32,10 +32,18 @@ return new class extends Migration
             }
         }
 
-        if (! Schema::hasColumn('social_accounts', 'auth_failed_at')) {
-            Schema::table('social_accounts', function (Blueprint $table) {
-                $table->timestamp('auth_failed_at')->nullable()->after('handle');
-            });
+        try {
+            if (! Schema::hasColumn('social_accounts', 'auth_failed_at')) {
+                Schema::table('social_accounts', function (Blueprint $table) {
+                    $table->timestamp('auth_failed_at')->nullable()->after('handle');
+                });
+            }
+        } catch (QueryException $e) {
+            // MySQL 1060 = duplicate column; SQLite may report "already exists"
+            if (! str_contains($e->getMessage(), 'Duplicate column name')
+                && ! str_contains($e->getMessage(), 'already exists')) {
+                throw $e;
+            }
         }
 
         // Now safe to drop the old index: the new one already covers user_id for the FK.
@@ -78,10 +86,18 @@ return new class extends Migration
             }
         }
 
-        if (Schema::hasColumn('social_accounts', 'auth_failed_at')) {
-            Schema::table('social_accounts', function (Blueprint $table) {
-                $table->dropColumn('auth_failed_at');
-            });
+        try {
+            if (Schema::hasColumn('social_accounts', 'auth_failed_at')) {
+                Schema::table('social_accounts', function (Blueprint $table) {
+                    $table->dropColumn('auth_failed_at');
+                });
+            }
+        } catch (QueryException $e) {
+            if (! str_contains($e->getMessage(), "Can't DROP")
+                && ! str_contains($e->getMessage(), 'check that column/key exists')
+                && ! str_contains($e->getMessage(), 'no such column')) {
+                throw $e;
+            }
         }
     }
 };

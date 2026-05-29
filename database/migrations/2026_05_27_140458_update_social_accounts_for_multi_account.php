@@ -9,35 +9,57 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Backfill instance_url for existing Bluesky rows (created before instance_url was required)
+        // Backfill (idempotent: WHERE clause skips rows already updated)
         DB::table('social_accounts')
             ->where('provider', 'bluesky')
             ->whereNull('instance_url')
             ->update(['instance_url' => 'https://bsky.social']);
 
-        // Add new index and column first, so user_id FK is covered before we drop the old index.
-        // MySQL refuses to drop an index if it's the only one covering a FK column.
-        Schema::table('social_accounts', function (Blueprint $table) {
-            $table->unique(['user_id', 'provider', 'instance_url', 'handle']);
-            $table->timestamp('auth_failed_at')->nullable()->after('handle');
-        });
+        $indexes = collect(Schema::getIndexes('social_accounts'))->pluck('name');
 
-        // Now safe to drop: the new index already covers user_id for the FK constraint.
-        Schema::table('social_accounts', function (Blueprint $table) {
-            $table->dropUnique(['user_id', 'provider']);
-        });
+        // Add new unique index if not already present.
+        // Must come before dropUnique: MySQL (error 1553) refuses to drop an index that
+        // is the only one covering a FK column; the new index also starts with user_id.
+        if (! $indexes->contains('social_accounts_user_id_provider_instance_url_handle_unique')) {
+            Schema::table('social_accounts', function (Blueprint $table) {
+                $table->unique(['user_id', 'provider', 'instance_url', 'handle']);
+            });
+        }
+
+        if (! Schema::hasColumn('social_accounts', 'auth_failed_at')) {
+            Schema::table('social_accounts', function (Blueprint $table) {
+                $table->timestamp('auth_failed_at')->nullable()->after('handle');
+            });
+        }
+
+        // Drop old index once the new one exists to satisfy the FK requirement.
+        if ($indexes->contains('social_accounts_user_id_provider_unique')) {
+            Schema::table('social_accounts', function (Blueprint $table) {
+                $table->dropUnique(['user_id', 'provider']);
+            });
+        }
     }
 
     public function down(): void
     {
-        // Re-add the old index before dropping the new one (same FK coverage logic).
-        Schema::table('social_accounts', function (Blueprint $table) {
-            $table->unique(['user_id', 'provider']);
-        });
+        $indexes = collect(Schema::getIndexes('social_accounts'))->pluck('name');
 
-        Schema::table('social_accounts', function (Blueprint $table) {
-            $table->dropUnique(['user_id', 'provider', 'instance_url', 'handle']);
-            $table->dropColumn('auth_failed_at');
-        });
+        if (! $indexes->contains('social_accounts_user_id_provider_unique')) {
+            Schema::table('social_accounts', function (Blueprint $table) {
+                $table->unique(['user_id', 'provider']);
+            });
+        }
+
+        if ($indexes->contains('social_accounts_user_id_provider_instance_url_handle_unique')) {
+            Schema::table('social_accounts', function (Blueprint $table) {
+                $table->dropUnique(['user_id', 'provider', 'instance_url', 'handle']);
+            });
+        }
+
+        if (Schema::hasColumn('social_accounts', 'auth_failed_at')) {
+            Schema::table('social_accounts', function (Blueprint $table) {
+                $table->dropColumn('auth_failed_at');
+            });
+        }
     }
 };

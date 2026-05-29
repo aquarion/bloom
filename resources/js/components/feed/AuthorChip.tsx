@@ -14,11 +14,11 @@ export function AuthorChip({
 	subtext?: ReactNode;
 }) {
 	return (
-		<div className="flex min-w-0 flex-1 items-center gap-2">
+		<div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full bg-white/10 pl-1 pr-3">
 			<img
 				src={avatar || sprouter}
 				alt={name}
-				className="h-7 w-7 flex-shrink-0 rounded-full object-cover"
+				className="h-6 w-6 flex-shrink-0 rounded-full object-cover"
 			/>
 			<div className="min-w-0 flex-1">
 				<p className="truncate text-xs font-bold text-white">

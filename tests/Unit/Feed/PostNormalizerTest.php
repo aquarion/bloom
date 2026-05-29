@@ -902,3 +902,69 @@ it('returns null reply_to when bluesky parent has no record text', function () {
 
     expect($post['reply_to'])->toBeNull();
 });
+
+it('truncates a mastodon body that exceeds feed.body_limit', function () {
+    config(['feed.body_limit' => 20]);
+    $status = [
+        'id' => '1',
+        'content' => '<p>'.str_repeat('a', 30).'</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['body'])->toEndWith('…')
+        ->and(mb_strlen($post['body']))->toBeLessThanOrEqual(21);
+});
+
+it('does not truncate a mastodon body within feed.body_limit', function () {
+    config(['feed.body_limit' => 100]);
+    $status = [
+        'id' => '1',
+        'content' => '<p>short body</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['body'])->toBe('short body');
+});
+
+it('truncates a bluesky body that exceeds feed.body_limit', function () {
+    config(['feed.body_limit' => 20]);
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => str_repeat('b', 30), 'createdAt' => '2024-01-15T10:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toEndWith('…')
+        ->and(mb_strlen($post['body']))->toBeLessThanOrEqual(21);
+});
+
+it('does not truncate a bluesky body within feed.body_limit', function () {
+    config(['feed.body_limit' => 100]);
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'short body', 'createdAt' => '2024-01-15T10:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toBe('short body');
+});

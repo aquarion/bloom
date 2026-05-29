@@ -1,29 +1,50 @@
 import { Head, Link } from '@inertiajs/react';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
+import { Rss, Settings, Users } from 'lucide-react';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { dashboard, feed } from '@/routes';
 import { edit as editConnections } from '@/routes/connections';
+import { edit as editProfile } from '@/routes/profile';
 
 export default function Dashboard() {
     return (
         <>
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <div className="flex flex-col items-center justify-center gap-4 py-8">
-                    <Link
-                        href={feed().url}
-                        className="rounded-lg bg-black px-8 py-4 text-lg font-bold text-white transition hover:bg-gray-900 dark:bg-white dark:text-black dark:hover:bg-gray-100"
-                    >
-                        Open Feed →
-                    </Link>
-                    <Link
-                        href={editConnections().url}
-                        className="text-sm text-muted-foreground underline"
-                    >
-                        Manage connected accounts
-                    </Link>
+                <div className="px-1 py-4">
+                    <h1 className="text-2xl font-bold tracking-tight">Welcome to Sprouter</h1>
+                    <p className="mt-1 text-muted-foreground">
+                        A full-screen, auto-advancing social media reader for Mastodon and Bluesky. Connect your
+                        accounts, then open the feed to watch posts cycle through with animated text.
+                    </p>
                 </div>
-                <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <Link href={feed().url}>
+                        <Card className="h-full transition-colors hover:bg-muted/50">
+                            <CardHeader>
+                                <Rss className="mb-2 size-6" />
+                                <CardTitle>Feed</CardTitle>
+                                <CardDescription>View your social media feed</CardDescription>
+                            </CardHeader>
+                        </Card>
+                    </Link>
+                    <Link href={editConnections().url}>
+                        <Card className="h-full transition-colors hover:bg-muted/50">
+                            <CardHeader>
+                                <Users className="mb-2 size-6" />
+                                <CardTitle>Accounts</CardTitle>
+                                <CardDescription>Manage your connected social accounts</CardDescription>
+                            </CardHeader>
+                        </Card>
+                    </Link>
+                    <Link href={editProfile().url}>
+                        <Card className="h-full transition-colors hover:bg-muted/50">
+                            <CardHeader>
+                                <Settings className="mb-2 size-6" />
+                                <CardTitle>Settings</CardTitle>
+                                <CardDescription>Update your profile and preferences</CardDescription>
+                            </CardHeader>
+                        </Card>
+                    </Link>
                 </div>
             </div>
         </>

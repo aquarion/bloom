@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { SiBluesky, SiMastodon } from 'react-icons/si';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -60,7 +61,7 @@ export default function Connections({
 
                 {/* Mastodon */}
                 <div className="rounded-lg border p-6">
-                    <h3 className="mb-4 text-base font-semibold">Mastodon</h3>
+                    <h3 className="mb-4 flex items-center gap-2 text-base font-semibold"><SiMastodon className="size-4" /> Mastodon</h3>
 
                     {mastodonConnections.length > 0 && (
                         <div className="mb-4">
@@ -98,24 +99,28 @@ export default function Connections({
 
                     <div className="rounded-md border bg-muted/50 p-4">
                         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Add account</p>
-                        <form action={mastodon.redirect.url()} method="post" className="space-y-3">
-                            <input type="hidden" name="_token" value={document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content} />
-                            <div className="space-y-1">
-                                <Label htmlFor="instance_url">Instance URL</Label>
-                                <Input
-                                    id="instance_url"
-                                    name="instance_url"
-                                    placeholder="https://mastodon.social"
-                                />
-                            </div>
-                            <Button type="submit">Connect Mastodon</Button>
-                        </form>
+                        <Form {...mastodon.redirect.form()} className="space-y-3">
+                            {({ processing, errors }) => (
+                                <>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="instance_url">Instance URL</Label>
+                                        <Input
+                                            id="instance_url"
+                                            name="instance_url"
+                                            placeholder="https://mastodon.social"
+                                        />
+                                        <InputError message={errors.instance_url} />
+                                    </div>
+                                    <Button type="submit" disabled={processing}>Connect Mastodon</Button>
+                                </>
+                            )}
+                        </Form>
                     </div>
                 </div>
 
                 {/* Bluesky */}
                 <div className="rounded-lg border p-6">
-                    <h3 className="mb-4 text-base font-semibold">Bluesky</h3>
+                    <h3 className="mb-4 flex items-center gap-2 text-base font-semibold"><SiBluesky className="size-4" /> Bluesky</h3>
 
                     {blueskyConnections.length > 0 && (
                         <div className="mb-4">

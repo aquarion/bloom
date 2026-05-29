@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Social;
 
 use App\Http\Controllers\Controller;
 use App\Services\Mastodon\MastodonOAuthService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class MastodonController extends Controller
 {
@@ -13,6 +15,11 @@ class MastodonController extends Controller
 
     public function redirect(Request $request)
     {
+        $raw = $request->input('instance_url', '');
+        if ($raw && ! str_contains($raw, '://')) {
+            $request->merge(['instance_url' => 'https://'.$raw]);
+        }
+
         $request->validate(['instance_url' => 'required|url']);
 
         $instance = rtrim($request->input('instance_url'), '/');
@@ -23,7 +30,19 @@ class MastodonController extends Controller
 
         session(['mastodon_instance' => $instance]);
 
-        return redirect($this->oauth->getAuthorizeUrl($instance, $redirectUri));
+        try {
+            $authorizeUrl = $this->oauth->getAuthorizeUrl($instance, $redirectUri);
+        } catch (ConnectionException) {
+            throw ValidationException::withMessages([
+                'instance_url' => 'Could not connect to that Mastodon instance. Check the URL and try again.',
+            ]);
+        } catch (\Exception) {
+            throw ValidationException::withMessages([
+                'instance_url' => 'That doesn\'t appear to be a Mastodon instance.',
+            ]);
+        }
+
+        return Inertia::location($authorizeUrl);
     }
 
     public function callback(Request $request)
@@ -81,7 +100,7 @@ class MastodonController extends Controller
         $ip = gethostbyname($host);
 
         if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-            throw ValidationException::withMessages(['instance_url' => 'Instance URL is not allowed.']);
+            throw ValidationException::withMessages(['instance_url' => 'Could not resolve that domain. Check the URL and try again.']);
         }
     }
 }

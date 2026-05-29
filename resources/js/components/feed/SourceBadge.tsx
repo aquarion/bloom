@@ -1,23 +1,18 @@
+import { SiBluesky, SiMastodon } from "react-icons/si";
 import type { Post } from "@/types/post";
 
-const COLORS = {
-	mastodon: "#6364ff",
-	bluesky: "#0085ff",
+const ICONS = {
+	mastodon: SiMastodon,
+	bluesky: SiBluesky,
 } as const;
 
 export function SourceBadge({ post }: { post: Post }) {
-	const label =
-		post.source === "mastodon"
-			? (post.author_handle.split("@").pop() ?? "mastodon")
-			: "bsky.app";
+	const Icon = ICONS[post.source];
 
 	return (
-		<div className="flex items-center gap-1.5 self-start rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/60">
-			<span
-				className="h-1.5 w-1.5 rounded-full"
-				style={{ background: COLORS[post.source] }}
-			/>
-			{label}
+		<div className="flex h-7 items-center gap-1.5 self-start rounded-full bg-white/10 px-2.5 text-xs text-white/60">
+			<Icon className="size-3" />
+			{post.source_handle}
 		</div>
 	);
 }

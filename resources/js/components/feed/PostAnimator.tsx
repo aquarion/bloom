@@ -1,6 +1,7 @@
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Quote, Reply } from "lucide-react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { pickTemplate, SplitText } from "@/lib/animations";
 import type { AnimationTemplate } from "@/lib/animations/types";
 import { splitIntoLinesWithBoundaries } from "@/lib/block-text";
@@ -27,7 +28,7 @@ function ContextPanel({
 	body,
 	original_url,
 }: {
-	icon: string;
+	icon: React.ReactNode;
 	author_name: string;
 	author_avatar: string;
 	author_handle: string;
@@ -284,7 +285,7 @@ export function PostAnimator({
 					<div className="flex flex-col items-center gap-4">
 						{post.reply_to && (
 							<ContextPanel
-								icon="↩"
+								icon={<Reply className="size-3.5" />}
 								author_name={post.reply_to.author_name}
 								author_avatar={post.reply_to.author_avatar}
 								author_handle={post.reply_to.author_handle}
@@ -295,7 +296,7 @@ export function PostAnimator({
 						)}
 						{post.quoted_post && (
 							<ContextPanel
-								icon="❝"
+								icon={<Quote className="size-3.5" />}
 								author_name={post.quoted_post.author_name}
 								author_avatar={post.quoted_post.author_avatar}
 								author_handle={post.quoted_post.author_handle}
@@ -325,7 +326,7 @@ export function PostAnimator({
 			<div className="flex flex-col items-center gap-4">
 				{post.reply_to && (
 					<ContextPanel
-						icon="↩"
+						icon={<Reply className="size-3.5" />}
 						author_name={post.reply_to.author_name}
 						author_avatar={post.reply_to.author_avatar}
 						author_handle={post.reply_to.author_handle}
@@ -336,7 +337,7 @@ export function PostAnimator({
 				)}
 				{post.quoted_post && (
 					<ContextPanel
-						icon="❝"
+						icon={<Quote className="size-3.5" />}
 						author_name={post.quoted_post.author_name}
 						author_avatar={post.quoted_post.author_avatar}
 						author_handle={post.quoted_post.author_handle}

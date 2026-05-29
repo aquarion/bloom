@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { CircleAlert, FolderGit2, LayoutGrid, Rss, Users } from 'lucide-react';
+import { CircleAlert, FolderGit2, LayoutGrid, Rss, Settings, Users } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard, feed } from '@/routes';
 import { edit as connectionsEdit } from '@/routes/connections';
+import { edit as profileEdit } from '@/routes/profile';
 import type { NavItem } from '@/types';
 
 const footerNavItems: NavItem[] = [
@@ -42,9 +43,14 @@ const mainNavItems: NavItem[] = [
         icon: Rss,
     },
     {
-        title: 'Manage Accounts',
+        title: 'Accounts',
         href: connectionsEdit(),
         icon: Users,
+    },
+    {
+        title: 'Settings',
+        href: profileEdit(),
+        icon: Settings,
     },
 ];
 

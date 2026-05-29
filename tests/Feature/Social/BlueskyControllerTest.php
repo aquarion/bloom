@@ -3,7 +3,9 @@
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Services\Bluesky\BlueskyAuthService;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\RequestException;
 
 uses(RefreshDatabase::class);
 
@@ -138,4 +140,47 @@ it('validates handle and app_password on store', function () {
     $response = $this->actingAs($user)->post('/auth/bluesky', []);
 
     $response->assertSessionHasErrors(['handle', 'app_password']);
+});
+
+it('returns a validation error on invalid credentials', function () {
+    $user = User::factory()->create();
+    $service = Mockery::mock(BlueskyAuthService::class);
+    $service->shouldReceive('createSession')
+        ->once()
+        ->andThrow(new RequestException(
+            new Illuminate\Http\Client\Response(
+                new Response(401, [], json_encode([
+                    'error' => 'AuthenticationRequired',
+                    'message' => 'Invalid identifier or password',
+                ]))
+            )
+        ));
+    $this->app->instance(BlueskyAuthService::class, $service);
+
+    $response = $this->actingAs($user)->post('/auth/bluesky', [
+        'handle' => 'test.bsky.social',
+        'app_password' => 'wrong-password', // pragma: allowlist secret
+    ]);
+
+    $response->assertSessionHasErrors('app_password');
+});
+
+it('returns a validation error on a failed bluesky connection', function () {
+    $user = User::factory()->create();
+    $service = Mockery::mock(BlueskyAuthService::class);
+    $service->shouldReceive('createSession')
+        ->once()
+        ->andThrow(new RequestException(
+            new Illuminate\Http\Client\Response(
+                new Response(500, [], '{}')
+            )
+        ));
+    $this->app->instance(BlueskyAuthService::class, $service);
+
+    $response = $this->actingAs($user)->post('/auth/bluesky', [
+        'handle' => 'test.bsky.social',
+        'app_password' => 'xxxx-xxxx',
+    ]);
+
+    $response->assertSessionHasErrors('app_password');
 });

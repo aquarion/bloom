@@ -37,7 +37,7 @@ class FeedAggregator
                     $parents = $this->fetchMastodonParents($account, $statuses);
 
                     $normalised = array_map(
-                        fn ($s) => $this->normalizer->fromMastodon($s, $host, $parents[$s['in_reply_to_id'] ?? ''] ?? null),
+                        fn ($s) => $this->normalizer->fromMastodon($s, $host, $parents[$s['in_reply_to_id'] ?? ''] ?? null, $account->handle),
                         $statuses
                     );
                     $nextCursor = ! empty($statuses) ? end($statuses)['id'] : null;
@@ -49,7 +49,7 @@ class FeedAggregator
 
                 if ($account->provider === 'bluesky') {
                     $result = $this->bluesky->getHomeTimeline($account, $perProviderLimit, $accountCursor);
-                    $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p), $result['posts']);
+                    $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle), $result['posts']);
                     $posts = $posts->concat($normalised);
                     if ($result['cursor']) {
                         $cursors[$account->id] = $result['cursor'];

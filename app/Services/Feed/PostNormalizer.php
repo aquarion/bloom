@@ -4,7 +4,7 @@ namespace App\Services\Feed;
 
 class PostNormalizer
 {
-    public function fromMastodon(array $status, string $host, ?array $parentStatus = null): array
+    public function fromMastodon(array $status, string $host, ?array $parentStatus = null, string $sourceHandle = ''): array
     {
         $source = $status['reblog'] ?? $status;
         $sourceHost = isset($status['reblog'])
@@ -31,11 +31,12 @@ class PostNormalizer
         return [
             'id' => "mastodon_{$status['id']}",
             'source' => 'mastodon',
+            'source_handle' => $sourceHandle,
             'author_name' => $source['account']['display_name'] ?: $source['account']['acct'],
             'author_handle' => "@{$source['account']['acct']}@{$sourceHost}",
             'author_avatar' => $this->safeUrl($source['account']['avatar']),
             'author_banner' => $this->safeUrl($source['account']['header'] ?? '') ?: null,
-            'body' => $this->extractBody($source['content']),
+            'body' => $this->truncateBody($this->extractBody($source['content']), config('feed.body_limit', 1024)),
             'media' => $this->normaliseMastodonMedia($source['media_attachments'] ?? []),
             'created_at' => $source['created_at'],
             'original_url' => $this->safeUrl($source['url']),
@@ -51,7 +52,7 @@ class PostNormalizer
         ];
     }
 
-    public function fromBluesky(array $feedPost): array
+    public function fromBluesky(array $feedPost, string $sourceHandle = ''): array
     {
         $post = $feedPost['post'];
         $record = $post['record'];
@@ -71,11 +72,12 @@ class PostNormalizer
         return [
             'id' => "bluesky_{$post['uri']}",
             'source' => 'bluesky',
+            'source_handle' => $sourceHandle,
             'author_name' => $author['displayName'] ?: $author['handle'],
             'author_handle' => '@'.$author['handle'],
             'author_avatar' => $this->safeUrl($author['avatar'] ?? ''),
             'author_banner' => $this->safeUrl($author['banner'] ?? '') ?: null,
-            'body' => $this->stripUrls($record['text']),
+            'body' => $this->truncateBody($this->stripUrls($record['text']), config('feed.body_limit', 1024)),
             'media' => $this->normaliseBlueskyMedia($post['embed'] ?? null),
             'created_at' => $record['createdAt'],
             'original_url' => $this->blueskyPostUrl($author['handle'], $post['uri']),

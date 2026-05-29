@@ -1,4 +1,5 @@
 import { Link } from "@inertiajs/react";
+import { Pause, Play } from "lucide-react";
 import { postColors } from "@/lib/post-colors";
 import type { Post } from "@/types/post";
 import { Attribution } from "./Attribution";
@@ -64,10 +65,10 @@ export function PostCard({
 				<button
 					type="button"
 					onClick={onTogglePause}
-					className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-lg leading-none"
+					className="ml-auto flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
 					aria-label={paused ? "Resume" : "Pause"}
 				>
-					{paused ? "▶️" : "⏸"}
+					{paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
 				</button>
 			</div>
 

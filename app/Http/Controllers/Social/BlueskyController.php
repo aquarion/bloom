@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Social;
 
 use App\Http\Controllers\Controller;
 use App\Services\Bluesky\BlueskyAuthService;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -25,11 +27,21 @@ class BlueskyController extends Controller
             $this->validatePdsUrl($pdsUrl);
         }
 
-        $result = $this->auth->createSession(
-            $request->input('handle'),
-            $request->input('app_password'),
-            $pdsUrl,
-        );
+        try {
+            $result = $this->auth->createSession(
+                $request->input('handle'),
+                $request->input('app_password'),
+                $pdsUrl,
+            );
+        } catch (ConnectionException) {
+            throw ValidationException::withMessages(['app_password' => 'Could not connect to Bluesky. Please try again.']);
+        } catch (RequestException $e) {
+            $message = $e->response->status() === 401
+                ? 'Invalid handle or app password.'
+                : 'Could not connect to Bluesky. Please try again.';
+
+            throw ValidationException::withMessages(['app_password' => $message]);
+        }
 
         $exists = $request->user()->socialAccounts()
             ->where('provider', 'bluesky')

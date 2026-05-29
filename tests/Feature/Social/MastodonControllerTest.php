@@ -3,7 +3,9 @@
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Services\Mastodon\MastodonOAuthService;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\RequestException;
 
 uses(RefreshDatabase::class);
 
@@ -28,11 +30,44 @@ it('redirects to the mastodon oauth authorize url', function () {
     $this->assertEquals('https://fosstodon.org', session('mastodon_instance'));
 });
 
+it('prepends https:// to a bare domain', function () {
+    $user = User::factory()->create();
+    $service = Mockery::mock(MastodonOAuthService::class);
+    $service->shouldReceive('getAuthorizeUrl')
+        ->once()
+        ->with('https://fosstodon.org', Mockery::any())
+        ->andReturn('https://fosstodon.org/oauth/authorize?client_id=abc');
+    $this->app->instance(MastodonOAuthService::class, $service);
+
+    $response = $this->actingAs($user)
+        ->post('/auth/mastodon', ['instance_url' => 'fosstodon.org']);
+
+    $response->assertRedirect('https://fosstodon.org/oauth/authorize?client_id=abc');
+});
+
 it('validates instance_url on redirect', function () {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)
         ->post('/auth/mastodon', ['instance_url' => 'not-a-url']);
+
+    $response->assertSessionHasErrors('instance_url');
+});
+
+it('returns a validation error when the instance is unreachable', function () {
+    $user = User::factory()->create();
+    $service = Mockery::mock(MastodonOAuthService::class);
+    $service->shouldReceive('getAuthorizeUrl')
+        ->once()
+        ->andThrow(new RequestException(
+            new Illuminate\Http\Client\Response(
+                new Response(404, [], '')
+            )
+        ));
+    $this->app->instance(MastodonOAuthService::class, $service);
+
+    $response = $this->actingAs($user)
+        ->post('/auth/mastodon', ['instance_url' => 'https://fosstodon.org']);
 
     $response->assertSessionHasErrors('instance_url');
 });

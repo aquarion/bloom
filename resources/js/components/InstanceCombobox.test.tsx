@@ -17,6 +17,7 @@ describe('InstanceCombobox', () => {
         const input = screen.getByRole('combobox')
         expect(input).toBeInTheDocument()
         expect(input).toHaveAttribute('placeholder', 'mastodon.social')
+        expect(input).toHaveAttribute('id', 'instance_url')
     })
 
     it('does not fetch when fewer than 2 characters are typed', async () => {

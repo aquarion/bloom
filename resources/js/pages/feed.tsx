@@ -74,7 +74,14 @@ export default function Feed({
 				},
 				0,
 			)
-			.call(() => flushSync(() => advance()), undefined, 0.3)
+			.call(
+				() => {
+					flushSync(() => advance());
+					gsap.set(bg, { opacity: 1 });
+				},
+				undefined,
+				0.3,
+			)
 			.fromTo(
 				content,
 				{ scale: 0.7, filter: "blur(8px)", opacity: 0 },
@@ -86,8 +93,7 @@ export default function Feed({
 					ease: "power2.out",
 				},
 				0.3,
-			)
-			.set(bg, { opacity: 1 }, 0.6);
+			);
 	}, [advance]);
 
 	const { progress } = useAutoAdvance({

@@ -115,7 +115,7 @@ export default function Feed({
 				{/* Background layer: bottom slot pre-renders next post's background */}
 				<div className="absolute inset-0 z-0">
 					<PostBackground post={nextPost} />
-					<div ref={bgRef} className="absolute inset-0">
+					<div ref={bgRef} className="absolute inset-0 bg-black">
 						<PostBackground post={current} />
 					</div>
 				</div>

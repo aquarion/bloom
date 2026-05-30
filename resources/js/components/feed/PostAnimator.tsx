@@ -1,7 +1,8 @@
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
 import { Quote, Reply } from "lucide-react";
-import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { pickTemplate, SplitText } from "@/lib/animations";
 import type { AnimationTemplate } from "@/lib/animations/types";
 import { splitIntoLinesWithBoundaries } from "@/lib/block-text";
@@ -40,7 +41,12 @@ function ContextPanel({
 		<>
 			<div className="mb-2 flex items-center gap-1.5">
 				<span className="text-white/40">{icon}</span>
-				<AuthorChip name={author_name} avatar={author_avatar} emojis={emojis} subtext={author_handle} />
+				<AuthorChip
+					name={author_name}
+					avatar={author_avatar}
+					emojis={emojis}
+					subtext={author_handle}
+				/>
 			</div>
 			<p className="whitespace-pre-wrap">{body}</p>
 		</>
@@ -48,7 +54,12 @@ function ContextPanel({
 
 	if (original_url) {
 		return (
-			<a href={original_url} target="_blank" rel="noopener noreferrer" className={`${PANEL_CLASS} hover:bg-white/20`}>
+			<a
+				href={original_url}
+				target="_blank"
+				rel="noopener noreferrer"
+				className={`${PANEL_CLASS} hover:bg-white/20`}
+			>
 				{content}
 			</a>
 		);
@@ -60,7 +71,9 @@ function ContextPanel({
 const FAVICON_404_KEY = "sprouter:favicon404s";
 const favicon404s: Set<string> = (() => {
 	try {
-		return new Set<string>(JSON.parse(localStorage.getItem(FAVICON_404_KEY) ?? "[]"));
+		return new Set<string>(
+			JSON.parse(localStorage.getItem(FAVICON_404_KEY) ?? "[]"),
+		);
 	} catch {
 		return new Set<string>();
 	}
@@ -71,7 +84,15 @@ function markFavicon404(url: string) {
 	localStorage.setItem(FAVICON_404_KEY, JSON.stringify([...favicon404s]));
 }
 
-function LinkCard({ url, title, favicon }: { url: string; title: string | null; favicon: string | null }) {
+function LinkCard({
+	url,
+	title,
+	favicon,
+}: {
+	url: string;
+	title: string | null;
+	favicon: string | null;
+}) {
 	const [faviconFailed, setFaviconFailed] = useState(false);
 	let hostname = url;
 
@@ -84,18 +105,28 @@ function LinkCard({ url, title, favicon }: { url: string; title: string | null; 
 	const showFavicon = favicon && !favicon404s.has(favicon) && !faviconFailed;
 
 	return (
-		<a href={url} target="_blank" rel="noopener noreferrer" className={`${PANEL_CLASS} hover:bg-white/20`}>
+		<a
+			href={url}
+			target="_blank"
+			rel="noopener noreferrer"
+			className={`${PANEL_CLASS} hover:bg-white/20`}
+		>
 			<div className="flex items-center gap-3">
 				{showFavicon && (
 					<img
 						src={favicon}
 						alt=""
 						className="h-5 w-5 flex-shrink-0 rounded"
-						onError={() => { markFavicon404(favicon); setFaviconFailed(true); }}
+						onError={() => {
+							markFavicon404(favicon);
+							setFaviconFailed(true);
+						}}
 					/>
 				)}
 				<div className="min-w-0 flex-1">
-					{title && <p className="truncate font-semibold text-white/90">{title}</p>}
+					{title && (
+						<p className="truncate font-semibold text-white/90">{title}</p>
+					)}
 					<p className="truncate text-xs text-white/50">{hostname}</p>
 				</div>
 			</div>
@@ -118,7 +149,10 @@ export function PostAnimator({
 	const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
 	// Tracks which body the font sizes were computed for so they naturally
 	// become null when body changes without needing setState inside an effect.
-	const [fontSizeState, setFontSizeState] = useState<{ body: string; sizes: number[] } | null>(null);
+	const [fontSizeState, setFontSizeState] = useState<{
+		body: string;
+		sizes: number[];
+	} | null>(null);
 
 	useLayoutEffect(() => {
 		onReadyRef.current = onReady;
@@ -147,12 +181,14 @@ export function PostAnimator({
 	const lineKeys = useMemo(() => {
 		const keys: number[] = [];
 		let search = 0;
+
 		for (const line of lines) {
 			const pos = body.indexOf(line, search);
 			const key = pos >= 0 ? pos : search;
 			keys.push(key);
 			search = key + line.length;
 		}
+
 		return keys;
 	}, [lines, body]);
 
@@ -182,26 +218,37 @@ export function PostAnimator({
 		const targetWidth = width * 0.9;
 
 		const widths = els.map((el) => el?.getBoundingClientRect().width ?? 0);
-		let sizes = widths.map((w) => (w > 0 ? BASE_FONT_SIZE * (targetWidth / w) : BASE_FONT_SIZE));
+		let sizes = widths.map((w) =>
+			w > 0 ? BASE_FONT_SIZE * (targetWidth / w) : BASE_FONT_SIZE,
+		);
 
 		// For multi-paragraph posts, limit cross-paragraph size disparity while
 		// preserving within-paragraph variation (each line still fills its width).
 		// Strategy: find each paragraph's min size (its widest line = most constrained),
 		// then scale down any paragraph whose min exceeds 2× the global paragraph min.
 		if (paragraphStarts.size > 0) {
-			const boundaries = [0, ...[...paragraphStarts].sort((a, b) => a - b), sizes.length];
-			const paraMins = boundaries.slice(0, -1).map((start, i) =>
-				Math.min(...sizes.slice(start, boundaries[i + 1])),
-			);
+			const boundaries = [
+				0,
+				...[...paragraphStarts].sort((a, b) => a - b),
+				sizes.length,
+			];
+			const paraMins = boundaries
+				.slice(0, -1)
+				.map((start, i) => Math.min(...sizes.slice(start, boundaries[i + 1])));
 			const globalMin = Math.min(...paraMins);
 			sizes = sizes.map((s, lineIdx) => {
 				const p = boundaries.findLastIndex((b) => lineIdx >= b);
+
 				return s * Math.min(1, (globalMin * 2) / paraMins[p]);
 			});
 		}
 
-		const gapHeight = [...paragraphStarts].reduce((sum, idx) => sum + (sizes[idx] ?? 0) * 0.5, 0);
-		const totalHeight = sizes.reduce((sum, s) => sum + s * LINE_HEIGHT, 0) + gapHeight;
+		const gapHeight = [...paragraphStarts].reduce(
+			(sum, idx) => sum + (sizes[idx] ?? 0) * 0.5,
+			0,
+		);
+		const totalHeight =
+			sizes.reduce((sum, s) => sum + s * LINE_HEIGHT, 0) + gapHeight;
 		const heightBudget = height * 0.45;
 
 		if (totalHeight > heightBudget) {
@@ -239,7 +286,8 @@ export function PostAnimator({
 
 		// Apply highlight colour to the longest word — must happen after SplitText
 		// rewrites the DOM, as it strips any inline colour spans.
-		const highlight = colors?.highlight ?? postColors(post.author_handle).highlight;
+		const highlight =
+			colors?.highlight ?? postColors(post.author_handle).highlight;
 		const longestEl = [...split.words].reduce((a, b) =>
 			(b.textContent?.length ?? 0) > (a.textContent?.length ?? 0) ? b : a,
 		);
@@ -262,9 +310,7 @@ export function PostAnimator({
 
 		if (firstMedia) {
 			const displaySrc =
-				firstMedia.type === "video"
-					? firstMedia.preview_url
-					: firstMedia.url;
+				firstMedia.type === "video" ? firstMedia.preview_url : firstMedia.url;
 
 			if (displaySrc) {
 				return (
@@ -306,7 +352,11 @@ export function PostAnimator({
 							/>
 						)}
 						{post.link_url && (
-							<LinkCard url={post.link_url} title={post.link_title} favicon={post.link_favicon} />
+							<LinkCard
+								url={post.link_url}
+								title={post.link_title}
+								favicon={post.link_favicon}
+							/>
 						)}
 					</div>
 				</div>
@@ -350,25 +400,38 @@ export function PostAnimator({
 					key={post.id}
 					ref={textRef}
 					className={`w-full font-extrabold leading-none tracking-tight${post.reply_to || post.quoted_post ? " min-w-[40ch]" : ""}`}
-					style={{ visibility: fontSizes ? "visible" : "hidden", color: textColor }}
+					style={{
+						visibility: fontSizes ? "visible" : "hidden",
+						color: textColor,
+					}}
 				>
 					{lines.map((line, idx) => (
 						<div
 							key={lineKeys[idx]}
 							style={{
-								fontSize: fontSizes ? `${fontSizes[idx]}px` : `${BASE_FONT_SIZE}px`,
+								fontSize: fontSizes
+									? `${fontSizes[idx]}px`
+									: `${BASE_FONT_SIZE}px`,
 								whiteSpace: "nowrap",
 								...(paragraphStarts.has(idx) && { marginTop: "0.5em" }),
 							}}
 						>
-							<span ref={(el) => { lineRefs.current[idx] = el; }}>
+							<span
+								ref={(el) => {
+									lineRefs.current[idx] = el;
+								}}
+							>
 								<EmojiText text={line} emojis={post.emojis} />
 							</span>
 						</div>
 					))}
 				</div>
 				{post.link_url && (
-					<LinkCard url={post.link_url} title={post.link_title} favicon={post.link_favicon} />
+					<LinkCard
+						url={post.link_url}
+						title={post.link_title}
+						favicon={post.link_favicon}
+					/>
 				)}
 			</div>
 		</div>

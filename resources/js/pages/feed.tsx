@@ -17,7 +17,10 @@ export default function Feed({
 	initialCursor: string | null;
 	debugEnabled: boolean;
 }) {
-	const { current, advance, queue } = useFeedQueue({ initialPosts, initialCursor });
+	const { current, advance, queue } = useFeedQueue({
+		initialPosts,
+		initialCursor,
+	});
 	const [paused, setPaused] = useState(false);
 	const [readyForPostId, setReadyForPostId] = useState<string | null>(null);
 	const animationReady = readyForPostId === current?.id;
@@ -47,8 +50,8 @@ export default function Feed({
 		const el = currentRef.current;
 
 		if (!el || Date.now() < transitionEndRef.current) {
-return;
-}
+			return;
+		}
 
 		transitionEndRef.current = Date.now() + 700;
 

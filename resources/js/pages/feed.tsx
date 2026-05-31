@@ -35,6 +35,12 @@ export default function Feed({
 	// double-firing and self-heals if GSAP ever fails to fire onComplete.
 	const transitionEndRef = useRef(0);
 
+	// Bottom background layer shows this post. Updated only in onComplete (after
+	// bgRef is back at opacity 1) so it never changes while visible mid-crossfade.
+	const [nextBackground, setNextBackground] = useState<Post>(
+		() => initialPosts[1] ?? initialPosts[0],
+	);
+
 	useEffect(() => {
 		if (debugEnabled) {
 			(window as any).__APP_DEBUG = true;
@@ -58,11 +64,20 @@ export default function Feed({
 			return;
 		}
 
+		// advance() shifts queue[0] → current, so queue[1] becomes the new queue[0].
+		// Capture now (before the queue changes) to update the bottom layer in onComplete.
+		const nextNext = queue[1] ?? queue[0] ?? current;
+
 		transitionEndRef.current = Date.now() + 700;
 
 		gsap
-			.timeline()
-			.to(bg, { opacity: 0, duration: 0.4, ease: "power2.inOut" }, 0)
+			.timeline({
+				// bgRef is back at opacity 1 — safe to update the bottom layer.
+				onComplete: () => setNextBackground(nextNext),
+			})
+			// bg fade matches content zoom-out duration so both finish at t=0.3,
+			// making the gsap.set(bg) in the call safe (no running tween to conflict).
+			.to(bg, { opacity: 0, duration: 0.3, ease: "power2.inOut" }, 0)
 			.to(
 				content,
 				{
@@ -94,7 +109,7 @@ export default function Feed({
 				},
 				0.3,
 			);
-	}, [advance]);
+	}, [advance, current, queue]);
 
 	const { progress } = useAutoAdvance({
 		duration: 8000,
@@ -112,15 +127,13 @@ export default function Feed({
 		);
 	}
 
-	const nextPost = queue[0] ?? current;
-
 	return (
 		<>
 			<Head title="Feed" />
 			<div className="relative h-screen w-screen overflow-hidden bg-black">
 				{/* Background layer: bottom slot pre-renders next post's background */}
 				<div className="absolute inset-0 z-0">
-					<PostBackground post={nextPost} />
+					<PostBackground post={nextBackground} />
 					<div ref={bgRef} className="absolute inset-0 bg-black">
 						<PostBackground post={current} />
 					</div>

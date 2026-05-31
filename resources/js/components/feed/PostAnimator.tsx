@@ -45,7 +45,7 @@ function ContextPanel({
 					name={author_name}
 					avatar={author_avatar}
 					emojis={emojis}
-					subtext={author_handle}
+					account={author_handle}
 				/>
 			</div>
 			<p className="whitespace-pre-wrap">{body}</p>

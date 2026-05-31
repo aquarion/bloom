@@ -41,7 +41,12 @@ export function Attribution({ post }: { post: Post }) {
 							name={post.quoted_post.author_name}
 							avatar={post.quoted_post.author_avatar}
 							emojis={post.emojis}
-							subtext={post.quoted_post.author_handle}
+							account={post.quoted_post.author_handle}
+							time={
+								post.quoted_post.created_at
+									? timeSince(post.quoted_post.created_at)
+									: undefined
+							}
 						/>
 					</a>
 				) : (
@@ -50,7 +55,12 @@ export function Attribution({ post }: { post: Post }) {
 							name={post.quoted_post.author_name}
 							avatar={post.quoted_post.author_avatar}
 							emojis={post.emojis}
-							subtext={post.quoted_post.author_handle}
+							account={post.quoted_post.author_handle}
+							time={
+								post.quoted_post.created_at
+									? timeSince(post.quoted_post.created_at)
+									: undefined
+							}
 						/>
 					</div>
 				)}
@@ -65,7 +75,8 @@ export function Attribution({ post }: { post: Post }) {
 						name={post.author_name}
 						avatar={post.author_avatar}
 						emojis={post.emojis}
-						subtext={post.author_handle}
+						account={post.author_handle}
+						time={timeSince(post.created_at)}
 					/>
 				</a>
 			</div>
@@ -93,7 +104,8 @@ export function Attribution({ post }: { post: Post }) {
 						name={post.author_name}
 						avatar={post.author_avatar}
 						emojis={post.emojis}
-						subtext={`Posted ${timeSince(post.created_at)} · tap to open ↗`}
+						account={post.author_handle}
+						time={timeSince(post.created_at)}
 					/>
 				</a>
 				<span className="flex-shrink-0 text-white/30">{label}</span>
@@ -102,7 +114,12 @@ export function Attribution({ post }: { post: Post }) {
 						name={post.boosted_by}
 						avatar={post.boosted_by_avatar ?? ""}
 						emojis={post.emojis}
-						subtext={post.boosted_by_handle ?? ""}
+						account={post.boosted_by_handle ?? ""}
+						time={
+							post.boosted_by_created_at
+								? timeSince(post.boosted_by_created_at)
+								: undefined
+						}
 					/>
 				</div>
 			</div>
@@ -120,7 +137,8 @@ export function Attribution({ post }: { post: Post }) {
 				name={post.author_name}
 				avatar={post.author_avatar}
 				emojis={post.emojis}
-				subtext={`Posted ${timeSince(post.created_at)} · tap to open ↗`}
+				account={post.author_handle}
+				time={timeSince(post.created_at)}
 			/>
 		</a>
 	);

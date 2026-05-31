@@ -15,6 +15,7 @@ vi.mock("@inertiajs/react", () => ({
 const makePost = (id: string): Post => ({
 	id,
 	source: "mastodon",
+	source_handle: "",
 	author_name: "Test",
 	author_handle: "@test@example.com",
 	author_avatar: "",
@@ -31,6 +32,7 @@ const makePost = (id: string): Post => ({
 	boosted_by: null,
 	boosted_by_avatar: null,
 	boosted_by_handle: null,
+	boosted_by_created_at: null,
 	emojis: {},
 });
 

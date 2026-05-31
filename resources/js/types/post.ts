@@ -11,6 +11,7 @@ export interface ReplyTo {
 	author_avatar: string;
 	original_url: string;
 	body: string;
+	created_at: string | null;
 }
 
 export interface QuotedPost {
@@ -19,6 +20,7 @@ export interface QuotedPost {
 	author_avatar: string;
 	original_url: string;
 	body: string;
+	created_at: string | null;
 }
 
 export interface Post {
@@ -41,6 +43,7 @@ export interface Post {
 	boosted_by: string | null;
 	boosted_by_avatar: string | null;
 	boosted_by_handle: string | null;
+	boosted_by_created_at: string | null;
 	emojis: Record<string, string>;
 }
 

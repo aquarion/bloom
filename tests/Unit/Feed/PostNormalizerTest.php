@@ -107,6 +107,21 @@ it('normalises a bluesky feed view post to unified post format', function () {
         ->and($post['media'][0]['alt_text'])->toBe('Sky photo');
 });
 
+it('does not double-append instance to federated mastodon author handle', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>hello</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://remote.social/@user@remote.social/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user@remote.social', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'myinstance.com');
+
+    expect($post['author_handle'])->toBe('@user@remote.social');
+});
+
 it('strips html entities from mastodon post body', function () {
     $status = [
         'id' => '1',
@@ -271,6 +286,7 @@ it('sets quoted_post for bluesky record embeds', function () {
         'author_avatar' => 'https://cdn.bsky.app/quoted.jpg',
         'original_url' => 'https://bsky.app/profile/quoted.bsky.social/post/quoteid',
         'body' => 'quoted body',
+        'created_at' => null,
     ]);
 });
 
@@ -302,6 +318,7 @@ it('sets quoted_post for bluesky recordWithMedia embeds', function () {
         'author_avatar' => 'https://cdn.bsky.app/quoted.jpg',
         'original_url' => 'https://bsky.app/profile/quoted.bsky.social/post/mediaquote',
         'body' => 'quoted body with media',
+        'created_at' => null,
     ]);
 });
 
@@ -711,6 +728,7 @@ it('includes author identity and url in mastodon reply_to', function () {
         'author_avatar' => 'https://mastodon.social/avatars/original.jpg',
         'original_url' => 'https://mastodon.social/@original/456',
         'body' => 'This is the parent post body',
+        'created_at' => null,
     ]);
 });
 
@@ -733,6 +751,27 @@ it('falls back to acct when mastodon reply_to parent has no display_name', funct
     $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', $parent);
 
     expect($post['reply_to']['author_name'])->toBe('noname');
+});
+
+it('does not double-append instance to federated mastodon reply_to author handle', function () {
+    $parent = [
+        'url' => 'https://remote.social/@user@remote.social/1',
+        'content' => '<p>body</p>',
+        'account' => ['display_name' => 'User', 'acct' => 'user@remote.social', 'avatar' => ''],
+    ];
+
+    $status = [
+        'id' => '2',
+        'content' => '<p>reply</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://myinstance.com/@me/2',
+        'account' => ['display_name' => 'Me', 'acct' => 'me', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'myinstance.com', $parent);
+
+    expect($post['reply_to']['author_handle'])->toBe('@user@remote.social');
 });
 
 it('sets mastodon reply_to original_url to empty string when parent url is non-http', function () {
@@ -800,6 +839,7 @@ it('includes author identity and url in bluesky reply_to', function () {
         'author_avatar' => 'https://cdn.bsky.app/bob.jpg',
         'original_url' => 'https://bsky.app/profile/bob.bsky.social/post/parent456',
         'body' => 'parent body text',
+        'created_at' => null,
     ]);
 });
 
@@ -967,4 +1007,144 @@ it('does not truncate a bluesky body within feed.body_limit', function () {
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
     expect($post['body'])->toBe('short body');
+});
+
+it('includes created_at in bluesky quoted_post when present', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'quoting', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Author', 'handle' => 'author.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.record#view',
+                'record' => [
+                    '$type' => 'app.bsky.embed.record#viewRecord',
+                    'uri' => 'at://did:plc:xyz/app.bsky.feed.post/q1',
+                    'author' => ['displayName' => 'Quoted', 'handle' => 'quoted.bsky.social', 'avatar' => ''],
+                    'value' => ['text' => 'quoted text', 'createdAt' => '2024-01-14T09:00:00.000Z'],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['quoted_post']['created_at'])->toBe('2024-01-14T09:00:00.000Z');
+});
+
+it('includes created_at in bluesky reply_to when present', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'reply', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+        'reply' => [
+            'parent' => [
+                'uri' => 'at://did:plc:xyz/app.bsky.feed.post/parent1',
+                'record' => ['text' => 'parent text', 'createdAt' => '2024-01-14T08:00:00.000Z'],
+                'author' => ['displayName' => 'Bob', 'handle' => 'bob.bsky.social', 'avatar' => ''],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['reply_to']['created_at'])->toBe('2024-01-14T08:00:00.000Z');
+});
+
+it('includes created_at in mastodon reply_to when present', function () {
+    $parent = [
+        'url' => 'https://mastodon.social/@original/1',
+        'content' => '<p>parent body</p>',
+        'created_at' => '2024-01-14T07:00:00.000Z',
+        'account' => ['display_name' => 'Original', 'acct' => 'original', 'avatar' => ''],
+    ];
+
+    $status = [
+        'id' => '2',
+        'content' => '<p>reply</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/2',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', $parent);
+
+    expect($post['reply_to']['created_at'])->toBe('2024-01-14T07:00:00.000Z');
+});
+
+it('sets boosted_by_created_at for mastodon reblogs', function () {
+    $status = [
+        'id' => '999',
+        'content' => '',
+        'created_at' => '2024-01-15T12:00:00.000Z',
+        'url' => 'https://fosstodon.org/@booster/999',
+        'account' => ['display_name' => 'Booster', 'acct' => 'booster', 'avatar' => ''],
+        'media_attachments' => [],
+        'reblog' => [
+            'id' => '456',
+            'content' => '<p>original</p>',
+            'created_at' => '2024-01-14T10:00:00.000Z',
+            'url' => 'https://mastodon.social/@original/456',
+            'account' => ['display_name' => 'Original', 'acct' => 'original', 'avatar' => ''],
+            'media_attachments' => [],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['boosted_by_created_at'])->toBe('2024-01-15T12:00:00.000Z');
+});
+
+it('sets boosted_by_created_at to null for non-reblog mastodon posts', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>hi</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['boosted_by_created_at'])->toBeNull();
+});
+
+it('sets boosted_by_created_at for bluesky reposts', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'reposted', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Author', 'handle' => 'author.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+        'reason' => [
+            '$type' => 'app.bsky.feed.defs#reasonRepost',
+            'by' => ['displayName' => 'Reposter', 'handle' => 'reposter.bsky.social'],
+            'indexedAt' => '2024-01-15T13:00:00.000Z',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['boosted_by_created_at'])->toBe('2024-01-15T13:00:00.000Z');
+});
+
+it('sets boosted_by_created_at to null for regular bluesky posts', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'regular', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Author', 'handle' => 'author.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['boosted_by_created_at'])->toBeNull();
 });

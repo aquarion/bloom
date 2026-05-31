@@ -19,7 +19,7 @@ export function AuthorChip({
 			<img
 				src={avatar || sprouter}
 				alt={name}
-				className="aspect-square w-auto flex-shrink-0 self-stretch rounded-full object-cover"
+				className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
 			/>
 			<div className="min-w-0 flex-1">
 				<p className="truncate text-xs font-bold leading-tight text-white">

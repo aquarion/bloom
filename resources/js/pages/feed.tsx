@@ -70,10 +70,18 @@ export default function Feed({
 
 		transitionEndRef.current = Date.now() + 700;
 
+		// Track whether advance() completed so onComplete doesn't update the
+		// bottom layer if flushSync threw (GSAP swallows callback exceptions).
+		let advanceSucceeded = false;
+
 		gsap
 			.timeline({
 				// bgRef is back at opacity 1 — safe to update the bottom layer.
-				onComplete: () => setNextBackground(nextNext),
+				onComplete: () => {
+					if (advanceSucceeded) {
+						setNextBackground(nextNext);
+					}
+				},
 			})
 			// bg fade matches content zoom-out duration so both finish at t=0.3,
 			// making the gsap.set(bg) in the call safe (no running tween to conflict).
@@ -92,6 +100,7 @@ export default function Feed({
 			.call(
 				() => {
 					flushSync(() => advance());
+					advanceSucceeded = true;
 					gsap.set(bg, { opacity: 1 });
 				},
 				undefined,

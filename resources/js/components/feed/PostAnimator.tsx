@@ -317,7 +317,13 @@ export function PostAnimator({
 
 	// Fade panels in for no-body posts that have context panels (Phase 3 doesn't run for these).
 	useGSAP(() => {
-		if (body || !panelsRef.current || !(post.reply_to || post.quoted_post)) {
+		if (body || !(post.reply_to || post.quoted_post)) {
+			return;
+		}
+
+		if (!panelsRef.current) {
+			onReadyRef.current?.();
+
 			return;
 		}
 

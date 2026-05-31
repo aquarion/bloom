@@ -753,6 +753,27 @@ it('falls back to acct when mastodon reply_to parent has no display_name', funct
     expect($post['reply_to']['author_name'])->toBe('noname');
 });
 
+it('does not double-append instance to federated mastodon reply_to author handle', function () {
+    $parent = [
+        'url' => 'https://remote.social/@user@remote.social/1',
+        'content' => '<p>body</p>',
+        'account' => ['display_name' => 'User', 'acct' => 'user@remote.social', 'avatar' => ''],
+    ];
+
+    $status = [
+        'id' => '2',
+        'content' => '<p>reply</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://myinstance.com/@me/2',
+        'account' => ['display_name' => 'Me', 'acct' => 'me', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'myinstance.com', $parent);
+
+    expect($post['reply_to']['author_handle'])->toBe('@user@remote.social');
+});
+
 it('sets mastodon reply_to original_url to empty string when parent url is non-http', function () {
     $parent = [
         'url' => 'javascript:alert(1)',

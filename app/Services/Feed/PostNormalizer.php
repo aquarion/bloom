@@ -107,7 +107,9 @@ class PostNormalizer
 
         return [
             'author_name' => $parent['account']['display_name'] ?: $parent['account']['acct'],
-            'author_handle' => "@{$parent['account']['acct']}@{$parentHost}",
+            'author_handle' => str_contains($parent['account']['acct'], '@')
+                ? "@{$parent['account']['acct']}"
+                : "@{$parent['account']['acct']}@{$parentHost}",
             'author_avatar' => $this->safeUrl($parent['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($parent['url'] ?? ''),
             'body' => $this->truncateBody(

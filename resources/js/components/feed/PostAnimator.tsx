@@ -145,6 +145,7 @@ export function PostAnimator({
 }) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const textRef = useRef<HTMLDivElement>(null);
+	const panelsRef = useRef<HTMLDivElement>(null);
 	const onReadyRef = useRef(onReady);
 	const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
 	// Tracks which body the font sizes were computed for so they naturally
@@ -195,12 +196,12 @@ export function PostAnimator({
 	// Font sizes are only valid for the current body; treat as null when body changes.
 	const fontSizes = fontSizeState?.body === body ? fontSizeState.sizes : null;
 
-	// Fire onReady immediately for media-only posts (no text to animate).
+	// Fire onReady immediately only when there is no body AND no panels to animate.
 	useLayoutEffect(() => {
-		if (!body) {
+		if (!body && !(post.reply_to || post.quoted_post)) {
 			onReadyRef.current?.();
 		}
-	}, [body]);
+	}, [body, post.reply_to, post.quoted_post]);
 
 	// Phase 2: measure rendered line widths and compute font sizes
 	useLayoutEffect(() => {
@@ -299,11 +300,39 @@ export function PostAnimator({
 		const tl = gsap.timeline({ onComplete: () => onReadyRef.current?.() });
 		template(tl, split.words as Element[], container);
 
+		if (panelsRef.current) {
+			tl.fromTo(
+				panelsRef.current,
+				{ opacity: 0, y: -8 },
+				{ opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
+				0,
+			);
+		}
+
 		return () => {
 			tl.kill();
 			split.revert();
 		};
 	}, [post.id, fontSizes]);
+
+	// Fade panels in for no-body posts that have context panels (Phase 3 doesn't run for these).
+	useGSAP(() => {
+		if (body || !panelsRef.current || !(post.reply_to || post.quoted_post)) {
+			return;
+		}
+
+		gsap.fromTo(
+			panelsRef.current,
+			{ opacity: 0, y: -8 },
+			{
+				opacity: 1,
+				y: 0,
+				duration: 0.4,
+				ease: "power2.out",
+				onComplete: () => onReadyRef.current?.(),
+			},
+		);
+	}, [post.id, body]);
 
 	if (!body) {
 		const firstMedia = post.media[0];
@@ -328,7 +357,7 @@ export function PostAnimator({
 		if (post.link_url || post.quoted_post || post.reply_to) {
 			return (
 				<div className="flex h-full w-full items-center justify-center p-8">
-					<div className="flex flex-col items-center gap-4">
+					<div ref={panelsRef} className="flex flex-col items-center gap-4">
 						{post.reply_to && (
 							<ContextPanel
 								icon={<Reply className="size-3.5" />}
@@ -374,27 +403,31 @@ export function PostAnimator({
 			className="flex h-full w-full items-center justify-center p-8 text-center"
 		>
 			<div className="flex flex-col items-center gap-4">
-				{post.reply_to && (
-					<ContextPanel
-						icon={<Reply className="size-3.5" />}
-						author_name={post.reply_to.author_name}
-						author_avatar={post.reply_to.author_avatar}
-						author_handle={post.reply_to.author_handle}
-						emojis={post.emojis}
-						body={post.reply_to.body}
-						original_url={post.reply_to.original_url}
-					/>
-				)}
-				{post.quoted_post && (
-					<ContextPanel
-						icon={<Quote className="size-3.5" />}
-						author_name={post.quoted_post.author_name}
-						author_avatar={post.quoted_post.author_avatar}
-						author_handle={post.quoted_post.author_handle}
-						emojis={post.emojis}
-						body={post.quoted_post.body}
-						original_url={post.quoted_post.original_url}
-					/>
+				{(post.reply_to || post.quoted_post) && (
+					<div ref={panelsRef} className="flex flex-col gap-4">
+						{post.reply_to && (
+							<ContextPanel
+								icon={<Reply className="size-3.5" />}
+								author_name={post.reply_to.author_name}
+								author_avatar={post.reply_to.author_avatar}
+								author_handle={post.reply_to.author_handle}
+								emojis={post.emojis}
+								body={post.reply_to.body}
+								original_url={post.reply_to.original_url}
+							/>
+						)}
+						{post.quoted_post && (
+							<ContextPanel
+								icon={<Quote className="size-3.5" />}
+								author_name={post.quoted_post.author_name}
+								author_avatar={post.quoted_post.author_avatar}
+								author_handle={post.quoted_post.author_handle}
+								emojis={post.emojis}
+								body={post.quoted_post.body}
+								original_url={post.quoted_post.original_url}
+							/>
+						)}
+					</div>
 				)}
 				<div
 					key={post.id}

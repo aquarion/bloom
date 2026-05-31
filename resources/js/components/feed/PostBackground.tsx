@@ -18,7 +18,7 @@ export function PostBackground({ post }: { post: Post }) {
 						alt=""
 						className="h-full w-full object-cover"
 						style={{
-							opacity: 0.9,
+							opacity: 0.7,
 							filter: "blur(24px)",
 							transform: "scale(1.1)",
 						}}

@@ -4,7 +4,7 @@ namespace App\Services\Feed;
 
 class PostNormalizer
 {
-    public function fromMastodon(array $status, string $host, ?array $parentStatus = null, string $sourceHandle = ''): array
+    public function fromMastodon(array $status, string $host, ?array $parentStatus = null, string $sourceHandle = '', ?array $quoteStatus = null): array
     {
         $source = $status['reblog'] ?? $status;
         $sourceHost = isset($status['reblog'])

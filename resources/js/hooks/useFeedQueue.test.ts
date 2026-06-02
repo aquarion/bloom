@@ -1,5 +1,5 @@
 import { router } from "@inertiajs/react";
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import axios from "axios";
 import { expect, it, vi } from "vitest";
 import type { Post } from "@/types/post";
@@ -75,7 +75,8 @@ it("fetches more posts when queue drops to 5", async () => {
 	});
 });
 
-it("deduplicates posts already in the queue when new batch arrives", async () => {
+it("deduplicates posts already in the queue and the current post when new batch arrives", async () => {
+	// post "1" is current, "2" is in queue — both should be excluded from the incoming batch
 	const posts = [
 		makePost("1", "2026-06-01T12:00:00Z"),
 		makePost("2", "2026-06-01T11:00:00Z"),
@@ -84,6 +85,7 @@ it("deduplicates posts already in the queue when new batch arrives", async () =>
 	vi.mocked(axios.get).mockResolvedValue({
 		data: {
 			posts: [
+				makePost("1", "2026-06-01T12:00:00Z"),
 				makePost("2", "2026-06-01T11:00:00Z"),
 				makePost("3", "2026-06-01T10:00:00Z"),
 			],
@@ -95,8 +97,7 @@ it("deduplicates posts already in the queue when new batch arrives", async () =>
 		useFeedQueue({ initialPosts: posts, initialCursor: "cursor123" }),
 	);
 
-	// advance past threshold to trigger refill (initial queue length is 1, below REFILL_THRESHOLD=5)
-	await act(async () => Promise.resolve());
+	await waitFor(() => expect(result.current.queue).toHaveLength(2));
 
 	const ids = [
 		result.current.current?.id,
@@ -106,7 +107,11 @@ it("deduplicates posts already in the queue when new batch arrives", async () =>
 });
 
 it("merges incoming posts in descending created_at order", async () => {
-	const posts = [makePost("old", "2026-06-01T09:00:00Z")];
+	// "mid" is current, "old" is in queue — "new" should sort to the front of the queue
+	const posts = [
+		makePost("mid", "2026-06-01T10:00:00Z"),
+		makePost("old", "2026-06-01T09:00:00Z"),
+	];
 
 	vi.mocked(axios.get).mockResolvedValue({
 		data: {
@@ -119,9 +124,9 @@ it("merges incoming posts in descending created_at order", async () => {
 		useFeedQueue({ initialPosts: posts, initialCursor: "cursor123" }),
 	);
 
-	await act(async () => Promise.resolve());
+	await waitFor(() => expect(result.current.queue).toHaveLength(2));
 
-	expect(result.current.queue.map((p) => p.id)).toEqual(["new"]);
+	expect(result.current.queue.map((p) => p.id)).toEqual(["new", "old"]);
 });
 
 it("redirects to login when feed refill gets unauthenticated", async () => {

@@ -23,13 +23,7 @@ function reducer(state: State, action: Action): State {
 			const deduped = action.posts.filter((p) => !seen.has(p.id));
 			const merged = [...state.queue, ...deduped]
 				.filter((p, i, arr) => arr.findIndex((q) => q.id === p.id) === i)
-				.sort((a, b) =>
-					a.created_at < b.created_at
-						? 1
-						: a.created_at > b.created_at
-							? -1
-							: 0,
-				);
+				.sort((a, b) => b.created_at.localeCompare(a.created_at));
 
 			// If current drained to null (e.g. fetchMore lagged behind advances),
 			// promote the first incoming post automatically.

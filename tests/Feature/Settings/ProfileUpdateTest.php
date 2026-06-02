@@ -3,7 +3,7 @@
 use App\Models\User;
 
 test('profile page is displayed', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
 
     $this->actingAs($user)
         ->get(route('profile.edit'))
@@ -11,7 +11,7 @@ test('profile page is displayed', function () {
 });
 
 test('profile information can be updated', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
 
     $this->actingAs($user)
         ->patch(route('profile.update'), [
@@ -28,9 +28,10 @@ test('profile information can be updated', function () {
 });
 
 test('user can delete their account', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
 
     $this->actingAs($user)
+        ->withSession(['passkey_confirmed_at' => time()])
         ->delete(route('profile.destroy'))
         ->assertSessionHasNoErrors()
         ->assertRedirect('/');

@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
 use Throwable;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
 use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
+use Webauthn\CredentialRecord;
 use Webauthn\Denormalizer\WebauthnSerializerFactory;
 
 class PasskeyAuthController extends Controller
@@ -41,6 +42,36 @@ class PasskeyAuthController extends Controller
 
     public function authenticate(Request $request): JsonResponse
     {
+        $result = $this->resolveVerifiedPasskey($request);
+        if ($result instanceof JsonResponse) {
+            return $result;
+        }
+
+        Auth::login($result['passkey']->user);
+
+        return response()->json(['redirect' => route('dashboard')]);
+    }
+
+    public function confirmOptions(): Response
+    {
+        return $this->options();
+    }
+
+    public function confirm(Request $request): JsonResponse
+    {
+        $result = $this->resolveVerifiedPasskey($request, $request->user()->id);
+        if ($result instanceof JsonResponse) {
+            return $result;
+        }
+
+        $request->session()->put('passkey_confirmed_at', time());
+
+        return response()->json(['confirmed' => true]);
+    }
+
+    /** @return array{passkey: Passkey, source: CredentialRecord}|JsonResponse */
+    private function resolveVerifiedPasskey(Request $request, ?int $requiredUserId = null): array|JsonResponse
+    {
         $token = $request->header('X-Passkey-Token');
         $serialized = $token ? Cache::pull("passkey_auth:{$token}") : null;
         if (! $serialized) {
@@ -54,7 +85,6 @@ class PasskeyAuthController extends Controller
             return response()->json(['message' => 'Invalid credential.'], 422);
         }
 
-        // base64url → base64: swap alphabet chars and restore padding
         $base64 = strtr($rawId, '-_', '+/');
         $padded = str_pad($base64, (int) ceil(strlen($base64) / 4) * 4, '=');
         $decoded = base64_decode($padded, strict: true);
@@ -63,7 +93,12 @@ class PasskeyAuthController extends Controller
         }
         $credentialId = base64_encode($decoded);
 
-        $passkey = Passkey::where('credential_id', $credentialId)->first();
+        $query = Passkey::where('credential_id', $credentialId);
+        if ($requiredUserId !== null) {
+            $query->where('user_id', $requiredUserId);
+        }
+        $passkey = $query->first();
+
         if (! $passkey) {
             return response()->json(['message' => 'Passkey not recognised.'], 401);
         }
@@ -92,8 +127,6 @@ class PasskeyAuthController extends Controller
             'last_used_at' => now(),
         ]);
 
-        Auth::login($passkey->user);
-
-        return response()->json(['redirect' => route('dashboard')]);
+        return ['passkey' => $passkey, 'source' => $source];
     }
 }

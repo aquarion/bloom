@@ -19,7 +19,7 @@ it('redirects guests away from mastodon connect', function () {
 });
 
 it('redirects to the mastodon oauth authorize url', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(MastodonOAuthService::class);
     $service->shouldReceive('getAuthorizeUrl')
         ->once()
@@ -34,7 +34,7 @@ it('redirects to the mastodon oauth authorize url', function () {
 });
 
 it('prepends https:// to a bare domain', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(MastodonOAuthService::class);
     $service->shouldReceive('getAuthorizeUrl')
         ->once()
@@ -49,7 +49,7 @@ it('prepends https:// to a bare domain', function () {
 });
 
 it('validates instance_url on redirect', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
 
     $response = $this->actingAs($user)
         ->post('/auth/mastodon', ['instance_url' => 'not-a-url']);
@@ -58,7 +58,7 @@ it('validates instance_url on redirect', function () {
 });
 
 it('returns a validation error when the instance is unreachable', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(MastodonOAuthService::class);
     $service->shouldReceive('getAuthorizeUrl')
         ->once()
@@ -76,7 +76,7 @@ it('returns a validation error when the instance is unreachable', function () {
 });
 
 it('saves a new mastodon account on callback', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(MastodonOAuthService::class);
     $service->shouldReceive('getStoredCredentials')
         ->once()
@@ -103,7 +103,7 @@ it('saves a new mastodon account on callback', function () {
 });
 
 it('allows connecting a second mastodon account on a different instance', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',
@@ -125,7 +125,7 @@ it('allows connecting a second mastodon account on a different instance', functi
 });
 
 it('allows connecting accounts with the same handle on different instances', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',
@@ -148,7 +148,7 @@ it('allows connecting accounts with the same handle on different instances', fun
 });
 
 it('redirects with mastodon-already-connected for a duplicate instance and handle', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',
@@ -170,7 +170,7 @@ it('redirects with mastodon-already-connected for a duplicate instance and handl
 });
 
 it('returns a validation error when the mastodon instance connection times out', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(MastodonOAuthService::class);
     $service->shouldReceive('getAuthorizeUrl')
         ->once()
@@ -190,7 +190,7 @@ it('redirects guests away from mastodon instances', function () {
 });
 
 it('returns empty array when query is shorter than 2 characters', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
 
     $response = $this->actingAs($user)->get('/auth/mastodon/instances?q=m');
 
@@ -207,7 +207,7 @@ it('returns filtered instances matching the query', function () {
         ], 200),
     ]);
 
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $response = $this->actingAs($user)->get('/auth/mastodon/instances?q=ma');
 
     $response->assertOk();
@@ -224,7 +224,7 @@ it('returns empty array when the upstream fetch fails', function () {
     ]);
     Cache::forget('mastodon_servers_list');
 
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $response = $this->actingAs($user)->get('/auth/mastodon/instances?q=ma');
 
     $response->assertOk();
@@ -239,7 +239,7 @@ it('caches the server list and does not re-fetch on subsequent requests', functi
     ]);
     Cache::forget('mastodon_servers_list');
 
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $this->actingAs($user)->get('/auth/mastodon/instances?q=ma');
     $this->actingAs($user)->get('/auth/mastodon/instances?q=ma');
 
@@ -255,7 +255,7 @@ it('returns at most 8 instances even when more match the query', function () {
     Http::fake(['api.joinmastodon.org/servers' => Http::response($servers, 200)]);
     Cache::forget('mastodon_servers_list');
 
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $response = $this->actingAs($user)->get('/auth/mastodon/instances?q=ma');
 
     $response->assertOk();
@@ -271,7 +271,7 @@ it('matches instances by description as well as domain', function () {
     ]);
     Cache::forget('mastodon_servers_list');
 
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $response = $this->actingAs($user)->get('/auth/mastodon/instances?q=open+source');
 
     $response->assertOk();
@@ -280,7 +280,7 @@ it('matches instances by description as well as domain', function () {
 });
 
 it('redirects to oauth authorize url for mastodon reauth', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',
@@ -304,7 +304,7 @@ it('redirects to oauth authorize url for mastodon reauth', function () {
 });
 
 it('updates the existing mastodon account on reauth callback', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',
@@ -338,7 +338,7 @@ it('updates the existing mastodon account on reauth callback', function () {
 });
 
 it('does not update a reauth account when the instance does not match the callback', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',
@@ -373,7 +373,7 @@ it('does not update a reauth account when the instance does not match the callba
 });
 
 it('clears a stale reauth session key on fresh mastodon connect', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $staleAccount = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',
@@ -395,7 +395,7 @@ it('clears a stale reauth session key on fresh mastodon connect', function () {
 });
 
 it('returns 403 when mastodon reauth target is not a mastodon account', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'bluesky',

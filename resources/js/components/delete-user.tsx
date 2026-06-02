@@ -1,6 +1,7 @@
-import { Form } from "@inertiajs/react";
+import { router } from "@inertiajs/react";
 import ProfileController from "@/actions/App/Http/Controllers/Settings/ProfileController";
 import Heading from "@/components/heading";
+import InputError from "@/components/input-error";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -11,8 +12,20 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { usePasskey } from "@/hooks/use-passkey";
 
 export default function DeleteUser() {
+	const { confirmIdentity, loading, error } = usePasskey();
+
+	const handleDelete = async () => {
+		const confirmed = await confirmIdentity();
+
+		if (confirmed) {
+			router.delete(ProfileController.destroy.url(), { preserveScroll: true });
+		}
+	};
+
 	return (
 		<div className="space-y-6">
 			<Heading
@@ -43,30 +56,23 @@ export default function DeleteUser() {
 							also be permanently deleted. This action cannot be undone.
 						</DialogDescription>
 
-						<Form
-							{...ProfileController.destroy.form()}
-							options={{
-								preserveScroll: true,
-							}}
-							className="space-y-6"
-						>
-							{({ processing }) => (
-								<DialogFooter className="gap-2">
-									<DialogClose asChild>
-										<Button variant="secondary">Cancel</Button>
-									</DialogClose>
+						{error && <InputError message={error} />}
 
-									<Button variant="destructive" disabled={processing} asChild>
-										<button
-											type="submit"
-											data-test="confirm-delete-user-button"
-										>
-											Delete account
-										</button>
-									</Button>
-								</DialogFooter>
-							)}
-						</Form>
+						<DialogFooter className="gap-2">
+							<DialogClose asChild>
+								<Button variant="secondary">Cancel</Button>
+							</DialogClose>
+
+							<Button
+								variant="destructive"
+								disabled={loading}
+								onClick={handleDelete}
+								data-test="confirm-delete-user-button"
+							>
+								{loading && <Spinner />}
+								Delete account
+							</Button>
+						</DialogFooter>
 					</DialogContent>
 				</Dialog>
 			</div>

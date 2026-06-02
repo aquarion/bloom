@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnsurePasskeyConfirmed;
+use App\Http\Middleware\EnsurePasskeyExists;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SecurityHeaders;
@@ -15,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'passkey.exists' => EnsurePasskeyExists::class,
+            'passkey.confirmed' => EnsurePasskeyConfirmed::class,
+        ]);
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [

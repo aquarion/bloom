@@ -44,9 +44,14 @@ Route::get('site.webmanifest', function () {
     ])->header('Content-Type', 'application/manifest+json');
 })->name('manifest.webmanifest');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
     Route::get('feed', [FeedController::class, 'index'])->name('feed');
+
+    Route::get('auth/passkey/confirm/options', [PasskeyAuthController::class, 'confirmOptions'])
+        ->name('passkey.confirm.options');
+    Route::post('auth/passkey/confirm', [PasskeyAuthController::class, 'confirm'])
+        ->name('passkey.confirm');
 });
 
 Route::middleware('guest')->group(function () {

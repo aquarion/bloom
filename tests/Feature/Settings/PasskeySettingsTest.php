@@ -150,7 +150,7 @@ test('destroy deletes the passkey and sends email', function () {
 
 test('destroy prevents deleting another user\'s passkey', function () {
     $owner = User::factory()->create();
-    $attacker = User::factory()->create();
+    $attacker = User::factory()->withPasskey()->create();
     $passkey = Passkey::factory()->for($owner)->create();
 
     $response = $this->actingAs($attacker)

@@ -4,7 +4,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\User;
 
 test('inertia returns 409 when version header is stale', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $this->actingAs($user);
 
     $this->get(route('dashboard'), [
@@ -26,7 +26,7 @@ test('version hash changes when app version config changes', function () {
 });
 
 test('inertia does not return 409 when version header matches', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $this->actingAs($user);
 
     $middleware = app(HandleInertiaRequests::class);

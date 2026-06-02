@@ -17,7 +17,7 @@ it('redirects guests away from bluesky connect', function () {
 });
 
 it('saves a new bluesky account and redirects on store', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(BlueskyAuthService::class);
     $service->shouldReceive('createSession')
         ->once()
@@ -46,7 +46,7 @@ it('saves a new bluesky account and redirects on store', function () {
 });
 
 it('saves a bluesky account with a custom PDS url', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(BlueskyAuthService::class);
     $service->shouldReceive('createSession')
         ->once()
@@ -71,7 +71,7 @@ it('saves a bluesky account with a custom PDS url', function () {
 });
 
 it('allows connecting a second bluesky account with a different handle', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'bluesky',
@@ -97,7 +97,7 @@ it('allows connecting a second bluesky account with a different handle', functio
 });
 
 it('redirects with bluesky-already-connected for a duplicate handle', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'bluesky',
@@ -124,7 +124,7 @@ it('redirects with bluesky-already-connected for a duplicate handle', function (
 });
 
 it('rejects a non-https pds_url', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
 
     $response = $this->actingAs($user)->post('/auth/bluesky', [
         'handle' => 'alice.bsky.social',
@@ -136,7 +136,7 @@ it('rejects a non-https pds_url', function () {
 });
 
 it('validates handle and app_password on store', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
 
     $response = $this->actingAs($user)->post('/auth/bluesky', []);
 
@@ -144,7 +144,7 @@ it('validates handle and app_password on store', function () {
 });
 
 it('returns a validation error on invalid credentials', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(BlueskyAuthService::class);
     $service->shouldReceive('createSession')
         ->once()
@@ -167,7 +167,7 @@ it('returns a validation error on invalid credentials', function () {
 });
 
 it('returns a validation error when the bluesky connection times out', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(BlueskyAuthService::class);
     $service->shouldReceive('createSession')
         ->once()
@@ -183,7 +183,7 @@ it('returns a validation error when the bluesky connection times out', function 
 });
 
 it('returns a validation error on a failed bluesky connection', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(BlueskyAuthService::class);
     $service->shouldReceive('createSession')
         ->once()
@@ -203,7 +203,7 @@ it('returns a validation error on a failed bluesky connection', function () {
 });
 
 it('updates tokens and clears auth_failed_at on successful reauth', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'bluesky',
@@ -238,7 +238,7 @@ it('updates tokens and clears auth_failed_at on successful reauth', function () 
 });
 
 it('returns validation error on invalid app password during reauth', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'bluesky',
@@ -264,8 +264,8 @@ it('returns validation error on invalid app password during reauth', function ()
 });
 
 it('returns 403 when reauth account belongs to a different user', function () {
-    $user = User::factory()->create();
-    $other = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
+    $other = User::factory()->withPasskey()->create();
     $account = SocialAccount::factory()->create([
         'user_id' => $other->id,
         'provider' => 'bluesky',
@@ -280,7 +280,7 @@ it('returns 403 when reauth account belongs to a different user', function () {
 });
 
 it('returns 403 when reauth target is not a bluesky account', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',

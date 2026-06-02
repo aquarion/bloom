@@ -7,7 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('disconnects a bluesky account by id', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $first = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'bluesky',
@@ -30,7 +30,7 @@ it('disconnects a bluesky account by id', function () {
 });
 
 it('disconnects a mastodon account by id', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
     $first = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',
@@ -53,8 +53,8 @@ it('disconnects a mastodon account by id', function () {
 });
 
 it('returns 403 when disconnecting another users account', function () {
-    $user = User::factory()->create();
-    $other = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
+    $other = User::factory()->withPasskey()->create();
     $othersAccount = SocialAccount::factory()->create([
         'user_id' => $other->id,
         'provider' => 'bluesky',

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Passkey;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -16,5 +17,12 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
         ];
+    }
+
+    public function withPasskey(): static
+    {
+        return $this->afterCreating(function (User $user) {
+            Passkey::factory()->for($user)->create();
+        });
     }
 }

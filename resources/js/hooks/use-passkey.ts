@@ -1,10 +1,12 @@
 import { router } from "@inertiajs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { dashboard } from "@/routes";
+import { confirm as confirmRoute } from "@/routes/passkey";
 import {
 	authenticate as authenticateRoute,
 	options as authOptions,
 } from "@/routes/passkey/auth";
+import { options as confirmOptions } from "@/routes/passkey/confirm";
 import {
 	options as registerOptions,
 	store as registerStore,
@@ -107,6 +109,7 @@ export type UsePasskeyReturn = {
 	error: string | null;
 	register: (name: string) => Promise<boolean>;
 	authenticate: () => Promise<void>;
+	confirmIdentity: () => Promise<boolean>;
 	startConditional: () => void;
 	abortConditional: () => void;
 };
@@ -330,6 +333,70 @@ export function usePasskey(): UsePasskeyReturn {
 		abortRef.current?.abort();
 	}, []);
 
+	const confirmIdentity = useCallback(async (): Promise<boolean> => {
+		if (!isSupported) {
+			return false;
+		}
+
+		setLoading(true);
+		setError(null);
+
+		try {
+			const optionsRes = await fetch(confirmOptions.url(), {
+				headers: { Accept: "application/json" },
+			});
+
+			if (!optionsRes.ok) {
+				throw new Error("Failed to fetch WebAuthn options");
+			}
+
+			const token = optionsRes.headers.get("X-Passkey-Token");
+			const raw = (await optionsRes.json()) as WebAuthnRequestOptions;
+			const options = prepareRequestOptions(raw);
+
+			const credential = (await navigator.credentials.get({
+				publicKey: options,
+				mediation: "optional",
+			})) as PublicKeyCredentialWithResponse | null;
+
+			if (!credential) {
+				return false;
+			}
+
+			const headers: Record<string, string> = {
+				"Content-Type": "application/json",
+				Accept: "application/json",
+				"X-XSRF-TOKEN": getXsrfToken(),
+			};
+
+			if (token) {
+				headers["X-Passkey-Token"] = token;
+			}
+
+			const res = await fetch(confirmRoute.url(), {
+				method: "POST",
+				headers,
+				body: JSON.stringify(serializeCredential(credential)),
+			});
+
+			if (!res.ok) {
+				const body = (await res.json()) as { message?: string };
+
+				throw new Error(body.message ?? "Confirmation failed");
+			}
+
+			return true;
+		} catch (e: unknown) {
+			if (e instanceof Error && e.name !== "NotAllowedError") {
+				setError(e.message);
+			}
+
+			return false;
+		} finally {
+			setLoading(false);
+		}
+	}, [isSupported, prepareRequestOptions]);
+
 	useEffect(() => {
 		return () => abortRef.current?.abort();
 	}, []);
@@ -340,6 +407,7 @@ export function usePasskey(): UsePasskeyReturn {
 		error,
 		register,
 		authenticate,
+		confirmIdentity,
 		startConditional,
 		abortConditional,
 	};

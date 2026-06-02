@@ -7,7 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 it('renders the feed page for authenticated users', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
 
     $mockAggregator = Mockery::mock(FeedAggregator::class);
     $mockAggregator->shouldReceive('fetch')->once()->andReturn([
@@ -25,7 +25,7 @@ it('renders the feed page for authenticated users', function () {
 });
 
 it('returns json for xhr requests', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
 
     $mockAggregator = Mockery::mock(FeedAggregator::class);
     $mockAggregator->shouldReceive('fetch')->once()->andReturn([

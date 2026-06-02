@@ -23,7 +23,6 @@ class FeedAggregator
         $cursors = $cursor ? json_decode(base64_decode($cursor), true) : [];
         $posts = collect();
 
-        // Fetch configured number of posts from each provider for better proportional representation
         $perProviderLimit = config('feed.per_provider_limit', 20);
 
         foreach ($user->socialAccounts as $account) {
@@ -34,12 +33,26 @@ class FeedAggregator
                     $host = parse_url($account->instance_url, PHP_URL_HOST);
                     $statuses = $this->mastodon->getHomeTimeline($account, $perProviderLimit, $accountCursor);
 
-                    $parents = $this->fetchMastodonParents($account, $statuses);
+                    $parents = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => $s['in_reply_to_id'] ?? null);
+                    // Quote IDs point to foreign posts — they are never in the timeline batch,
+                    // so the batch short-circuit inside fetchMastodonStatuses is always bypassed here.
+                    $quotes = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['quote_id'] ?? null);
 
-                    $normalised = array_map(
-                        fn ($s) => $this->normalizer->fromMastodon($s, $host, $parents[$s['in_reply_to_id'] ?? ''] ?? null, $account->handle),
-                        $statuses
-                    );
+                    $normalised = array_map(function ($s) use ($host, $parents, $quotes, $account) {
+                        $source = $s['reblog'] ?? $s;
+                        // $quoteId matches the key used by the extractor above, so $quotes[$quoteId] resolves
+                        // the pre-fetched status (or null if unavailable) to pass into the normalizer.
+                        $quoteId = $source['quote_id'] ?? null;
+
+                        return $this->normalizer->fromMastodon(
+                            $s,
+                            $host,
+                            $parents[$s['in_reply_to_id'] ?? ''] ?? null,
+                            $account->handle,
+                            $quoteId ? ($quotes[$quoteId] ?? null) : null,
+                        );
+                    }, $statuses);
+
                     $nextCursor = ! empty($statuses) ? end($statuses)['id'] : null;
                     $posts = $posts->concat($normalised);
                     if ($nextCursor) {
@@ -64,7 +77,6 @@ class FeedAggregator
             }
         }
 
-        // Return configured buffer size to ensure both providers are well-represented
         $bufferSize = config('feed.buffer_size', 40);
         $sorted = $posts->sortByDesc('created_at')->values()->take($bufferSize)->all();
         $nextCursor = ! empty($sorted) ? base64_encode(json_encode($cursors)) : null;
@@ -72,29 +84,23 @@ class FeedAggregator
         return ['posts' => $sorted, 'next_cursor' => $nextCursor];
     }
 
-    /**
-     * Build an id => status map for any in_reply_to_id values in the batch.
-     * Statuses already present in the batch are used directly; only missing
-     * parents are fetched from the API.
-     */
-    private function fetchMastodonParents(SocialAccount $account, array $statuses): array
+    private function fetchMastodonStatuses(SocialAccount $account, array $statuses, callable $idExtractor): array
     {
         $batchById = array_column($statuses, null, 'id');
+        $ids = array_filter(array_unique(array_map($idExtractor, $statuses)));
 
-        $replyIds = array_filter(array_unique(array_column($statuses, 'in_reply_to_id')));
-
-        $parents = [];
-        foreach ($replyIds as $id) {
+        $result = [];
+        foreach ($ids as $id) {
             if (isset($batchById[$id])) {
-                $parents[$id] = $batchById[$id];
+                $result[$id] = $batchById[$id];
             } else {
                 $fetched = $this->mastodon->getStatus($account, $id);
                 if ($fetched !== null) {
-                    $parents[$id] = $fetched;
+                    $result[$id] = $fetched;
                 }
             }
         }
 
-        return $parents;
+        return $result;
     }
 }

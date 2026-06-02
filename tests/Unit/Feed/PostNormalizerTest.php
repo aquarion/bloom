@@ -1148,3 +1148,173 @@ it('sets boosted_by_created_at to null for regular bluesky posts', function () {
 
     expect($post['boosted_by_created_at'])->toBeNull();
 });
+
+it('sets quoted_post from inline mastodon quote field', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>my comment</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'quote' => [
+            'id' => '99',
+            'content' => '<p>the quoted post</p>',
+            'created_at' => '2024-01-14T09:00:00.000Z',
+            'url' => 'https://mastodon.social/@author/99',
+            'account' => [
+                'display_name' => 'Quoted Author',
+                'acct' => 'author',
+                'avatar' => 'https://mastodon.social/avatars/author.jpg',
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['quoted_post'])->toBe([
+        'author_name' => 'Quoted Author',
+        'author_handle' => '@author@mastodon.social',
+        'author_avatar' => 'https://mastodon.social/avatars/author.jpg',
+        'original_url' => 'https://mastodon.social/@author/99',
+        'body' => 'the quoted post',
+        'created_at' => '2024-01-14T09:00:00.000Z',
+    ]);
+});
+
+it('sets quoted_post from pre-fetched quote status when no inline quote field', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>my comment</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'quote_id' => '99',
+    ];
+
+    $quoteStatus = [
+        'id' => '99',
+        'content' => '<p>the quoted post</p>',
+        'created_at' => '2024-01-14T09:00:00.000Z',
+        'url' => 'https://mastodon.social/@author/99',
+        'account' => [
+            'display_name' => 'Quoted Author',
+            'acct' => 'author',
+            'avatar' => 'https://mastodon.social/avatars/author.jpg',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', quoteStatus: $quoteStatus);
+
+    expect($post['quoted_post'])->toBe([
+        'author_name' => 'Quoted Author',
+        'author_handle' => '@author@mastodon.social',
+        'author_avatar' => 'https://mastodon.social/avatars/author.jpg',
+        'original_url' => 'https://mastodon.social/@author/99',
+        'body' => 'the quoted post',
+        'created_at' => '2024-01-14T09:00:00.000Z',
+    ]);
+});
+
+it('prefers inline quote field over pre-fetched quote status', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>my comment</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'quote_id' => '99',
+        'quote' => [
+            'id' => '99',
+            'content' => '<p>inline quote body</p>',
+            'created_at' => '2024-01-14T09:00:00.000Z',
+            'url' => 'https://mastodon.social/@inline/99',
+            'account' => ['display_name' => 'Inline Author', 'acct' => 'inline', 'avatar' => ''],
+        ],
+    ];
+
+    $quoteStatus = [
+        'id' => '99',
+        'content' => '<p>fetched quote body</p>',
+        'created_at' => '2024-01-14T09:00:00.000Z',
+        'url' => 'https://mastodon.social/@fetched/99',
+        'account' => ['display_name' => 'Fetched Author', 'acct' => 'fetched', 'avatar' => ''],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', quoteStatus: $quoteStatus);
+
+    expect($post['quoted_post']['author_name'])->toBe('Inline Author');
+});
+
+it('sets quoted_post to null when neither inline quote nor pre-fetched status is present', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>regular post</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['quoted_post'])->toBeNull();
+});
+
+it('does not double-append instance to federated mastodon quoted post author handle', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>quoting</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'quote' => [
+            'id' => '99',
+            'content' => '<p>remote post</p>',
+            'created_at' => '2024-01-14T09:00:00.000Z',
+            'url' => 'https://remote.social/@remote@remote.social/99',
+            'account' => [
+                'display_name' => 'Remote User',
+                'acct' => 'remote@remote.social',
+                'avatar' => '',
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['quoted_post']['author_handle'])->toBe('@remote@remote.social');
+});
+
+it('sets quoted_post from inline quote on a boosted mastodon status', function () {
+    $status = [
+        'id' => '999',
+        'content' => '',
+        'created_at' => '2024-01-15T12:00:00.000Z',
+        'url' => 'https://fosstodon.org/@booster/999',
+        'account' => ['display_name' => 'Booster', 'acct' => 'booster', 'avatar' => ''],
+        'media_attachments' => [],
+        'reblog' => [
+            'id' => '1',
+            'content' => '<p>boosted quote post</p>',
+            'created_at' => '2024-01-15T10:00:00.000Z',
+            'url' => 'https://mastodon.social/@original/1',
+            'account' => ['display_name' => 'Original', 'acct' => 'original', 'avatar' => ''],
+            'media_attachments' => [],
+            'quote' => [
+                'id' => '99',
+                'content' => '<p>the quoted post</p>',
+                'created_at' => '2024-01-14T09:00:00.000Z',
+                'url' => 'https://mastodon.social/@quoted/99',
+                'account' => ['display_name' => 'Quoted Author', 'acct' => 'quoted', 'avatar' => ''],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+
+    expect($post['quoted_post']['author_name'])->toBe('Quoted Author');
+});

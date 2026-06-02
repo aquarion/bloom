@@ -36,17 +36,17 @@ test('recovery invalidates previous unused tokens', function () {
     Mail::fake();
 
     $user = User::factory()->create();
-    PasskeyRecoveryToken::create(['user_id' => $user->id, 'token' => 'old-token']);
+    PasskeyRecoveryToken::create(['user_id' => $user->id, 'token' => hash('sha256', 'old-token')]);
 
     $this->post(route('passkey.recover.store'), ['email' => $user->email]);
 
-    expect(PasskeyRecoveryToken::where('token', 'old-token')->exists())->toBeFalse();
+    expect(PasskeyRecoveryToken::where('token', hash('sha256', 'old-token'))->exists())->toBeFalse();
     expect(PasskeyRecoveryToken::where('user_id', $user->id)->count())->toBe(1);
 });
 
 test('valid recovery token logs in user and redirects to passkey setup', function () {
     $user = User::factory()->create();
-    $record = PasskeyRecoveryToken::create(['user_id' => $user->id, 'token' => 'valid-token']);
+    $record = PasskeyRecoveryToken::create(['user_id' => $user->id, 'token' => hash('sha256', 'valid-token')]);
 
     $this->get(route('passkey.recover.setup', 'valid-token'))
         ->assertRedirect(route('passkey.setup'));
@@ -57,7 +57,7 @@ test('valid recovery token logs in user and redirects to passkey setup', functio
 
 test('expired recovery token shows invalid page', function () {
     $user = User::factory()->create();
-    $record = PasskeyRecoveryToken::create(['user_id' => $user->id, 'token' => 'expired-token']);
+    $record = PasskeyRecoveryToken::create(['user_id' => $user->id, 'token' => hash('sha256', 'expired-token')]);
     $record->created_at = now()->subHours(2);
     $record->save();
 
@@ -73,7 +73,7 @@ test('used recovery token shows invalid page', function () {
     $user = User::factory()->create();
     PasskeyRecoveryToken::create([
         'user_id' => $user->id,
-        'token' => 'used-token',
+        'token' => hash('sha256', 'used-token'),
         'used_at' => now(),
     ]);
 

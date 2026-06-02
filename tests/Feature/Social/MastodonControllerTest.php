@@ -278,3 +278,133 @@ it('matches instances by description as well as domain', function () {
     $response->assertJson([['name' => 'fosstodon.org']]);
     $this->assertCount(1, $response->json());
 });
+
+it('redirects to oauth authorize url for mastodon reauth', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'handle' => '@alice@fosstodon.org',
+        'auth_failed_at' => now(),
+    ]);
+
+    $service = Mockery::mock(MastodonOAuthService::class);
+    $service->shouldReceive('getAuthorizeUrl')
+        ->once()
+        ->with('https://fosstodon.org', Mockery::any())
+        ->andReturn('https://fosstodon.org/oauth/authorize?client_id=abc');
+    $this->app->instance(MastodonOAuthService::class, $service);
+
+    $response = $this->actingAs($user)
+        ->post("/auth/connections/{$account->id}/mastodon");
+
+    $response->assertRedirect('https://fosstodon.org/oauth/authorize?client_id=abc');
+    expect(session('mastodon_reauth_account_id'))->toBe($account->id);
+});
+
+it('updates the existing mastodon account on reauth callback', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'handle' => '@alice@fosstodon.org',
+        'access_token' => 'old-token',
+        'auth_failed_at' => now(),
+    ]);
+
+    $service = Mockery::mock(MastodonOAuthService::class);
+    $service->shouldReceive('getStoredCredentials')
+        ->andReturn(['client_id' => 'cid', 'client_secret' => 'csecret']);
+    $service->shouldReceive('exchangeCode')
+        ->andReturn(['access_token' => 'new-token', 'handle' => '@alice@fosstodon.org']);
+    $this->app->instance(MastodonOAuthService::class, $service);
+
+    $response = $this->actingAs($user)
+        ->withSession([
+            'mastodon_instance' => 'https://fosstodon.org',
+            'mastodon_oauth_state' => 'state',
+            'mastodon_reauth_account_id' => $account->id,
+        ])
+        ->get('/auth/mastodon/callback?code=code&state=state');
+
+    $response->assertSessionHas('status', 'mastodon-reconnected');
+    $this->assertDatabaseCount('social_accounts', 1);
+
+    $account->refresh();
+    expect($account->access_token)->toBe('new-token')
+        ->and($account->auth_failed_at)->toBeNull();
+});
+
+it('does not update a reauth account when the instance does not match the callback', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'handle' => '@alice@fosstodon.org',
+        'access_token' => 'old-token',
+        'auth_failed_at' => now(),
+    ]);
+
+    $service = Mockery::mock(MastodonOAuthService::class);
+    $service->shouldReceive('getStoredCredentials')
+        ->andReturn(['client_id' => 'cid', 'client_secret' => 'csecret']);
+    $service->shouldReceive('exchangeCode')
+        ->andReturn(['access_token' => 'new-token', 'handle' => '@alice@different.social']);
+    $this->app->instance(MastodonOAuthService::class, $service);
+
+    // Callback is for a different instance than the account's instance_url
+    $response = $this->actingAs($user)
+        ->withSession([
+            'mastodon_instance' => 'https://different.social',
+            'mastodon_oauth_state' => 'state',
+            'mastodon_reauth_account_id' => $account->id,
+        ])
+        ->get('/auth/mastodon/callback?code=code&state=state');
+
+    // Falls through to fresh connect path
+    $response->assertSessionHas('status', 'mastodon-connected');
+    $this->assertDatabaseCount('social_accounts', 2);
+
+    $account->refresh();
+    expect($account->access_token)->toBe('old-token');
+});
+
+it('clears a stale reauth session key on fresh mastodon connect', function () {
+    $user = User::factory()->create();
+    $staleAccount = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'handle' => '@stale@fosstodon.org',
+        'access_token' => 'stale-token',
+    ]);
+
+    $service = Mockery::mock(MastodonOAuthService::class);
+    $service->shouldReceive('getAuthorizeUrl')->andReturn('https://mastodon.social/oauth/authorize');
+    $this->app->instance(MastodonOAuthService::class, $service);
+
+    // Fresh connect with a stale reauth key in session
+    $this->actingAs($user)
+        ->withSession(['mastodon_reauth_account_id' => $staleAccount->id])
+        ->post('/auth/mastodon', ['instance_url' => 'https://mastodon.social']);
+
+    expect(session('mastodon_reauth_account_id'))->toBeNull();
+});
+
+it('returns 403 when mastodon reauth target is not a mastodon account', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'handle' => '@alice.bsky.social',
+    ]);
+
+    $response = $this->actingAs($user)
+        ->post("/auth/connections/{$account->id}/mastodon");
+
+    $response->assertForbidden();
+});

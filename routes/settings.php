@@ -50,6 +50,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Bluesky app password
     Route::post('auth/bluesky', [BlueskyController::class, 'store'])->name('bluesky.store');
+    Route::patch('auth/connections/{account}/bluesky', [BlueskyController::class, 'update'])->name('bluesky.update');
+
+    // Mastodon re-auth (OAuth for an existing account)
+    Route::post('auth/connections/{account}/mastodon', [MastodonController::class, 'redirectReauth'])->name('mastodon.reauth');
 
     // Disconnect any social account
     Route::delete('auth/connections/{account}', [ConnectionsController::class, 'destroy'])->name('connections.destroy');

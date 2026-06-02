@@ -201,3 +201,95 @@ it('returns a validation error on a failed bluesky connection', function () {
 
     $response->assertSessionHasErrors('app_password');
 });
+
+it('updates tokens and clears auth_failed_at on successful reauth', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'handle' => '@alice.bsky.social',
+        'access_token' => 'old-access',
+        'token_secret' => 'old-refresh',
+        'auth_failed_at' => now(),
+    ]);
+
+    $service = Mockery::mock(BlueskyAuthService::class);
+    $service->shouldReceive('createSession')
+        ->once()
+        ->with('@alice.bsky.social', 'new-xxxx-xxxx', 'https://bsky.social')
+        ->andReturn([
+            'access_token' => 'new-access',
+            'refresh_token' => 'new-refresh',
+            'handle' => '@alice.bsky.social',
+        ]);
+    $this->app->instance(BlueskyAuthService::class, $service);
+
+    $response = $this->actingAs($user)
+        ->patch("/auth/connections/{$account->id}/bluesky", ['app_password' => 'new-xxxx-xxxx']);
+
+    $response->assertRedirect(route('connections.edit'));
+    $response->assertSessionHas('status', 'bluesky-reconnected');
+
+    $account->refresh();
+    expect($account->access_token)->toBe('new-access')
+        ->and($account->token_secret)->toBe('new-refresh')
+        ->and($account->auth_failed_at)->toBeNull();
+});
+
+it('returns validation error on invalid app password during reauth', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'handle' => '@alice.bsky.social',
+        'auth_failed_at' => now(),
+    ]);
+
+    $service = Mockery::mock(BlueskyAuthService::class);
+    $service->shouldReceive('createSession')
+        ->once()
+        ->andThrow(new RequestException(
+            new Illuminate\Http\Client\Response(new Response(401, [], '{}'))
+        ));
+    $this->app->instance(BlueskyAuthService::class, $service);
+
+    $response = $this->actingAs($user)
+        ->patch("/auth/connections/{$account->id}/bluesky", ['app_password' => 'wrong']); // pragma: allowlist secret
+
+    $response->assertSessionHasErrors('app_password');
+    $account->refresh();
+    expect($account->auth_failed_at)->not->toBeNull();
+});
+
+it('returns 403 when reauth account belongs to a different user', function () {
+    $user = User::factory()->create();
+    $other = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $other->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'handle' => '@other.bsky.social',
+    ]);
+
+    $response = $this->actingAs($user)
+        ->patch("/auth/connections/{$account->id}/bluesky", ['app_password' => 'xxxx-xxxx']);
+
+    $response->assertForbidden();
+});
+
+it('returns 403 when reauth target is not a bluesky account', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'handle' => '@alice@fosstodon.org',
+    ]);
+
+    $response = $this->actingAs($user)
+        ->patch("/auth/connections/{$account->id}/bluesky", ['app_password' => 'xxxx-xxxx']);
+
+    $response->assertForbidden();
+});

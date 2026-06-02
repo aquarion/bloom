@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Social;
 
 use App\Http\Controllers\Controller;
+use App\Models\SocialAccount;
 use App\Services\Bluesky\BlueskyAuthService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -28,27 +29,11 @@ class BlueskyController extends Controller
             $this->validatePdsUrl($pdsUrl);
         }
 
-        try {
-            $result = $this->auth->createSession(
-                $request->input('handle'),
-                $request->input('app_password'),
-                $pdsUrl,
-            );
-        } catch (ConnectionException) {
-            throw ValidationException::withMessages(['app_password' => 'Could not connect to Bluesky. Please try again.']);
-        } catch (RequestException $e) {
-            $message = $e->response->status() === 401
-                ? 'Invalid handle or app password.'
-                : 'Could not connect to Bluesky. Please try again.';
-
-            if ($e->response->status() !== 401) {
-                Log::warning('Bluesky createSession returned unexpected HTTP error', [
-                    'status' => $e->response->status(),
-                ]);
-            }
-
-            throw ValidationException::withMessages(['app_password' => $message]);
-        }
+        $result = $this->attemptCreateSession(
+            $request->input('handle'),
+            $request->input('app_password'),
+            $pdsUrl,
+        );
 
         $exists = $request->user()->socialAccounts()
             ->where('provider', 'bluesky')
@@ -71,6 +56,50 @@ class BlueskyController extends Controller
 
         return redirect()->route('connections.edit')
             ->with('status', 'bluesky-connected');
+    }
+
+    public function update(Request $request, SocialAccount $account)
+    {
+        abort_if($account->user_id !== $request->user()->id || $account->provider !== 'bluesky', 403);
+
+        $request->validate(['app_password' => 'required|string']);
+
+        $result = $this->attemptCreateSession(
+            $account->handle,
+            $request->input('app_password'),
+            $account->instance_url ?? 'https://bsky.social',
+        );
+
+        $account->update([
+            'access_token' => $result['access_token'],
+            'token_secret' => $result['refresh_token'],
+            'handle' => $result['handle'],
+            'auth_failed_at' => null,
+        ]);
+
+        return redirect()->route('connections.edit')
+            ->with('status', 'bluesky-reconnected');
+    }
+
+    private function attemptCreateSession(string $handle, string $appPassword, string $pdsUrl): array
+    {
+        try {
+            return $this->auth->createSession($handle, $appPassword, $pdsUrl);
+        } catch (ConnectionException) {
+            throw ValidationException::withMessages(['app_password' => 'Could not connect to Bluesky. Please try again.']);
+        } catch (RequestException $e) {
+            $message = $e->response->status() === 401
+                ? 'Invalid handle or app password.'
+                : 'Could not connect to Bluesky. Please try again.';
+
+            if ($e->response->status() !== 401) {
+                Log::warning('Bluesky createSession returned unexpected HTTP error', [
+                    'status' => $e->response->status(),
+                ]);
+            }
+
+            throw ValidationException::withMessages(['app_password' => $message]);
+        }
     }
 
     private function validatePdsUrl(string $url): void

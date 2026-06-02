@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\SocialAccount;
+use App\Models\User;
 use App\Services\Bluesky\BlueskyFeedService;
 use App\Services\Feed\FeedAggregator;
 use App\Services\Feed\PostNormalizer;
@@ -138,4 +139,57 @@ it('extracts quote_id from within a reblogged status', function () {
 
     expect($result)->toHaveKey('99')
         ->and($result['99']['id'])->toBe('99');
+});
+
+it('deduplicates posts with the same original_url, keeping the newest boost', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    // Two boosts of the same post — same original_url, different boost times
+    $sharedUrl = 'https://fosstodon.org/@charlie/123';
+    $newerBoost = [
+        'id' => '200',
+        'created_at' => '2026-06-02T12:00:00.000Z',
+        'in_reply_to_id' => null,
+        'reblog' => [
+            'id' => '123',
+            'created_at' => '2026-06-01T10:00:00.000Z',
+            'url' => $sharedUrl,
+            'content' => '<p>original</p>',
+            'account' => ['acct' => 'charlie', 'display_name' => 'Charlie', 'avatar' => 'https://fosstodon.org/avatar.png', 'header' => '', 'emojis' => []],
+            'media_attachments' => [],
+            'emojis' => [],
+            'card' => null,
+            'quote' => null,
+            'quote_id' => null,
+        ],
+        'account' => ['acct' => 'alice', 'display_name' => 'Alice', 'avatar' => 'https://fosstodon.org/alice.png', 'emojis' => []],
+    ];
+    $olderBoost = array_merge($newerBoost, [
+        'id' => '201',
+        'created_at' => '2026-06-02T11:00:00.000Z',
+        'account' => ['acct' => 'bob', 'display_name' => 'Bob', 'avatar' => 'https://fosstodon.org/bob.png', 'emojis' => []],
+    ]);
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$newerBoost, $olderBoost]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator(
+        $mastodon,
+        Mockery::mock(BlueskyFeedService::class),
+        app(PostNormalizer::class),
+    );
+
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['boosted_by'])->toBe('Alice')
+        ->and($result['posts'][0]['original_url'])->toBe($sharedUrl);
 });

@@ -78,10 +78,22 @@ class FeedAggregator
         }
 
         $bufferSize = config('feed.buffer_size', 40);
-        $sorted = $posts->sortByDesc('created_at')->values()->take($bufferSize)->all();
-        $nextCursor = ! empty($sorted) ? base64_encode(json_encode($cursors)) : null;
+        $sorted = $posts->sortByDesc('created_at')->values();
 
-        return ['posts' => $sorted, 'next_cursor' => $nextCursor];
+        $seen = [];
+        $deduped = $sorted->filter(function ($post) use (&$seen) {
+            $key = $post['original_url'] ?: $post['id'];
+            if (isset($seen[$key])) {
+                return false;
+            }
+            $seen[$key] = true;
+
+            return true;
+        })->values()->take($bufferSize)->all();
+
+        $nextCursor = ! empty($deduped) ? base64_encode(json_encode($cursors)) : null;
+
+        return ['posts' => $deduped, 'next_cursor' => $nextCursor];
     }
 
     private function fetchMastodonStatuses(SocialAccount $account, array $statuses, callable $idExtractor): array

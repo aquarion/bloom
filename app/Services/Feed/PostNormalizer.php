@@ -121,7 +121,11 @@ class PostNormalizer
 
     private function mastodonQuotedPost(array $source, string $host, ?array $quoteStatus): ?array
     {
-        $raw = $source['quote'] ?? $quoteStatus;
+        $inlineQuote = $source['quote'] ?? null;
+        // Mastodon 4.3+ wraps the quote as { state, quoted_status }; fall back to pre-fetched status
+        $raw = (is_array($inlineQuote) && isset($inlineQuote['quoted_status']))
+            ? $inlineQuote['quoted_status']
+            : ($inlineQuote ?? $quoteStatus);
 
         if ($raw === null) {
             return null;

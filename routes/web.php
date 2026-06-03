@@ -64,7 +64,9 @@ Route::middleware('guest')->group(function () {
         ->middleware('throttle:5,1')
         ->name('passkey.recover.store');
     Route::get('recover/sent', [PasskeyRecoveryController::class, 'sent'])->name('passkey.recover.sent');
-    Route::get('recover/{token}', [PasskeyRecoveryController::class, 'setup'])->name('passkey.recover.setup');
+    Route::get('recover/{token}', [PasskeyRecoveryController::class, 'setup'])
+        ->middleware('throttle:10,1')
+        ->name('passkey.recover.setup');
 
     Route::get('auth/passkey/options', [PasskeyAuthController::class, 'options'])
         ->name('passkey.auth.options');

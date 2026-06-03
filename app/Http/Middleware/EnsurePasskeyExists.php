@@ -16,7 +16,7 @@ class EnsurePasskeyExists
 
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->route()->named(...self::EXCLUDED_ROUTES)) {
+        if ($request->route()?->named(...self::EXCLUDED_ROUTES)) {
             return $next($request);
         }
 

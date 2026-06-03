@@ -12,12 +12,12 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Throwable;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
 use Webauthn\AttestationStatement\NoneAttestationStatementSupport;
-use Webauthn\CredentialRecord;
 use Webauthn\Denormalizer\WebauthnSerializerFactory;
 
 class PasskeyAuthController extends Controller
@@ -64,7 +64,7 @@ class PasskeyAuthController extends Controller
         return response()->json(['confirmed' => true]);
     }
 
-    /** @return array{passkey: Passkey, source: CredentialRecord}|JsonResponse */
+    /** @return array{passkey: Passkey}|JsonResponse */
     private function resolveVerifiedPasskey(Request $request, ?int $requiredUserId = null): array|JsonResponse
     {
         $token = $request->header('X-Passkey-Token');
@@ -73,7 +73,13 @@ class PasskeyAuthController extends Controller
             return response()->json(['message' => 'No active challenge. Please try again.'], 422);
         }
 
-        $options = unserialize($serialized);
+        try {
+            $options = unserialize($serialized);
+        } catch (Throwable $e) {
+            Log::warning('Failed to unserialize passkey challenge', ['exception' => $e->getMessage()]);
+
+            return response()->json(['message' => 'No active challenge. Please try again.'], 422);
+        }
 
         $rawId = $request->input('rawId');
         if (! is_string($rawId) || $rawId === '') {
@@ -104,11 +110,18 @@ class PasskeyAuthController extends Controller
                 $options,
                 $passkey,
             );
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            Log::warning('Passkey authentication verification failed', [
+                'exception' => $e->getMessage(),
+                'user_id' => $requiredUserId,
+            ]);
+
             return response()->json(['message' => 'Passkey verification failed.'], 401);
         }
 
-        if ($source->counter < $passkey->sign_count) {
+        // A counter of 0 means the authenticator doesn't implement counters; only check for
+        // equal-or-lower counters when the authenticator tracks them, per WebAuthn §6.1.
+        if ($source->counter !== 0 && $source->counter <= $passkey->sign_count) {
             /** @var User $user */
             $user = $passkey->user;
             Mail::to($user->email)->send(new PasskeyInvalidated($passkey, automatic: true));
@@ -122,6 +135,6 @@ class PasskeyAuthController extends Controller
             'last_used_at' => now(),
         ]);
 
-        return ['passkey' => $passkey, 'source' => $source];
+        return ['passkey' => $passkey];
     }
 }

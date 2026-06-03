@@ -91,3 +91,24 @@ test('unknown recovery token shows invalid page', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('auth/recover-invalid'));
 });
+
+test('recovery store rejects missing email', function () {
+    $this->post(route('passkey.recover.store'), [])
+        ->assertSessionHasErrors('email');
+});
+
+test('recovery store rejects invalid email format', function () {
+    $this->post(route('passkey.recover.store'), ['email' => 'not-an-email'])
+        ->assertSessionHasErrors('email');
+});
+
+test('recovery lookup is case-insensitive', function () {
+    Mail::fake();
+
+    $user = User::factory()->create(['email' => 'user@example.com']);
+
+    $this->post(route('passkey.recover.store'), ['email' => 'User@Example.COM'])
+        ->assertRedirect(route('passkey.recover.sent'));
+
+    Mail::assertSent(PasskeyRecovery::class, fn ($mail) => $mail->hasTo('user@example.com'));
+});

@@ -356,6 +356,10 @@ export function usePasskey(): UsePasskeyReturn {
 
 	const confirmIdentity = useCallback(async (): Promise<boolean> => {
 		if (!isSupported) {
+			setError(
+				"Passkeys are not supported in this browser. Please use a supported browser to confirm your identity.",
+			);
+
 			return false;
 		}
 
@@ -381,7 +385,11 @@ export function usePasskey(): UsePasskeyReturn {
 
 			return true;
 		} catch (e: unknown) {
-			if (e instanceof Error && e.name !== "NotAllowedError") {
+			if (
+				e instanceof Error &&
+				e.name !== "NotAllowedError" &&
+				e.name !== "AbortError"
+			) {
 				setError(e.message);
 			}
 

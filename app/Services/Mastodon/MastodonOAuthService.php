@@ -11,7 +11,7 @@ class MastodonOAuthService
     public function getAuthorizeUrl(string $instance, string $redirectUri): string
     {
         $response = Http::timeout(15)->post("{$instance}/api/v1/apps", [
-            'client_name' => 'Sprouter',
+            'client_name' => 'Bloom',
             'redirect_uris' => $redirectUri,
             'scopes' => self::SCOPES,
             'website' => config('app.url'),

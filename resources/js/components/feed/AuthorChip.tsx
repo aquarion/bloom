@@ -1,5 +1,5 @@
 import { EmojiText } from "@/lib/emoji-text";
-import sprouter from "../../../icons/sprouter-standard.svg";
+import bloom from "../../../icons/bloom-standard.svg";
 
 export function AuthorChip({
 	name,
@@ -17,7 +17,7 @@ export function AuthorChip({
 	return (
 		<div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white/10 py-1 pl-1 pr-3">
 			<img
-				src={avatar || sprouter}
+				src={avatar || bloom}
 				alt={name}
 				className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
 			/>

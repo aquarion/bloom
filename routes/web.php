@@ -12,8 +12,8 @@ Route::get('/', fn () => redirect()->route(auth()->check() ? 'feed' : 'login'))-
 
 Route::get('site.webmanifest', function () {
     return response()->json([
-        'name' => config('app.name', 'Sprouter'),
-        'short_name' => config('app.name', 'Sprouter'),
+        'name' => config('app.name', 'Bloom'),
+        'short_name' => config('app.name', 'Bloom'),
         'icons' => [
             [
                 'src' => Vite::asset('resources/icons/web-app-manifest-192x192.png'),

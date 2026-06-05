@@ -28,12 +28,12 @@ import type { NavItem } from "@/types";
 const footerNavItems: NavItem[] = [
 	{
 		title: "Repository",
-		href: "https://github.com/aquarion/sprouter",
+		href: "https://github.com/aquarion/bloom",
 		icon: FolderGit2,
 	},
 	{
 		title: "Report an issue",
-		href: "https://github.com/aquarion/sprouter/issues/new",
+		href: "https://github.com/aquarion/bloom/issues/new",
 		icon: CircleAlert,
 	},
 ];

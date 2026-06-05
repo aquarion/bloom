@@ -17,7 +17,7 @@ export default function Dashboard() {
 			<div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
 				<div className="px-1 py-4">
 					<h1 className="text-2xl font-bold tracking-tight">
-						Welcome to Sprouter
+						Welcome to Bloom
 					</h1>
 					<p className="mt-1 text-muted-foreground">
 						A full-screen, auto-advancing social media reader for Mastodon and

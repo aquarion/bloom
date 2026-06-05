@@ -1,4 +1,4 @@
-# Sprouter
+# Bloom
 
 A full-screen, auto-advancing social media reader for Mastodon and Bluesky. Designed to run on a display — posts cycle through one at a time with animated text and a countdown timer, pulling from all your connected accounts into a single merged feed.
 
@@ -35,8 +35,8 @@ A full-screen, auto-advancing social media reader for Mastodon and Bluesky. Desi
 ## Installation
 
 ```bash
-git clone https://github.com/aquarion/sprouter.git
-cd sprouter
+git clone https://github.com/aquarion/bloom.git
+cd bloom
 
 composer install
 npm install
@@ -83,5 +83,5 @@ npx vitest run
 
 Issues and pull requests are welcome. Please open an issue before starting larger pieces of work.
 
-- [Report a bug or request a feature](https://github.com/aquarion/sprouter/issues/new)
-- [View open issues](https://github.com/aquarion/sprouter/issues)
+- [Report a bug or request a feature](https://github.com/aquarion/bloom/issues/new)
+- [View open issues](https://github.com/aquarion/bloom/issues)

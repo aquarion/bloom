@@ -46,7 +46,7 @@ abstract class DuskTestCase extends BaseTestCase
             return;
         }
 
-        $logFile = sys_get_temp_dir().'/sprouter-dusk-server.log';
+        $logFile = sys_get_temp_dir().'/bloom-dusk-server.log';
         $projectRoot = dirname(__DIR__);
 
         $proc = proc_open(

@@ -12,7 +12,7 @@ it('registers a dynamic client and returns an authorize url', function () {
     ]);
 
     $service = new MastodonOAuthService;
-    $url = $service->getAuthorizeUrl('https://fosstodon.org', 'https://sprouter.test/auth/mastodon/callback');
+    $url = $service->getAuthorizeUrl('https://fosstodon.org', 'https://bloom.test/auth/mastodon/callback');
 
     expect($url)->toContain('fosstodon.org/oauth/authorize')
         ->and($url)->toContain('fake-client-id')
@@ -35,7 +35,7 @@ it('exchanges a code for an access token', function () {
         code: 'auth-code',
         clientId: 'fake-client-id',
         clientSecret: 'fake-client-secret',
-        redirectUri: 'https://sprouter.test/auth/mastodon/callback',
+        redirectUri: 'https://bloom.test/auth/mastodon/callback',
     );
 
     expect($result['access_token'])->toBe('user-token-abc')

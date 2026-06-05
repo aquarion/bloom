@@ -17,6 +17,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  APP_NAME: bloom
 
 jobs:
   test:
@@ -130,11 +131,11 @@ jobs:
         uses: appleboy/ssh-action@v1
         with:
           host: firth.water.gkhs.net
-          username: sprouter
+          username: ${{ env.APP_NAME }}
           key: ${{ secrets.FIRTH_SSH_KEY }}
           script: |
             set -euo pipefail
-            cd /home/docker/sprouter-staging
+            cd /home/docker/${{ env.APP_NAME }}-staging
             timeout 300 docker compose pull || {
               echo "ERROR: docker compose pull failed or timed out after 300s"
               exit 1
@@ -186,11 +187,11 @@ jobs:
         uses: appleboy/ssh-action@v1
         with:
           host: firth.water.gkhs.net
-          username: sprouter
+          username: ${{ env.APP_NAME }}
           key: ${{ secrets.FIRTH_SSH_KEY }}
           script: |
             set -euo pipefail
-            cd /home/docker/sprouter
+            cd /home/docker/${{ env.APP_NAME }}
             timeout 300 docker compose pull || {
               echo "ERROR: docker compose pull failed or timed out after 300s"
               exit 1

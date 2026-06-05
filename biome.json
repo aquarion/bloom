@@ -24,5 +24,18 @@
         "parser": {
             "tailwindDirectives": true
         }
+    },
+    "linter": {
+        "rules": {
+            "nursery": {
+                "useSortedClasses": {
+                    "level": "warn",
+                    "fix": "safe",
+                    "options": {
+                        "functions": ["cn", "clsx", "cva"]
+                    }
+                }
+            }
+        }
     }
 }

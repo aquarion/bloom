@@ -43,7 +43,7 @@ export default function Feed({
 
     useEffect(() => {
         if (debugEnabled) {
-            (window as any).__APP_DEBUG = true;
+            (window as Window & { __APP_DEBUG?: boolean }).__APP_DEBUG = true;
             setupDebugWindow();
         }
     }, [debugEnabled]);
@@ -182,7 +182,7 @@ export default function Feed({
 
                     <div className="flex-1" />
 
-                    <div className="pointer-events-auto flex items-center gap-2 px-4 pb-3 pt-2">
+                    <div className="pointer-events-auto flex items-center gap-2 px-4 pt-2 pb-3">
                         <Attribution post={current} />
                         <button
                             type="button"

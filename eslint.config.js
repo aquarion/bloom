@@ -1,6 +1,5 @@
 import js from "@eslint/js";
 import stylistic from "@stylistic/eslint-plugin";
-import prettier from "eslint-config-prettier/flat";
 import importPlugin from "eslint-plugin-import";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -95,6 +94,7 @@ export default [
 			"@stylistic": stylistic,
 		},
 		rules: {
+			curly: ["error", "all"],
 			"@stylistic/brace-style": ["error", "1tbs", { allowSingleLine: false }],
 			"@stylistic/padding-line-between-statements": [
 				"error",
@@ -116,15 +116,5 @@ export default [
 			"resources/js/routes/**",
 			"resources/js/wayfinder/**",
 		],
-	},
-	prettier, // Turn off all rules that might conflict with Prettier
-	{
-		plugins: {
-			"@stylistic": stylistic,
-		},
-		rules: {
-			curly: ["error", "all"],
-			"@stylistic/brace-style": ["error", "1tbs", { allowSingleLine: false }],
-		},
 	},
 ];

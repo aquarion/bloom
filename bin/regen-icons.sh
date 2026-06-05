@@ -214,7 +214,7 @@ magick "$STANDARD_SVG" -resize 96x96 "$OUT_DIR/favicon-96x96.png"
 magick "$STANDARD_SVG" -resize 1200x1200 "$OUT_DIR/sprouter-standard.png"
 magick "$STANDARD_SVG" -resize 192x192 "$OUT_DIR/web-app-manifest-192x192.png"
 magick "$STANDARD_SVG" -resize 512x512 "$OUT_DIR/web-app-manifest-512x512.png"
-magick "$STANDARD_SVG" -define icon:auto-resize=16,32,48 "$OUT_DIR/favicon.ico"
+magick "$STANDARD_SVG" -define icon:auto-resize=16,32,48,64,128,256,512 "$OUT_DIR/favicon.ico"
 
 magick "$ON_WHITE_SVG" -resize 1200x1200 "$OUT_DIR/sprouter-on-white.png"
 

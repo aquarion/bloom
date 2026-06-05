@@ -55,6 +55,12 @@ bin/regen-icons.sh \
 
 Note: `--update-bloom-icon` applies Apple-render compensation by default so the rendered Apple touch icon remains visually close to the target `--bg` color. Use `--no-bloom-compensation` to disable this.
 
+### Maintenance notes
+
+* After changing `bloom.icon` color values, re-export `resources/icons/apple-touch-icon.png` from Icon Composer so Safari and iOS use the latest result.
+* The Apple compensation logic in `bin/regen-icons.sh` is empirical; re-check and recalibrate it after major macOS/Icon Composer updates if rendered colors drift.
+* `resources/branding/bloom.icon/Assets/noun-bloom-5179258-FFFFFF.svg` is a symlink to `resources/branding/noun-bloom-5179258-FFFFFF.svg`; Git preserves it as a symlink, but some zip/export tools may dereference links.
+
 ### Color treatment rules
 
 * Standard favicon/app icons: brand color background with white glyph.

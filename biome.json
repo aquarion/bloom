@@ -1,16 +1,41 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.12/schema.json",
-	"files": {
-		"includes": [
-			"resources/**/*.{js,jsx,ts,tsx,json,css}",
-			"!resources/js/actions",
-			"!resources/js/routes",
-			"!resources/js/wayfinder"
-		]
-	},
-	"css": {
-		"parser": {
-			"tailwindDirectives": true
-		}
-	}
+    "$schema": "https://biomejs.dev/schemas/2.4.12/schema.json",
+    "files": {
+        "includes": [
+            "resources/**/*.{js,jsx,ts,tsx,json,css}",
+            "!resources/js/actions",
+            "!resources/js/components/ui/**",
+            "!resources/js/routes",
+            "!resources/js/wayfinder"
+        ]
+    },
+    "formatter": {
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 80
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "single",
+            "semicolons": "always"
+        }
+    },
+    "css": {
+        "parser": {
+            "tailwindDirectives": true
+        }
+    },
+    "linter": {
+        "rules": {
+            "nursery": {
+                "useSortedClasses": {
+                    "level": "warn",
+                    "fix": "safe",
+                    "options": {
+                        "functions": ["cn", "clsx", "cva"]
+                    }
+                }
+            }
+        }
+    }
 }

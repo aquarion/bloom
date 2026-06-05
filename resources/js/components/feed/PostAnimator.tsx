@@ -1,16 +1,16 @@
-import { useGSAP } from "@gsap/react";
-import { gsap } from "gsap";
-import { Quote, Reply } from "lucide-react";
-import type React from "react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { pickTemplate, SplitText } from "@/lib/animations";
-import type { AnimationTemplate } from "@/lib/animations/types";
-import { splitIntoLinesWithBoundaries } from "@/lib/block-text";
-import { EmojiText } from "@/lib/emoji-text";
-import type { PostColors } from "@/lib/post-colors";
-import { postColors } from "@/lib/post-colors";
-import type { Post } from "@/types/post";
-import { AuthorChip } from "./AuthorChip";
+import { useGSAP } from '@gsap/react';
+import { gsap } from 'gsap';
+import { Quote, Reply } from 'lucide-react';
+import type React from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { pickTemplate, SplitText } from '@/lib/animations';
+import type { AnimationTemplate } from '@/lib/animations/types';
+import { splitIntoLinesWithBoundaries } from '@/lib/block-text';
+import { EmojiText } from '@/lib/emoji-text';
+import type { PostColors } from '@/lib/post-colors';
+import { postColors } from '@/lib/post-colors';
+import type { Post } from '@/types/post';
+import { AuthorChip } from './AuthorChip';
 
 gsap.registerPlugin(SplitText);
 
@@ -18,463 +18,474 @@ const lastTemplate = { current: undefined as AnimationTemplate | undefined };
 const BASE_FONT_SIZE = 40;
 const LINE_HEIGHT = 1.1;
 const PANEL_CLASS =
-	"max-w-[40ch] rounded border border-white/20 bg-black/40 px-4 py-3 text-left text-sm text-white/70 backdrop-blur-sm";
+    'max-w-[40ch] rounded border border-white/20 bg-black/40 px-4 py-3 text-left text-sm text-white/70 backdrop-blur-sm';
 
 function ContextPanel({
-	icon,
-	author_name,
-	author_avatar,
-	author_handle,
-	emojis,
-	body,
-	original_url,
+    icon,
+    author_name,
+    author_avatar,
+    author_handle,
+    emojis,
+    body,
+    original_url,
 }: {
-	icon: React.ReactNode;
-	author_name: string;
-	author_avatar: string;
-	author_handle: string;
-	emojis: Record<string, string>;
-	body: string;
-	original_url: string;
+    icon: React.ReactNode;
+    author_name: string;
+    author_avatar: string;
+    author_handle: string;
+    emojis: Record<string, string>;
+    body: string;
+    original_url: string;
 }) {
-	const content = (
-		<>
-			<div className="mb-2 flex items-center gap-1.5">
-				<span className="text-white/40">{icon}</span>
-				<AuthorChip
-					name={author_name}
-					avatar={author_avatar}
-					emojis={emojis}
-					account={author_handle}
-				/>
-			</div>
-			<p className="whitespace-pre-wrap">{body}</p>
-		</>
-	);
+    const content = (
+        <>
+            <div className="mb-2 flex items-center gap-1.5">
+                <span className="text-white/40">{icon}</span>
+                <AuthorChip
+                    name={author_name}
+                    avatar={author_avatar}
+                    emojis={emojis}
+                    account={author_handle}
+                />
+            </div>
+            <p className="whitespace-pre-wrap">{body}</p>
+        </>
+    );
 
-	if (original_url) {
-		return (
-			<a
-				href={original_url}
-				target="_blank"
-				rel="noopener noreferrer"
-				className={`${PANEL_CLASS} hover:bg-white/20`}
-			>
-				{content}
-			</a>
-		);
-	}
+    if (original_url) {
+        return (
+            <a
+                href={original_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${PANEL_CLASS} hover:bg-white/20`}
+            >
+                {content}
+            </a>
+        );
+    }
 
-	return <div className={PANEL_CLASS}>{content}</div>;
+    return <div className={PANEL_CLASS}>{content}</div>;
 }
 
-const FAVICON_404_KEY = "sprouter:favicon404s";
+const FAVICON_404_KEY = 'bloom:favicon404s';
 const favicon404s: Set<string> = (() => {
-	try {
-		return new Set<string>(
-			JSON.parse(localStorage.getItem(FAVICON_404_KEY) ?? "[]"),
-		);
-	} catch {
-		return new Set<string>();
-	}
+    try {
+        return new Set<string>(
+            JSON.parse(localStorage.getItem(FAVICON_404_KEY) ?? '[]'),
+        );
+    } catch {
+        return new Set<string>();
+    }
 })();
 
 function markFavicon404(url: string) {
-	favicon404s.add(url);
-	localStorage.setItem(FAVICON_404_KEY, JSON.stringify([...favicon404s]));
+    favicon404s.add(url);
+    localStorage.setItem(FAVICON_404_KEY, JSON.stringify([...favicon404s]));
 }
 
 function LinkCard({
-	url,
-	title,
-	favicon,
+    url,
+    title,
+    favicon,
 }: {
-	url: string;
-	title: string | null;
-	favicon: string | null;
+    url: string;
+    title: string | null;
+    favicon: string | null;
 }) {
-	const [faviconFailed, setFaviconFailed] = useState(false);
-	let hostname = url;
+    const [faviconFailed, setFaviconFailed] = useState(false);
+    let hostname = url;
 
-	try {
-		hostname = new URL(url).hostname;
-	} catch {
-		/* keep raw */
-	}
+    try {
+        hostname = new URL(url).hostname;
+    } catch {
+        /* keep raw */
+    }
 
-	const showFavicon = favicon && !favicon404s.has(favicon) && !faviconFailed;
+    const showFavicon = favicon && !favicon404s.has(favicon) && !faviconFailed;
 
-	return (
-		<a
-			href={url}
-			target="_blank"
-			rel="noopener noreferrer"
-			className={`${PANEL_CLASS} hover:bg-white/20`}
-		>
-			<div className="flex items-center gap-3">
-				{showFavicon && (
-					<img
-						src={favicon}
-						alt=""
-						className="h-5 w-5 flex-shrink-0 rounded"
-						onError={() => {
-							markFavicon404(favicon);
-							setFaviconFailed(true);
-						}}
-					/>
-				)}
-				<div className="min-w-0 flex-1">
-					{title && (
-						<p className="truncate font-semibold text-white/90">{title}</p>
-					)}
-					<p className="truncate text-xs text-white/50">{hostname}</p>
-				</div>
-			</div>
-		</a>
-	);
+    return (
+        <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${PANEL_CLASS} hover:bg-white/20`}
+        >
+            <div className="flex items-center gap-3">
+                {showFavicon && (
+                    <img
+                        src={favicon}
+                        alt=""
+                        className="h-5 w-5 flex-shrink-0 rounded"
+                        onError={() => {
+                            markFavicon404(favicon);
+                            setFaviconFailed(true);
+                        }}
+                    />
+                )}
+                <div className="min-w-0 flex-1">
+                    {title && (
+                        <p className="truncate font-semibold text-white/90">
+                            {title}
+                        </p>
+                    )}
+                    <p className="truncate text-white/50 text-xs">{hostname}</p>
+                </div>
+            </div>
+        </a>
+    );
 }
 
 export function PostAnimator({
-	post,
-	colors,
-	onReady,
+    post,
+    colors,
+    onReady,
 }: {
-	post: Post;
-	colors: PostColors | null;
-	onReady?: () => void;
+    post: Post;
+    colors: PostColors | null;
+    onReady?: () => void;
 }) {
-	const containerRef = useRef<HTMLDivElement>(null);
-	const textRef = useRef<HTMLDivElement>(null);
-	const panelsRef = useRef<HTMLDivElement>(null);
-	const onReadyRef = useRef(onReady);
-	const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
-	// Tracks which body the font sizes were computed for so they naturally
-	// become null when body changes without needing setState inside an effect.
-	const [fontSizeState, setFontSizeState] = useState<{
-		body: string;
-		sizes: number[];
-	} | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const textRef = useRef<HTMLDivElement>(null);
+    const panelsRef = useRef<HTMLDivElement>(null);
+    const onReadyRef = useRef(onReady);
+    const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
+    // Tracks which body the font sizes were computed for so they naturally
+    // become null when body changes without needing setState inside an effect.
+    const [fontSizeState, setFontSizeState] = useState<{
+        body: string;
+        sizes: number[];
+    } | null>(null);
 
-	useLayoutEffect(() => {
-		onReadyRef.current = onReady;
-	});
+    useLayoutEffect(() => {
+        onReadyRef.current = onReady;
+    });
 
-	const paragraphs = useMemo(
-		() =>
-			(post.body || post.media[0]?.alt_text || "")
-				.split("\n")
-				.map((p) => p.trim())
-				.filter(Boolean),
-		[post.body, post.media],
-	);
-	const body = paragraphs.join("\n");
+    const paragraphs = useMemo(
+        () =>
+            (post.body || post.media[0]?.alt_text || '')
+                .split('\n')
+                .map((p) => p.trim())
+                .filter(Boolean),
+        [post.body, post.media],
+    );
+    const body = paragraphs.join('\n');
 
-	const { lines, paragraphStarts } = useMemo(
-		() =>
-			body
-				? splitIntoLinesWithBoundaries(body)
-				: { lines: [] as string[], paragraphStarts: new Set<number>() },
-		[body],
-	);
+    const { lines, paragraphStarts } = useMemo(
+        () =>
+            body
+                ? splitIntoLinesWithBoundaries(body)
+                : { lines: [] as string[], paragraphStarts: new Set<number>() },
+        [body],
+    );
 
-	// Pre-compute a unique key per line using sequential character offsets so
-	// identical lines in different positions still get distinct keys.
-	const lineKeys = useMemo(() => {
-		const keys: number[] = [];
-		let search = 0;
+    // Pre-compute a unique key per line using sequential character offsets so
+    // identical lines in different positions still get distinct keys.
+    const lineKeys = useMemo(() => {
+        const keys: number[] = [];
+        let search = 0;
 
-		for (const line of lines) {
-			const pos = body.indexOf(line, search);
-			const key = pos >= 0 ? pos : search;
-			keys.push(key);
-			search = key + line.length;
-		}
+        for (const line of lines) {
+            const pos = body.indexOf(line, search);
+            const key = pos >= 0 ? pos : search;
+            keys.push(key);
+            search = key + line.length;
+        }
 
-		return keys;
-	}, [lines, body]);
+        return keys;
+    }, [lines, body]);
 
-	// Font sizes are only valid for the current body; treat as null when body changes.
-	const fontSizes = fontSizeState?.body === body ? fontSizeState.sizes : null;
+    // Font sizes are only valid for the current body; treat as null when body changes.
+    const fontSizes = fontSizeState?.body === body ? fontSizeState.sizes : null;
 
-	// Fire onReady immediately only when there is no body AND no panels to animate.
-	useLayoutEffect(() => {
-		if (!body && !(post.reply_to || post.quoted_post)) {
-			onReadyRef.current?.();
-		}
-	}, [body, post.reply_to, post.quoted_post]);
+    // Fire onReady immediately only when there is no body AND no panels to animate.
+    useLayoutEffect(() => {
+        if (!body && !(post.reply_to || post.quoted_post)) {
+            onReadyRef.current?.();
+        }
+    }, [body, post.reply_to, post.quoted_post]);
 
-	// Phase 2: measure rendered line widths and compute font sizes
-	useLayoutEffect(() => {
-		if (lines.length === 0 || !containerRef.current) {
-			return;
-		}
+    // Phase 2: measure rendered line widths and compute font sizes
+    useLayoutEffect(() => {
+        if (lines.length === 0 || !containerRef.current) {
+            return;
+        }
 
-		const els = lineRefs.current.slice(0, lines.length);
+        const els = lineRefs.current.slice(0, lines.length);
 
-		if (els.some((el) => !el)) {
-			return;
-		}
+        if (els.some((el) => !el)) {
+            return;
+        }
 
-		const { width, height } = containerRef.current.getBoundingClientRect();
-		const targetWidth = width * 0.9;
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        const targetWidth = width * 0.9;
 
-		const widths = els.map((el) => el?.getBoundingClientRect().width ?? 0);
-		let sizes = widths.map((w) =>
-			w > 0 ? BASE_FONT_SIZE * (targetWidth / w) : BASE_FONT_SIZE,
-		);
+        const widths = els.map((el) => el?.getBoundingClientRect().width ?? 0);
+        let sizes = widths.map((w) =>
+            w > 0 ? BASE_FONT_SIZE * (targetWidth / w) : BASE_FONT_SIZE,
+        );
 
-		// For multi-paragraph posts, limit cross-paragraph size disparity while
-		// preserving within-paragraph variation (each line still fills its width).
-		// Strategy: find each paragraph's min size (its widest line = most constrained),
-		// then scale down any paragraph whose min exceeds 2× the global paragraph min.
-		if (paragraphStarts.size > 0) {
-			const boundaries = [
-				0,
-				...[...paragraphStarts].sort((a, b) => a - b),
-				sizes.length,
-			];
-			const paraMins = boundaries
-				.slice(0, -1)
-				.map((start, i) => Math.min(...sizes.slice(start, boundaries[i + 1])));
-			const globalMin = Math.min(...paraMins);
-			sizes = sizes.map((s, lineIdx) => {
-				const p = boundaries.findLastIndex((b) => lineIdx >= b);
+        // For multi-paragraph posts, limit cross-paragraph size disparity while
+        // preserving within-paragraph variation (each line still fills its width).
+        // Strategy: find each paragraph's min size (its widest line = most constrained),
+        // then scale down any paragraph whose min exceeds 2× the global paragraph min.
+        if (paragraphStarts.size > 0) {
+            const boundaries = [
+                0,
+                ...[...paragraphStarts].sort((a, b) => a - b),
+                sizes.length,
+            ];
+            const paraMins = boundaries
+                .slice(0, -1)
+                .map((start, i) =>
+                    Math.min(...sizes.slice(start, boundaries[i + 1])),
+                );
+            const globalMin = Math.min(...paraMins);
+            sizes = sizes.map((s, lineIdx) => {
+                const p = boundaries.findLastIndex((b) => lineIdx >= b);
 
-				return s * Math.min(1, (globalMin * 2) / paraMins[p]);
-			});
-		}
+                return s * Math.min(1, (globalMin * 2) / paraMins[p]);
+            });
+        }
 
-		const gapHeight = [...paragraphStarts].reduce(
-			(sum, idx) => sum + (sizes[idx] ?? 0) * 0.5,
-			0,
-		);
-		const totalHeight =
-			sizes.reduce((sum, s) => sum + s * LINE_HEIGHT, 0) + gapHeight;
-		const heightBudget = height * 0.45;
+        const gapHeight = [...paragraphStarts].reduce(
+            (sum, idx) => sum + (sizes[idx] ?? 0) * 0.5,
+            0,
+        );
+        const totalHeight =
+            sizes.reduce((sum, s) => sum + s * LINE_HEIGHT, 0) + gapHeight;
+        const heightBudget = height * 0.45;
 
-		if (totalHeight > heightBudget) {
-			const scale = heightBudget / totalHeight;
-			sizes = sizes.map((s) => s * scale);
-		}
+        if (totalHeight > heightBudget) {
+            const scale = heightBudget / totalHeight;
+            sizes = sizes.map((s) => s * scale);
+        }
 
-		setFontSizeState({ body, sizes });
-	}, [lines, body, paragraphStarts]);
+        setFontSizeState({ body, sizes });
+    }, [lines, body, paragraphStarts]);
 
-	// Phase 3: run GSAP animation once font sizes are applied
-	useGSAP(() => {
-		if (!fontSizes) {
-			return;
-		}
+    // Phase 3: run GSAP animation once font sizes are applied
+    useGSAP(() => {
+        if (!fontSizes) {
+            return;
+        }
 
-		const container = containerRef.current;
-		const textEl = textRef.current;
+        const container = containerRef.current;
+        const textEl = textRef.current;
 
-		if (!container || !textEl) {
-			onReadyRef.current?.();
+        if (!container || !textEl) {
+            onReadyRef.current?.();
 
-			return;
-		}
+            return;
+        }
 
-		gsap.set(container, { clearProps: "all" });
+        gsap.set(container, { clearProps: 'all' });
 
-		const split = new SplitText(textEl, { type: "words" });
+        const split = new SplitText(textEl, { type: 'words' });
 
-		if (split.words.length === 0) {
-			onReadyRef.current?.();
+        if (split.words.length === 0) {
+            onReadyRef.current?.();
 
-			return;
-		}
+            return;
+        }
 
-		// Apply highlight colour to the longest word — must happen after SplitText
-		// rewrites the DOM, as it strips any inline colour spans.
-		const highlight =
-			colors?.highlight ?? postColors(post.author_handle).highlight;
-		const longestEl = [...split.words].reduce((a, b) =>
-			(b.textContent?.length ?? 0) > (a.textContent?.length ?? 0) ? b : a,
-		);
-		gsap.set(longestEl, { color: highlight });
+        // Apply highlight colour to the longest word — must happen after SplitText
+        // rewrites the DOM, as it strips any inline colour spans.
+        const highlight =
+            colors?.highlight ?? postColors(post.author_handle).highlight;
+        const longestEl = [...split.words].reduce((a, b) =>
+            (b.textContent?.length ?? 0) > (a.textContent?.length ?? 0) ? b : a,
+        );
+        gsap.set(longestEl, { color: highlight });
 
-		const template = pickTemplate(lastTemplate.current);
-		lastTemplate.current = template;
+        const template = pickTemplate(lastTemplate.current);
+        lastTemplate.current = template;
 
-		const tl = gsap.timeline({ onComplete: () => onReadyRef.current?.() });
-		template(tl, split.words as Element[], container);
+        const tl = gsap.timeline({ onComplete: () => onReadyRef.current?.() });
+        template(tl, split.words as Element[], container);
 
-		if (panelsRef.current) {
-			tl.fromTo(
-				panelsRef.current,
-				{ opacity: 0, y: -8 },
-				{ opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
-				0,
-			);
-		}
+        if (panelsRef.current) {
+            tl.fromTo(
+                panelsRef.current,
+                { opacity: 0, y: -8 },
+                { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' },
+                0,
+            );
+        }
 
-		return () => {
-			tl.kill();
-			split.revert();
-		};
-	}, [post.id, fontSizes]);
+        return () => {
+            tl.kill();
+            split.revert();
+        };
+    }, [post.id, fontSizes]);
 
-	// Fade panels in for no-body posts that have context panels (Phase 3 doesn't run for these).
-	useGSAP(() => {
-		if (body || !(post.reply_to || post.quoted_post)) {
-			return;
-		}
+    // Fade panels in for no-body posts that have context panels (Phase 3 doesn't run for these).
+    useGSAP(() => {
+        if (body || !(post.reply_to || post.quoted_post)) {
+            return;
+        }
 
-		if (!panelsRef.current) {
-			onReadyRef.current?.();
+        if (!panelsRef.current) {
+            onReadyRef.current?.();
 
-			return;
-		}
+            return;
+        }
 
-		const tween = gsap.fromTo(
-			panelsRef.current,
-			{ opacity: 0, y: -8 },
-			{
-				opacity: 1,
-				y: 0,
-				duration: 0.4,
-				ease: "power2.out",
-				onComplete: () => onReadyRef.current?.(),
-			},
-		);
+        const tween = gsap.fromTo(
+            panelsRef.current,
+            { opacity: 0, y: -8 },
+            {
+                opacity: 1,
+                y: 0,
+                duration: 0.4,
+                ease: 'power2.out',
+                onComplete: () => onReadyRef.current?.(),
+            },
+        );
 
-		return () => tween.kill();
-	}, [post.id, body]);
+        return () => tween.kill();
+    }, [post.id, body]);
 
-	if (!body) {
-		const firstMedia = post.media[0];
+    if (!body) {
+        const firstMedia = post.media[0];
 
-		if (firstMedia) {
-			const displaySrc =
-				firstMedia.type === "video" ? firstMedia.preview_url : firstMedia.url;
+        if (firstMedia) {
+            const displaySrc =
+                firstMedia.type === 'video'
+                    ? firstMedia.preview_url
+                    : firstMedia.url;
 
-			if (displaySrc) {
-				return (
-					<div className="flex h-full w-full items-center justify-center p-4">
-						<img
-							src={displaySrc}
-							alt={firstMedia.alt_text ?? ""}
-							className="max-h-full max-w-full rounded object-contain"
-						/>
-					</div>
-				);
-			}
-		}
+            if (displaySrc) {
+                return (
+                    <div className="flex h-full w-full items-center justify-center p-4">
+                        <img
+                            src={displaySrc}
+                            alt={firstMedia.alt_text ?? ''}
+                            className="max-h-full max-w-full rounded object-contain"
+                        />
+                    </div>
+                );
+            }
+        }
 
-		if (post.link_url || post.quoted_post || post.reply_to) {
-			return (
-				<div className="flex h-full w-full items-center justify-center p-8">
-					<div ref={panelsRef} className="flex flex-col items-center gap-4">
-						{post.reply_to && (
-							<ContextPanel
-								icon={<Reply className="size-3.5" />}
-								author_name={post.reply_to.author_name}
-								author_avatar={post.reply_to.author_avatar}
-								author_handle={post.reply_to.author_handle}
-								emojis={post.emojis}
-								body={post.reply_to.body}
-								original_url={post.reply_to.original_url}
-							/>
-						)}
-						{post.quoted_post && (
-							<ContextPanel
-								icon={<Quote className="size-3.5" />}
-								author_name={post.quoted_post.author_name}
-								author_avatar={post.quoted_post.author_avatar}
-								author_handle={post.quoted_post.author_handle}
-								emojis={post.emojis}
-								body={post.quoted_post.body}
-								original_url={post.quoted_post.original_url}
-							/>
-						)}
-						{post.link_url && (
-							<LinkCard
-								url={post.link_url}
-								title={post.link_title}
-								favicon={post.link_favicon}
-							/>
-						)}
-					</div>
-				</div>
-			);
-		}
+        if (post.link_url || post.quoted_post || post.reply_to) {
+            return (
+                <div className="flex h-full w-full items-center justify-center p-8">
+                    <div
+                        ref={panelsRef}
+                        className="flex flex-col items-center gap-4"
+                    >
+                        {post.reply_to && (
+                            <ContextPanel
+                                icon={<Reply className="size-3.5" />}
+                                author_name={post.reply_to.author_name}
+                                author_avatar={post.reply_to.author_avatar}
+                                author_handle={post.reply_to.author_handle}
+                                emojis={post.emojis}
+                                body={post.reply_to.body}
+                                original_url={post.reply_to.original_url}
+                            />
+                        )}
+                        {post.quoted_post && (
+                            <ContextPanel
+                                icon={<Quote className="size-3.5" />}
+                                author_name={post.quoted_post.author_name}
+                                author_avatar={post.quoted_post.author_avatar}
+                                author_handle={post.quoted_post.author_handle}
+                                emojis={post.emojis}
+                                body={post.quoted_post.body}
+                                original_url={post.quoted_post.original_url}
+                            />
+                        )}
+                        {post.link_url && (
+                            <LinkCard
+                                url={post.link_url}
+                                title={post.link_title}
+                                favicon={post.link_favicon}
+                            />
+                        )}
+                    </div>
+                </div>
+            );
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	const textColor = colors?.text ?? "white";
+    const textColor = colors?.text ?? 'white';
 
-	return (
-		<div
-			ref={containerRef}
-			className="flex h-full w-full items-center justify-center p-8 text-center"
-		>
-			<div className="flex flex-col items-center gap-4">
-				{(post.reply_to || post.quoted_post) && (
-					<div ref={panelsRef} className="flex flex-col gap-4">
-						{post.reply_to && (
-							<ContextPanel
-								icon={<Reply className="size-3.5" />}
-								author_name={post.reply_to.author_name}
-								author_avatar={post.reply_to.author_avatar}
-								author_handle={post.reply_to.author_handle}
-								emojis={post.emojis}
-								body={post.reply_to.body}
-								original_url={post.reply_to.original_url}
-							/>
-						)}
-						{post.quoted_post && (
-							<ContextPanel
-								icon={<Quote className="size-3.5" />}
-								author_name={post.quoted_post.author_name}
-								author_avatar={post.quoted_post.author_avatar}
-								author_handle={post.quoted_post.author_handle}
-								emojis={post.emojis}
-								body={post.quoted_post.body}
-								original_url={post.quoted_post.original_url}
-							/>
-						)}
-					</div>
-				)}
-				<div
-					key={post.id}
-					ref={textRef}
-					className={`w-full font-extrabold leading-none tracking-tight${post.reply_to || post.quoted_post ? " min-w-[40ch]" : ""}`}
-					style={{
-						visibility: fontSizes ? "visible" : "hidden",
-						color: textColor,
-					}}
-				>
-					{lines.map((line, idx) => (
-						<div
-							key={lineKeys[idx]}
-							style={{
-								fontSize: fontSizes
-									? `${fontSizes[idx]}px`
-									: `${BASE_FONT_SIZE}px`,
-								whiteSpace: "nowrap",
-								...(paragraphStarts.has(idx) && { marginTop: "0.5em" }),
-							}}
-						>
-							<span
-								ref={(el) => {
-									lineRefs.current[idx] = el;
-								}}
-							>
-								<EmojiText text={line} emojis={post.emojis} />
-							</span>
-						</div>
-					))}
-				</div>
-				{post.link_url && (
-					<LinkCard
-						url={post.link_url}
-						title={post.link_title}
-						favicon={post.link_favicon}
-					/>
-				)}
-			</div>
-		</div>
-	);
+    return (
+        <div
+            ref={containerRef}
+            className="flex h-full w-full items-center justify-center p-8 text-center"
+        >
+            <div className="flex flex-col items-center gap-4">
+                {(post.reply_to || post.quoted_post) && (
+                    <div ref={panelsRef} className="flex flex-col gap-4">
+                        {post.reply_to && (
+                            <ContextPanel
+                                icon={<Reply className="size-3.5" />}
+                                author_name={post.reply_to.author_name}
+                                author_avatar={post.reply_to.author_avatar}
+                                author_handle={post.reply_to.author_handle}
+                                emojis={post.emojis}
+                                body={post.reply_to.body}
+                                original_url={post.reply_to.original_url}
+                            />
+                        )}
+                        {post.quoted_post && (
+                            <ContextPanel
+                                icon={<Quote className="size-3.5" />}
+                                author_name={post.quoted_post.author_name}
+                                author_avatar={post.quoted_post.author_avatar}
+                                author_handle={post.quoted_post.author_handle}
+                                emojis={post.emojis}
+                                body={post.quoted_post.body}
+                                original_url={post.quoted_post.original_url}
+                            />
+                        )}
+                    </div>
+                )}
+                <div
+                    key={post.id}
+                    ref={textRef}
+                    className={`w-full font-extrabold leading-none tracking-tight${post.reply_to || post.quoted_post ? 'min-w-[40ch]' : ''}`}
+                    style={{
+                        visibility: fontSizes ? 'visible' : 'hidden',
+                        color: textColor,
+                    }}
+                >
+                    {lines.map((line, idx) => (
+                        <div
+                            key={lineKeys[idx]}
+                            style={{
+                                fontSize: fontSizes
+                                    ? `${fontSizes[idx]}px`
+                                    : `${BASE_FONT_SIZE}px`,
+                                whiteSpace: 'nowrap',
+                                ...(paragraphStarts.has(idx) && {
+                                    marginTop: '0.5em',
+                                }),
+                            }}
+                        >
+                            <span
+                                ref={(el) => {
+                                    lineRefs.current[idx] = el;
+                                }}
+                            >
+                                <EmojiText text={line} emojis={post.emojis} />
+                            </span>
+                        </div>
+                    ))}
+                </div>
+                {post.link_url && (
+                    <LinkCard
+                        url={post.link_url}
+                        title={post.link_title}
+                        favicon={post.link_favicon}
+                    />
+                )}
+            </div>
+        </div>
+    );
 }

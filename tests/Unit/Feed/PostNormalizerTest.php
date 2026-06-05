@@ -10,32 +10,32 @@ it('normalises a mastodon status to unified post format', function () {
         'id' => '109123456789',
         'content' => '<p>hello <strong>world</strong></p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/109123456789',
+        'url' => 'https://mastodon.example/@user/109123456789',
         'account' => [
             'display_name' => 'Test User',
             'acct' => 'user',
-            'avatar' => 'https://fosstodon.org/avatars/original/user.jpg',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
         ],
         'media_attachments' => [
             [
                 'type' => 'image',
-                'url' => 'https://fosstodon.org/media/img.jpg',
-                'preview_url' => 'https://fosstodon.org/media/img_small.jpg',
+                'url' => 'https://mastodon.example/media/img.jpg',
+                'preview_url' => 'https://mastodon.example/media/img_small.jpg',
                 'description' => 'A photo',
             ],
         ],
     ];
 
     $normalizer = new PostNormalizer;
-    $post = $normalizer->fromMastodon($status, 'fosstodon.org');
+    $post = $normalizer->fromMastodon($status, 'mastodon.example');
 
     expect($post['id'])->toBe('mastodon_109123456789')
         ->and($post['source'])->toBe('mastodon')
         ->and($post['body'])->toBe('hello world')
         ->and($post['author_name'])->toBe('Test User')
-        ->and($post['author_handle'])->toBe('@user@fosstodon.org')
-        ->and($post['author_avatar'])->toBe('https://fosstodon.org/avatars/original/user.jpg')
-        ->and($post['original_url'])->toBe('https://fosstodon.org/@user/109123456789')
+        ->and($post['author_handle'])->toBe('@user@mastodon.example')
+        ->and($post['author_avatar'])->toBe('https://mastodon.example/avatars/original/user.jpg')
+        ->and($post['original_url'])->toBe('https://mastodon.example/@user/109123456789')
         ->and($post['media'][0]['type'])->toBe('image')
         ->and($post['media'][0]['alt_text'])->toBe('A photo');
 });
@@ -45,28 +45,28 @@ it('normalises a mastodon video attachment', function () {
         'id' => '999',
         'content' => '',
         'created_at' => '2024-01-15T12:00:00.000Z',
-        'url' => 'https://fosstodon.org/@bob/999',
+        'url' => 'https://mastodon.example/@bob/999',
         'account' => [
             'display_name' => 'Bob',
             'acct' => 'bob',
-            'avatar' => 'https://fosstodon.org/avatars/bob.jpg',
+            'avatar' => 'https://mastodon.example/avatars/bob.jpg',
         ],
         'media_attachments' => [
             [
                 'type' => 'video',
-                'url' => 'https://fosstodon.org/media/video.mp4',
-                'preview_url' => 'https://fosstodon.org/media/video_thumb.jpg',
+                'url' => 'https://mastodon.example/media/video.mp4',
+                'preview_url' => 'https://mastodon.example/media/video_thumb.jpg',
                 'description' => 'A cat video',
             ],
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['media'])->toHaveCount(1)
         ->and($post['media'][0]['type'])->toBe('video')
-        ->and($post['media'][0]['url'])->toBe('https://fosstodon.org/media/video.mp4')
-        ->and($post['media'][0]['preview_url'])->toBe('https://fosstodon.org/media/video_thumb.jpg')
+        ->and($post['media'][0]['url'])->toBe('https://mastodon.example/media/video.mp4')
+        ->and($post['media'][0]['preview_url'])->toBe('https://mastodon.example/media/video_thumb.jpg')
         ->and($post['media'][0]['alt_text'])->toBe('A cat video');
 });
 
@@ -127,12 +127,12 @@ it('strips html entities from mastodon post body', function () {
         'id' => '1',
         'content' => '<p>We &lt;3 open source &amp; free software</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['body'])->toBe('We <3 open source & free software');
 });
@@ -142,12 +142,12 @@ it('returns empty media array when post has no attachments', function () {
         'id' => '1',
         'content' => '<p>text only</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['media'])->toBe([]);
 });
@@ -158,12 +158,12 @@ it('strips urls from post body and exposes first as link_url', function () {
         'id' => '1',
         'content' => "<p>Check this out {$long}</p>",
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['body'])->toBe('Check this out')
         ->and($post['link_url'])->toBe($long);
@@ -174,7 +174,7 @@ it('uses reblogged content and author for mastodon boosts', function () {
         'id' => '999',
         'content' => '',
         'created_at' => '2024-01-15T12:00:00.000Z',
-        'url' => 'https://fosstodon.org/@booster/999',
+        'url' => 'https://mastodon.example/@booster/999',
         'account' => ['display_name' => 'Booster', 'acct' => 'booster', 'avatar' => ''],
         'media_attachments' => [],
         'reblog' => [
@@ -187,7 +187,7 @@ it('uses reblogged content and author for mastodon boosts', function () {
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['body'])->toBe('original content')
         ->and($post['author_name'])->toBe('Original')
@@ -201,12 +201,12 @@ it('sets boosted_by to null for non-reblog mastodon posts', function () {
         'id' => '1',
         'content' => '<p>hi</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['boosted_by'])->toBeNull();
 });
@@ -216,12 +216,12 @@ it('preserves paragraph breaks in mastodon post body', function () {
         'id' => '1',
         'content' => '<p>First paragraph</p><p>Second paragraph</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['body'])->toBe("First paragraph\nSecond paragraph");
 });
@@ -350,12 +350,12 @@ it('falls back to acct when mastodon display_name is empty', function () {
         'id' => '1',
         'content' => '<p>hi</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => '', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['author_name'])->toBe('user');
 });
@@ -363,14 +363,14 @@ it('falls back to acct when mastodon display_name is empty', function () {
 it('extracts link_url from mastodon html anchor tags, skipping mentions and hashtags', function () {
     $status = [
         'id' => '1',
-        'content' => '<p>Hey <a href="https://fosstodon.org/@someone" class="u-url mention">@someone</a> see <a href="https://example.com/article" target="_blank">https://example.com/article</a></p>',
+        'content' => '<p>Hey <a href="https://mastodon.example/@someone" class="u-url mention">@someone</a> see <a href="https://example.com/article" target="_blank">https://example.com/article</a></p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['link_url'])->toBe('https://example.com/article')
         ->and($post['body'])->toBe('Hey @someone see');
@@ -381,26 +381,26 @@ it('substitutes mastodon custom emoji shortcodes with image urls', function () {
         'id' => '1',
         'content' => '<p>hello world</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => [
             'display_name' => 'Test :wave:',
             'acct' => 'user',
             'avatar' => '',
             'emojis' => [
-                ['shortcode' => 'wave', 'url' => 'https://fosstodon.org/emoji/wave.png'],
+                ['shortcode' => 'wave', 'url' => 'https://mastodon.example/emoji/wave.png'],
             ],
         ],
         'media_attachments' => [],
         'emojis' => [
-            ['shortcode' => 'sprouter', 'url' => 'https://fosstodon.org/emoji/sprouter.png'],
+            ['shortcode' => 'bloom', 'url' => 'https://mastodon.example/emoji/bloom.png'],
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['emojis'])->toBe([
-        'sprouter' => 'https://fosstodon.org/emoji/sprouter.png',
-        'wave' => 'https://fosstodon.org/emoji/wave.png',
+        'bloom' => 'https://mastodon.example/emoji/bloom.png',
+        'wave' => 'https://mastodon.example/emoji/wave.png',
     ]);
 });
 
@@ -409,18 +409,18 @@ it('ignores emoji with unsafe urls', function () {
         'id' => '1',
         'content' => '<p>hi</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => '', 'emojis' => []],
         'media_attachments' => [],
         'emojis' => [
             ['shortcode' => 'bad', 'url' => 'javascript:alert(1)'],
-            ['shortcode' => 'good', 'url' => 'https://fosstodon.org/emoji/good.png'],
+            ['shortcode' => 'good', 'url' => 'https://mastodon.example/emoji/good.png'],
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
-    expect($post['emojis'])->toBe(['good' => 'https://fosstodon.org/emoji/good.png']);
+    expect($post['emojis'])->toBe(['good' => 'https://mastodon.example/emoji/good.png']);
 });
 
 it('includes booster account emoji in the map', function () {
@@ -428,13 +428,13 @@ it('includes booster account emoji in the map', function () {
         'id' => '999',
         'content' => '',
         'created_at' => '2024-01-15T12:00:00.000Z',
-        'url' => 'https://fosstodon.org/@booster/999',
+        'url' => 'https://mastodon.example/@booster/999',
         'account' => [
             'display_name' => 'Booster :tada:',
             'acct' => 'booster',
             'avatar' => '',
             'emojis' => [
-                ['shortcode' => 'tada', 'url' => 'https://fosstodon.org/emoji/tada.png'],
+                ['shortcode' => 'tada', 'url' => 'https://mastodon.example/emoji/tada.png'],
             ],
         ],
         'media_attachments' => [],
@@ -449,9 +449,9 @@ it('includes booster account emoji in the map', function () {
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
-    expect($post['emojis'])->toBe(['tada' => 'https://fosstodon.org/emoji/tada.png'])
+    expect($post['emojis'])->toBe(['tada' => 'https://mastodon.example/emoji/tada.png'])
         ->and($post['boosted_by'])->toBe('Booster :tada:');
 });
 
@@ -460,19 +460,19 @@ it('includes author_banner from mastodon account header', function () {
         'id' => '1',
         'content' => '<p>hi</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => [
             'display_name' => 'User',
             'acct' => 'user',
-            'avatar' => 'https://fosstodon.org/avatars/user.jpg',
-            'header' => 'https://fosstodon.org/headers/user.jpg',
+            'avatar' => 'https://mastodon.example/avatars/user.jpg',
+            'header' => 'https://mastodon.example/headers/user.jpg',
         ],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
-    expect($post['author_banner'])->toBe('https://fosstodon.org/headers/user.jpg');
+    expect($post['author_banner'])->toBe('https://mastodon.example/headers/user.jpg');
 });
 
 it('sets author_banner to null when mastodon account has no header', function () {
@@ -480,12 +480,12 @@ it('sets author_banner to null when mastodon account has no header', function ()
         'id' => '1',
         'content' => '<p>hi</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['author_banner'])->toBeNull();
 });
@@ -545,12 +545,12 @@ it('sets link_url to null when mastodon post has no external links', function ()
         'id' => '1',
         'content' => '<p>Just a plain post</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['link_url'])->toBeNull();
 });
@@ -594,7 +594,7 @@ it('uses mastodon card title as link_title', function () {
         'id' => '1',
         'content' => '<p>Check this out https://example.com/article</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
         'card' => [
@@ -605,7 +605,7 @@ it('uses mastodon card title as link_title', function () {
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['link_title'])->toBe('An Example Article');
 });
@@ -615,7 +615,7 @@ it('prefers mastodon card url over extracted link_url', function () {
         'id' => '1',
         'content' => '<p>Check this out https://t.co/short</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
         'card' => [
@@ -626,7 +626,7 @@ it('prefers mastodon card url over extracted link_url', function () {
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['link_url'])->toBe('https://example.com/full-article');
 });
@@ -636,13 +636,13 @@ it('derives link_favicon from link_url domain using favicone for mastodon posts'
         'id' => '1',
         'content' => '<p>article</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
         'card' => ['url' => 'https://www.bbc.co.uk/news/article', 'title' => 'News', 'description' => '', 'image' => null],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['link_favicon'])->toBe('https://favicone.com/www.bbc.co.uk');
 });
@@ -652,12 +652,12 @@ it('sets link_favicon to null when mastodon post has no link', function () {
         'id' => '1',
         'content' => '<p>Just a plain post</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['link_favicon'])->toBeNull();
 });
@@ -715,12 +715,12 @@ it('includes author identity and url in mastodon reply_to', function () {
         'id' => '789',
         'content' => '<p>Reply text</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/789',
+        'url' => 'https://mastodon.example/@user/789',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', $parent);
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parent);
 
     expect($post['reply_to'])->toBe([
         'author_name' => 'Original User',
@@ -743,12 +743,12 @@ it('falls back to acct when mastodon reply_to parent has no display_name', funct
         'id' => '2',
         'content' => '<p>reply</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/2',
+        'url' => 'https://mastodon.example/@user/2',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', $parent);
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parent);
 
     expect($post['reply_to']['author_name'])->toBe('noname');
 });
@@ -785,12 +785,12 @@ it('sets mastodon reply_to original_url to empty string when parent url is non-h
         'id' => '3',
         'content' => '<p>reply</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/3',
+        'url' => 'https://mastodon.example/@user/3',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', $parent);
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parent);
 
     expect($post['reply_to']['original_url'])->toBe('');
 });
@@ -800,12 +800,12 @@ it('returns null reply_to when mastodon parentStatus is null', function () {
         'id' => '4',
         'content' => '<p>standalone post</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/4',
+        'url' => 'https://mastodon.example/@user/4',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['reply_to'])->toBeNull();
 });
@@ -949,12 +949,12 @@ it('truncates a mastodon body that exceeds feed.body_limit', function () {
         'id' => '1',
         'content' => '<p>'.str_repeat('a', 30).'</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['body'])->toEndWith('…')
         ->and(mb_strlen($post['body']))->toBeLessThanOrEqual(21);
@@ -966,12 +966,12 @@ it('does not truncate a mastodon body within feed.body_limit', function () {
         'id' => '1',
         'content' => '<p>short body</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['body'])->toBe('short body');
 });
@@ -1066,12 +1066,12 @@ it('includes created_at in mastodon reply_to when present', function () {
         'id' => '2',
         'content' => '<p>reply</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/2',
+        'url' => 'https://mastodon.example/@user/2',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', $parent);
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parent);
 
     expect($post['reply_to']['created_at'])->toBe('2024-01-14T07:00:00.000Z');
 });
@@ -1081,7 +1081,7 @@ it('sets boosted_by_created_at for mastodon reblogs', function () {
         'id' => '999',
         'content' => '',
         'created_at' => '2024-01-15T12:00:00.000Z',
-        'url' => 'https://fosstodon.org/@booster/999',
+        'url' => 'https://mastodon.example/@booster/999',
         'account' => ['display_name' => 'Booster', 'acct' => 'booster', 'avatar' => ''],
         'media_attachments' => [],
         'reblog' => [
@@ -1094,7 +1094,7 @@ it('sets boosted_by_created_at for mastodon reblogs', function () {
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['boosted_by_created_at'])->toBe('2024-01-15T12:00:00.000Z');
 });
@@ -1104,12 +1104,12 @@ it('sets boosted_by_created_at to null for non-reblog mastodon posts', function 
         'id' => '1',
         'content' => '<p>hi</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['boosted_by_created_at'])->toBeNull();
 });
@@ -1154,7 +1154,7 @@ it('sets quoted_post from inline mastodon quote field', function () {
         'id' => '1',
         'content' => '<p>my comment</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
         'quote' => [
@@ -1173,7 +1173,7 @@ it('sets quoted_post from inline mastodon quote field', function () {
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['quoted_post'])->toBe([
         'author_name' => 'Quoted Author',
@@ -1190,7 +1190,7 @@ it('sets quoted_post from pre-fetched quote status when no inline quote field', 
         'id' => '1',
         'content' => '<p>my comment</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
         'quote_id' => '99',
@@ -1208,7 +1208,7 @@ it('sets quoted_post from pre-fetched quote status when no inline quote field', 
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', quoteStatus: $quoteStatus);
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', quoteStatus: $quoteStatus);
 
     expect($post['quoted_post'])->toBe([
         'author_name' => 'Quoted Author',
@@ -1225,7 +1225,7 @@ it('prefers inline quote field over pre-fetched quote status', function () {
         'id' => '1',
         'content' => '<p>my comment</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
         'quote_id' => '99',
@@ -1249,7 +1249,7 @@ it('prefers inline quote field over pre-fetched quote status', function () {
         'account' => ['display_name' => 'Fetched Author', 'acct' => 'fetched', 'avatar' => ''],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org', quoteStatus: $quoteStatus);
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', quoteStatus: $quoteStatus);
 
     expect($post['quoted_post']['author_name'])->toBe('Inline Author');
 });
@@ -1259,13 +1259,13 @@ it('sets quoted_post to null when mastodon 4.3 wrapper has null quoted_status (p
         'id' => '1',
         'content' => '<p>post quoting a pending approval</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
         'quote' => ['state' => 'pending', 'quoted_status' => null],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['quoted_post'])->toBeNull();
 });
@@ -1275,12 +1275,12 @@ it('sets quoted_post to null when neither inline quote nor pre-fetched status is
         'id' => '1',
         'content' => '<p>regular post</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['quoted_post'])->toBeNull();
 });
@@ -1290,7 +1290,7 @@ it('does not double-append instance to federated mastodon quoted post author han
         'id' => '1',
         'content' => '<p>quoting</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@user/1',
+        'url' => 'https://mastodon.example/@user/1',
         'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
         'media_attachments' => [],
         'quote' => [
@@ -1309,7 +1309,7 @@ it('does not double-append instance to federated mastodon quoted post author han
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['quoted_post']['author_handle'])->toBe('@remote@remote.social');
 });
@@ -1319,7 +1319,7 @@ it('sets quoted_post from inline quote on a boosted mastodon status', function (
         'id' => '999',
         'content' => '',
         'created_at' => '2024-01-15T12:00:00.000Z',
-        'url' => 'https://fosstodon.org/@booster/999',
+        'url' => 'https://mastodon.example/@booster/999',
         'account' => ['display_name' => 'Booster', 'acct' => 'booster', 'avatar' => ''],
         'media_attachments' => [],
         'reblog' => [
@@ -1342,7 +1342,7 @@ it('sets quoted_post from inline quote on a boosted mastodon status', function (
         ],
     ];
 
-    $post = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['quoted_post']['author_name'])->toBe('Quoted Author');
 });

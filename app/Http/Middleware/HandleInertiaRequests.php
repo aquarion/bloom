@@ -49,7 +49,7 @@ class HandleInertiaRequests extends Middleware
     private function resolveAppVersion(): ?array
     {
         $env = app()->environment();
-        $repo = 'https://github.com/aquarion/sprouter';
+        $repo = 'https://github.com/aquarion/bloom';
 
         if ($env === 'production') {
             $version = config('version.version');

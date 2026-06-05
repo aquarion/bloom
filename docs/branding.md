@@ -30,9 +30,9 @@ These files must be generated from the clean SVG source, not from the Apple touc
 * resources/icons/favicon.ico
 * resources/icons/web-app-manifest-192x192.png
 * resources/icons/web-app-manifest-512x512.png
-* resources/icons/sprouter-standard.svg
-* resources/icons/sprouter-standard.png
-* resources/icons/sprouter-on-white.png
+* resources/icons/bloom-standard.svg
+* resources/icons/bloom-standard.png
+* resources/icons/bloom-on-white.png
 
 ### Regeneration command
 

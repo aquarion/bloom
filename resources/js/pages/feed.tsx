@@ -10,6 +10,7 @@ import { ProgressBar } from '@/components/feed/ProgressBar';
 import { SourceBadge } from '@/components/feed/SourceBadge';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
 import { useFeedQueue } from '@/hooks/useFeedQueue';
+import { useWakeLock } from '@/hooks/useWakeLock';
 import { registerFeedDebug, setupDebugWindow } from '@/lib/debug';
 import type { Post } from '@/types/post';
 
@@ -27,6 +28,8 @@ export default function Feed({
         initialCursor,
     });
     const [paused, setPaused] = useState(false);
+
+    useWakeLock();
     const [readyForPostId, setReadyForPostId] = useState<string | null>(null);
     const animationReady = readyForPostId === current?.id;
     const bgRef = useRef<HTMLDivElement>(null);

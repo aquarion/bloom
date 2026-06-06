@@ -70,7 +70,12 @@ Replaces `regen-icons.sh`. Renders the glyph composited onto the background colo
 
 - `favicon.svg`
 - `favicon-96x96.png`
-- `favicon.ico`
+- `favicon.ico` — multi-resolution ICO containing **16, 32, 48, 64, 128, 256, 512**
+  px frames, matching `regen-icons.sh`'s
+  `-define icon:auto-resize=16,32,48,64,128,256,512`. Sharp cannot write multi-frame
+  ICO containers directly, so this renders each resolution as a PNG via sharp and
+  packs them into a single `.ico` with a small ICO-encoding helper (e.g. the
+  `to-ico`/`png-to-ico` package, or a hand-rolled ICO directory writer).
 - `web-app-manifest-192x192.png`
 - `web-app-manifest-512x512.png`
 - `bloom-standard.svg` (1200×1200, bg-filled glyph — same content as `favicon.svg`)

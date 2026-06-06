@@ -6,6 +6,8 @@ RUN npm ci
 FROM dunglas/frankenphp:1-php8.4-alpine
 WORKDIR /var/www/html
 
+ARG APP_ENV=production
+
 RUN apk add --no-cache git unzip nodejs npm \
     && install-php-extensions pdo_mysql pdo_sqlite redis pcntl opcache
 
@@ -20,7 +22,7 @@ RUN mkdir -p bootstrap/cache storage/framework/sessions storage/framework/views 
     && cp .env.example .env \
     && php artisan key:generate --force \
     && php artisan package:discover --ansi \
-    && npm run build \
+    && APP_ENV=$APP_ENV npm run build \
     && rm .env \
     && rm -rf node_modules
 

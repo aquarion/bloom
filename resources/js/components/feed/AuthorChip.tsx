@@ -7,12 +7,14 @@ export function AuthorChip({
     emojis,
     account,
     time,
+    absoluteTime,
 }: {
     name: string;
     avatar: string;
     emojis: Record<string, string>;
     account: string;
     time?: string;
+    absoluteTime?: string;
 }) {
     return (
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white/10 py-1 pr-3 pl-1">
@@ -29,7 +31,10 @@ export function AuthorChip({
                     {account}
                 </p>
                 {time !== undefined && (
-                    <p className="truncate text-[0.65rem] text-white/40 leading-tight">
+                    <p
+                        className="truncate text-[0.65rem] text-white/40 leading-tight"
+                        title={absoluteTime}
+                    >
                         {time}
                     </p>
                 )}

@@ -16,8 +16,8 @@ services:
   mysql:
     image: mysql:8.0.46
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-sprouter}
-      MYSQL_USER: ${DB_USERNAME:-sprouter}
+      MYSQL_DATABASE: ${DB_DATABASE:-bloom}
+      MYSQL_USER: ${DB_USERNAME:-bloom}
       MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret}
     volumes:

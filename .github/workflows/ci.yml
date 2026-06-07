@@ -17,6 +17,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  APP_NAME: bloom
 
 jobs:
   test:
@@ -114,10 +115,11 @@ jobs:
             APP_VERSION=${{ inputs.tag || github.ref_name }}
             APP_PR_NUMBER=${{ github.event.pull_request.number }}
             APP_BRANCH=${{ github.head_ref }}
+            APP_ENV=${{ github.event_name == 'pull_request' && 'staging' || 'production' }}
 
   deploy-staging:
     needs: build-and-push
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-staging
@@ -130,11 +132,11 @@ jobs:
         uses: appleboy/ssh-action@v1
         with:
           host: firth.water.gkhs.net
-          username: sprouter
+          username: ${{ env.APP_NAME }}
           key: ${{ secrets.FIRTH_SSH_KEY }}
           script: |
             set -euo pipefail
-            cd /home/docker/sprouter-staging
+            cd /home/docker/${{ env.APP_NAME }}-staging
             timeout 300 docker compose pull || {
               echo "ERROR: docker compose pull failed or timed out after 300s"
               exit 1
@@ -152,12 +154,18 @@ jobs:
               fi
               if [ "$i" -eq 30 ]; then
                 echo "ERROR: Container failed to become ready after 30 attempts"
+                echo "--- Final readiness check output ---"
+                docker compose exec -T app php artisan --version || true
                 docker compose logs --tail=50 app
                 exit 1
               fi
               echo "Attempt ${i}/30: container not ready, waiting..."
               sleep 2
             done
+            docker compose exec -T app test -d /var/www/html/public/build/assets || {
+              echo "ERROR: /var/www/html/public/build/assets not found in container, aborting asset copy"
+              exit 1
+            }
             rm -rf public/build/assets && mkdir -p public/build && docker compose cp app:/var/www/html/public/build/assets public/build/
             docker compose exec -T app php artisan migrate --force || {
               echo "ERROR: Migration failed"
@@ -180,11 +188,11 @@ jobs:
         uses: appleboy/ssh-action@v1
         with:
           host: firth.water.gkhs.net
-          username: sprouter
+          username: ${{ env.APP_NAME }}
           key: ${{ secrets.FIRTH_SSH_KEY }}
           script: |
             set -euo pipefail
-            cd /home/docker/sprouter
+            cd /home/docker/${{ env.APP_NAME }}
             timeout 300 docker compose pull || {
               echo "ERROR: docker compose pull failed or timed out after 300s"
               exit 1
@@ -202,12 +210,18 @@ jobs:
               fi
               if [ "$i" -eq 30 ]; then
                 echo "ERROR: Container failed to become ready after 30 attempts"
+                echo "--- Final readiness check output ---"
+                docker compose exec -T app php artisan --version || true
                 docker compose logs --tail=50 app
                 exit 1
               fi
               echo "Attempt ${i}/30: container not ready, waiting..."
               sleep 2
             done
+            docker compose exec -T app test -d /var/www/html/public/build/assets || {
+              echo "ERROR: /var/www/html/public/build/assets not found in container, aborting asset copy"
+              exit 1
+            }
             rm -rf public/build/assets && mkdir -p public/build && docker compose cp app:/var/www/html/public/build/assets public/build/
             docker compose exec -T app php artisan migrate --force || {
               echo "ERROR: Migration failed"

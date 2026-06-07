@@ -90,7 +90,11 @@ jobs:
 
           LS_REMOTE_OUTPUT=$(git ls-remote --tags origin "$NEXT_VERSION")
           if echo "$LS_REMOTE_OUTPUT" | grep -qF "refs/tags/$NEXT_VERSION"; then
-            echo "Tag $NEXT_VERSION already exists, aborting"
+            echo "ERROR: Tag $NEXT_VERSION already exists on remote."
+            echo "A previous run may have pushed the tag but failed before creating the GitHub Release."
+            echo "Recovery options:"
+            echo "  1. If the GitHub Release is missing: create it manually at https://github.com/${GITHUB_REPOSITORY}/releases/new?tag=${NEXT_VERSION}"
+            echo "  2. If you want to re-run: delete the remote tag with: git push origin :refs/tags/${NEXT_VERSION}"
             exit 1
           fi
 

@@ -38,11 +38,14 @@ jobs:
 
       - name: Resolve parameters
         id: params
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION_BUMP: ${{ inputs.version_bump }}
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ]; then
+          if [ "$EVENT_NAME" = "schedule" ]; then
             echo "version_bump=patch" >> "$GITHUB_OUTPUT"
           else
-            echo "version_bump=${{ inputs.version_bump }}" >> "$GITHUB_OUTPUT"
+            echo "version_bump=$INPUT_VERSION_BUMP" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Check if dependabot-updates is ahead of main
@@ -80,7 +83,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh pr ready dependabot-updates
+          PR_STATE=$(gh pr view dependabot-updates --json state --jq '.state' 2>/dev/null || echo "NOT_FOUND")
+          if [ "$PR_STATE" != "OPEN" ]; then
+            echo "No open PR for dependabot-updates (state: $PR_STATE), creating one..."
+            gh pr create --base main --head dependabot-updates \
+              --title "chore: bump dependencies" \
+              --body "Automated dependency updates"
+          fi
+          PR_IS_DRAFT=$(gh pr view dependabot-updates --json isDraft --jq '.isDraft' 2>/dev/null || echo "false")
+          if [ "$PR_IS_DRAFT" = "true" ]; then
+            gh pr ready dependabot-updates
+          fi
           gh pr checks dependabot-updates --watch --fail-fast
           gh pr merge dependabot-updates --merge
 
@@ -92,7 +105,7 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: aquarion/sprouter/.github/workflows/release.yml@main
+    uses: aquarion/bloom/.github/workflows/release.yml@main
     with:
       version_bump: ${{ needs.check-for-updates.outputs.version_bump }}
     secrets: inherit # pragma: allowlist secret

@@ -13,3 +13,5 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    secrets:
+      REBASE_TOKEN: ${{ secrets.REBASE_TOKEN }}

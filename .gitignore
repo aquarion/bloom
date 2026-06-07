@@ -36,3 +36,12 @@ htdocs
 **/caddy
 frankenphp
 frankenphp-worker.php
+resources/icons/apple-touch-icon.png
+resources/icons/favicon.svg
+resources/icons/favicon-96x96.png
+resources/icons/favicon.ico
+resources/icons/web-app-manifest-192x192.png
+resources/icons/web-app-manifest-512x512.png
+resources/icons/bloom-standard.svg
+resources/icons/bloom-standard.png
+resources/icons/bloom-on-white.png

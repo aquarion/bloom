@@ -24,12 +24,14 @@ async function fileExists(filePath) {
     }
 }
 
-async function syncIconJsonGradient(compensatedHex) {
+async function syncIconJsonGradient(compensatedHex, write = true) {
     const iconData = JSON.parse(await fs.readFile(JSON_PATH, 'utf-8'));
 
     iconData.fill = { ...iconData.fill, 'automatic-gradient': hexToDisplayP3(compensatedHex) };
 
-    await fs.writeFile(JSON_PATH, `${JSON.stringify(iconData, null, 2)}\n`, 'utf-8');
+    if (write) {
+        await fs.writeFile(JSON_PATH, `${JSON.stringify(iconData, null, 2)}\n`, 'utf-8');
+    }
 
     return iconData;
 }
@@ -161,9 +163,9 @@ async function cornerSpecularLayer() {
     return { input: await sharp(Buffer.from(svg)).png().toBuffer(), top: 0, left: 0 };
 }
 
-export async function generateAppleTouchIcon(config, outputDir = DEFAULT_OUTPUT_DIR) {
+export async function generateAppleTouchIcon(config, outputDir = DEFAULT_OUTPUT_DIR, { syncJson = true } = {}) {
     const compensatedHex = compensateForAppleRender(config.backgroundColor);
-    const iconData = await syncIconJsonGradient(compensatedHex);
+    const iconData = await syncIconJsonGradient(compensatedHex, syncJson);
     // Replicate Apple's icon tool quirk: P3 components are stored in the sRGB
     // container without gamut conversion, so we read them back the same way.
     const rgb = p3StringToAppleRgb(iconData.fill['automatic-gradient']);

@@ -1,4 +1,5 @@
 const MAX_TOTAL_LINES = 10;
+const MIN_LINE_LENGTH = 5;
 
 function balanceParagraph(
     text: string,
@@ -17,7 +18,7 @@ function balanceParagraph(
     );
     const targetChars = Math.ceil(text.length / numLines);
 
-    const lines: string[] = [];
+    const raw: string[] = [];
     let current = '';
 
     for (const word of words) {
@@ -26,13 +27,34 @@ function balanceParagraph(
         } else if (current.length + 1 + word.length <= targetChars) {
             current += ` ${word}`;
         } else {
-            lines.push(current);
+            raw.push(current);
             current = word;
         }
     }
 
     if (current) {
-        lines.push(current);
+        raw.push(current);
+    }
+
+    // Merge lines shorter than MIN_LINE_LENGTH into the previous line.
+    // If the merge would make the line too long, split it evenly at the midpoint.
+    const lines: string[] = [];
+
+    for (const line of raw) {
+        if (line.length < MIN_LINE_LENGTH && lines.length > 0) {
+            const merged = `${lines[lines.length - 1]} ${line}`;
+
+            if (merged.length > targetChars * 1.5) {
+                const mergedWords = merged.split(' ');
+                const mid = Math.ceil(mergedWords.length / 2);
+                lines[lines.length - 1] = mergedWords.slice(0, mid).join(' ');
+                lines.push(mergedWords.slice(mid).join(' '));
+            } else {
+                lines[lines.length - 1] = merged;
+            }
+        } else {
+            lines.push(line);
+        }
     }
 
     return lines;
@@ -42,10 +64,24 @@ export function splitIntoLinesWithBoundaries(text: string): {
     lines: string[];
     paragraphStarts: Set<number>;
 } {
-    const paragraphs = text.split('\n').filter(Boolean);
+    let paragraphs = text.split('\n').filter(Boolean);
 
     if (paragraphs.length === 0) {
         return { lines: [], paragraphStarts: new Set() };
+    }
+
+    // Single-paragraph posts are split on ". " so each sentence becomes its
+    // own visual unit, giving the balancer more structure to work with.
+    // ". " (not just ".") avoids triggering on ellipsis like "...".
+    if (paragraphs.length === 1) {
+        const sentences = paragraphs[0]
+            .replace(/\. /g, '.\n')
+            .split('\n')
+            .filter(Boolean);
+
+        if (sentences.length > 1) {
+            paragraphs = sentences;
+        }
     }
 
     // Single-paragraph posts keep the minimum-2-lines visual balance.

@@ -1,4 +1,5 @@
 import { Quote, Repeat2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { Post } from '@/types/post';
 import { AuthorChip } from './AuthorChip';
 
@@ -28,7 +29,18 @@ function timeSince(dateStr: string): string {
     return `${days}d ago`;
 }
 
+function absoluteTime(dateStr: string): string {
+    return new Date(dateStr).toLocaleString();
+}
+
 export function Attribution({ post }: { post: Post }) {
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const id = setInterval(() => setTick((t) => t + 1), 30_000);
+
+        return () => clearInterval(id);
+    }, []);
+
     if (post.quoted_post) {
         return (
             <div className="flex min-w-0 flex-1 items-center gap-2 text-left">
@@ -49,6 +61,11 @@ export function Attribution({ post }: { post: Post }) {
                                     ? timeSince(post.quoted_post.created_at)
                                     : undefined
                             }
+                            absoluteTime={
+                                post.quoted_post.created_at
+                                    ? absoluteTime(post.quoted_post.created_at)
+                                    : undefined
+                            }
                         />
                     </a>
                 ) : (
@@ -61,6 +78,11 @@ export function Attribution({ post }: { post: Post }) {
                             time={
                                 post.quoted_post.created_at
                                     ? timeSince(post.quoted_post.created_at)
+                                    : undefined
+                            }
+                            absoluteTime={
+                                post.quoted_post.created_at
+                                    ? absoluteTime(post.quoted_post.created_at)
                                     : undefined
                             }
                         />
@@ -79,6 +101,7 @@ export function Attribution({ post }: { post: Post }) {
                         emojis={post.emojis}
                         account={post.author_handle}
                         time={timeSince(post.created_at)}
+                        absoluteTime={absoluteTime(post.created_at)}
                     />
                 </a>
             </div>
@@ -108,6 +131,7 @@ export function Attribution({ post }: { post: Post }) {
                         emojis={post.emojis}
                         account={post.author_handle}
                         time={timeSince(post.created_at)}
+                        absoluteTime={absoluteTime(post.created_at)}
                     />
                 </a>
                 <span className="flex-shrink-0 text-white/30">{label}</span>
@@ -120,6 +144,11 @@ export function Attribution({ post }: { post: Post }) {
                         time={
                             post.boosted_by_created_at
                                 ? timeSince(post.boosted_by_created_at)
+                                : undefined
+                        }
+                        absoluteTime={
+                            post.boosted_by_created_at
+                                ? absoluteTime(post.boosted_by_created_at)
                                 : undefined
                         }
                     />
@@ -141,6 +170,7 @@ export function Attribution({ post }: { post: Post }) {
                 emojis={post.emojis}
                 account={post.author_handle}
                 time={timeSince(post.created_at)}
+                absoluteTime={absoluteTime(post.created_at)}
             />
         </a>
     );

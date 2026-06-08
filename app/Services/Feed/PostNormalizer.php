@@ -52,6 +52,10 @@ class PostNormalizer
             'boosted_by_handle' => $boosterAccount ? '@'.$boosterAccount['acct'] : null,
             'boosted_by_created_at' => $boosterAccount ? ($status['created_at'] ?? null) : null,
             'emojis' => $emojis,
+            'hashtags' => array_values(array_map(
+                fn ($t) => strtolower($t['name']),
+                $source['tags'] ?? []
+            )),
         ];
     }
 
@@ -72,6 +76,9 @@ class PostNormalizer
         $externalData = $this->blueskyExternalData($post['embed'] ?? null);
         $linkUrl = $externalData['url'] ?? $this->extractFirstLink($record['text']);
 
+        preg_match_all('/#([a-zA-Z0-9_]+)/', $record['text'] ?? '', $tagMatches);
+        $hashtags = array_values(array_map('strtolower', $tagMatches[1]));
+
         return [
             'id' => "bluesky_{$post['uri']}",
             'source' => 'bluesky',
@@ -80,7 +87,7 @@ class PostNormalizer
             'author_handle' => '@'.$author['handle'],
             'author_avatar' => $this->safeUrl($author['avatar'] ?? ''),
             'author_banner' => $this->safeUrl($author['banner'] ?? '') ?: null,
-            'body' => $this->truncateBody($this->stripUrls($record['text']), config('feed.body_limit', 1024)),
+            'body' => $this->truncateBody($this->stripHashtags($this->stripUrls($record['text'])), config('feed.body_limit', 1024)),
             'media' => $this->normaliseBlueskyMedia($post['embed'] ?? null),
             'created_at' => $record['createdAt'],
             'original_url' => $this->blueskyPostUrl($author['handle'], $post['uri']),
@@ -94,6 +101,7 @@ class PostNormalizer
             'boosted_by_handle' => $repostBy ? '@'.($repostBy['handle'] ?? '') : null,
             'boosted_by_created_at' => $repostBy ? ($reason['indexedAt'] ?? null) : null,
             'emojis' => [],
+            'hashtags' => $hashtags,
         ];
     }
 
@@ -254,7 +262,7 @@ class PostNormalizer
         $text = html_entity_decode(strip_tags($withBreaks), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = preg_replace('/\n{3,}/', "\n\n", $text);
 
-        return $this->stripUrls(trim($text));
+        return $this->stripHashtags($this->stripUrls(trim($text)));
     }
 
     private function stripUrls(string $text): string
@@ -267,6 +275,13 @@ class PostNormalizer
             '',
             $text
         );
+
+        return trim(preg_replace('/[ \t]{2,}/', ' ', $stripped));
+    }
+
+    private function stripHashtags(string $text): string
+    {
+        $stripped = preg_replace('/#[a-zA-Z0-9_]+/', '', $text);
 
         return trim(preg_replace('/[ \t]{2,}/', ' ', $stripped));
     }

@@ -1441,3 +1441,78 @@ it('extracts bare domain url when it appears before scheme url in text', functio
 
     expect($post['link_url'])->toBe('https://github.com/foo/bar');
 });
+
+it('extracts mastodon hashtags into hashtags array and strips them from body', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Loving the weather today #sunny #outdoors</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'tags' => [
+            ['name' => 'sunny', 'url' => 'https://mastodon.example/tags/sunny'],
+            ['name' => 'outdoors', 'url' => 'https://mastodon.example/tags/outdoors'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['hashtags'])->toBe(['sunny', 'outdoors'])
+        ->and($post['body'])->toBe('Loving the weather today');
+});
+
+it('returns empty hashtags array when mastodon post has no tags', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>hello world</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['hashtags'])->toBe([]);
+});
+
+it('extracts bluesky hashtags from post text and strips them from body', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => [
+                'text' => 'Great hike today #hiking #nature',
+                '$type' => 'app.bsky.feed.post',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+            ],
+            'author' => [
+                'handle' => 'alice.bsky.social',
+                'displayName' => 'Alice',
+                'avatar' => '',
+            ],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['hashtags'])->toBe(['hiking', 'nature'])
+        ->and($post['body'])->toBe('Great hike today');
+});
+
+it('lowercases mastodon hashtags', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>post #FooBar</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'tags' => [['name' => 'FooBar', 'url' => 'https://mastodon.example/tags/FooBar']],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['hashtags'])->toBe(['foobar']);
+});

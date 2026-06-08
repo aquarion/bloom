@@ -45,6 +45,7 @@ export interface Post {
     boosted_by_handle: string | null;
     boosted_by_created_at: string | null;
     emojis: Record<string, string>;
+    /** Normalised hashtags: lowercase, no leading '#', deduplicated. e.g. ["rust", "programming"] */
     hashtags: string[];
 }
 

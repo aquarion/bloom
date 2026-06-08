@@ -1517,3 +1517,56 @@ it('lowercases mastodon hashtags', function () {
     expect($post['hashtags'])->toBe(['foobar'])
         ->and($post['body'])->toBe('post');
 });
+
+it('lowercases bluesky hashtags', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => [
+                'text' => 'post #FooBar',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+            ],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['hashtags'])->toBe(['foobar'])
+        ->and($post['body'])->toBe('post');
+});
+
+it('strips bare domain urls with paths from mastodon post body', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Check out fosstodon.org/users/foo for more</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['body'])->toBe('Check out for more');
+});
+
+it('collapses blank lines left by stripping a hashtag-only paragraph', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Great post today</p><p>#hiking #nature</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'tags' => [
+            ['name' => 'hiking', 'url' => 'https://mastodon.example/tags/hiking'],
+            ['name' => 'nature', 'url' => 'https://mastodon.example/tags/nature'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['body'])->toBe('Great post today');
+});

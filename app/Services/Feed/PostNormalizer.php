@@ -52,10 +52,10 @@ class PostNormalizer
             'boosted_by_handle' => $boosterAccount ? '@'.$boosterAccount['acct'] : null,
             'boosted_by_created_at' => $boosterAccount ? ($status['created_at'] ?? null) : null,
             'emojis' => $emojis,
-            'hashtags' => array_values(array_map(
-                fn ($t) => strtolower($t['name']),
+            'hashtags' => array_values(array_unique(array_map(
+                fn ($t) => mb_strtolower($t['name'] ?? '', 'UTF-8'),
                 $source['tags'] ?? []
-            )),
+            ))),
         ];
     }
 
@@ -73,11 +73,15 @@ class PostNormalizer
             ? ($repostBy['displayName'] ?? $repostBy['handle'] ?? null)
             : null;
 
+        $text = $record['text'] ?? '';
         $externalData = $this->blueskyExternalData($post['embed'] ?? null);
-        $linkUrl = $externalData['url'] ?? $this->extractFirstLink($record['text']);
+        $linkUrl = $externalData['url'] ?? $this->extractFirstLink($text);
 
-        preg_match_all('/#([\p{L}\p{N}_]+)/u', $record['text'] ?? '', $tagMatches);
-        $hashtags = array_values(array_map('strtolower', $tagMatches[1]));
+        preg_match_all('/#([\p{L}\p{N}_]+)/u', $text, $tagMatches);
+        $hashtags = array_values(array_unique(array_map(
+            fn ($t) => mb_strtolower($t, 'UTF-8'),
+            $tagMatches[1]
+        )));
 
         return [
             'id' => "bluesky_{$post['uri']}",
@@ -87,7 +91,7 @@ class PostNormalizer
             'author_handle' => '@'.$author['handle'],
             'author_avatar' => $this->safeUrl($author['avatar'] ?? ''),
             'author_banner' => $this->safeUrl($author['banner'] ?? '') ?: null,
-            'body' => $this->truncateBody($this->stripHashtags($this->stripUrls($record['text'])), config('feed.body_limit', 1024)),
+            'body' => $this->truncateBody($this->stripHashtags($this->stripUrls($text)), config('feed.body_limit', 1024)),
             'media' => $this->normaliseBlueskyMedia($post['embed'] ?? null),
             'created_at' => $record['createdAt'],
             'original_url' => $this->blueskyPostUrl($author['handle'], $post['uri']),
@@ -276,24 +280,35 @@ class PostNormalizer
             $text
         );
 
-        return trim(preg_replace('/[ \t]{2,}/', ' ', $stripped));
+        if ($stripped === null) {
+            return $text;
+        }
+
+        return trim(preg_replace('/[ \t]{2,}/', ' ', $stripped) ?? $stripped);
     }
 
     private function stripHashtags(string $text): string
     {
         $stripped = preg_replace('/#[\p{L}\p{N}_]+/u', '', $text);
-        $stripped = preg_replace('/\n{3,}/', "\n\n", $stripped);
 
-        return trim(preg_replace('/[ \t]{2,}/', ' ', $stripped));
+        if ($stripped === null) {
+            return $text;
+        }
+
+        $stripped = preg_replace('/\n{3,}/', "\n\n", $stripped) ?? $stripped;
+
+        return trim(preg_replace('/[ \t]{2,}/', ' ', $stripped) ?? $stripped);
     }
 
     private function extractFirstLink(string $text): ?string
     {
-        if (! preg_match(
+        $result = preg_match(
             '/(?:https?:\/\/\S+|(?<![.@\w])[a-zA-Z][a-zA-Z0-9-]*(?:\.[a-zA-Z0-9][a-zA-Z0-9-]*)+\/\S+)/',
             $text,
             $m
-        )) {
+        );
+
+        if (! $result) {
             return null;
         }
 

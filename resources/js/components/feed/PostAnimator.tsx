@@ -504,7 +504,7 @@ export function PostAnimator({
                                 key={tag}
                                 className="rounded-full bg-white/10 px-1.5 py-1.5 text-sm"
                                 style={{
-                                    color: colors?.text ?? 'white',
+                                    color: textColor,
                                     writingMode: 'vertical-rl',
                                 }}
                             >

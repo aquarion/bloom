@@ -34,6 +34,7 @@ const makePost = (id: string, created_at?: string): Post => ({
     boosted_by_handle: null,
     boosted_by_created_at: null,
     emojis: {},
+    hashtags: [],
 });
 
 it('initialises with provided posts', () => {

@@ -502,7 +502,7 @@ export function PostAnimator({
                         {[...new Set(post.hashtags)].map((tag) => (
                             <span
                                 key={tag}
-                                className="rounded-full bg-white/10 px-1.5 py-1.5 text-[0.55rem]"
+                                className="rounded-full bg-white/10 px-1.5 py-1.5 text-sm"
                                 style={{
                                     color: colors?.text ?? 'white',
                                     writingMode: 'vertical-rl',

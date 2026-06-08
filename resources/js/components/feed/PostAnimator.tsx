@@ -500,7 +500,7 @@ export function PostAnimator({
                     aria-hidden="true"
                     className="absolute top-0 right-2 flex h-full flex-col items-center justify-center gap-2 overflow-hidden"
                 >
-                    {post.hashtags.map((tag) => (
+                    {[...new Set(post.hashtags)].map((tag) => (
                         <span
                             key={tag}
                             className="rotate-90 whitespace-nowrap rounded-full bg-white/10 px-2 py-0.5 text-[0.6rem]"

@@ -141,6 +141,106 @@ it('extracts quote_id from within a reblogged status', function () {
         ->and($result['99']['id'])->toBe('99');
 });
 
+it('fetches parent status from in_reply_to_id within a reblogged reply', function () {
+    $account = SocialAccount::factory()->create([
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+    ]);
+
+    $statuses = [
+        [
+            'id' => '300',
+            'in_reply_to_id' => null,
+            'content' => '',
+            'reblog' => [
+                'id' => '200',
+                'in_reply_to_id' => '100',
+                'content' => '<p>a reply that was boosted</p>',
+            ],
+        ],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getStatus')
+        ->once()
+        ->with($account, '100')
+        ->andReturn(['id' => '100', 'content' => '<p>original post</p>']);
+
+    $aggregator = new FeedAggregator(
+        $mastodon,
+        Mockery::mock(BlueskyFeedService::class),
+        Mockery::mock(PostNormalizer::class),
+    );
+
+    $result = callFetchMastodonStatuses($aggregator, $account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['in_reply_to_id'] ?? null);
+
+    expect($result)->toHaveKey('100')
+        ->and($result['100']['id'])->toBe('100');
+});
+
+it('passes reply_to to normalizer for a reblogged reply', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $parentUrl = 'https://fosstodon.org/@original/100';
+    $reblog = [
+        'id' => '300',
+        'created_at' => '2026-06-01T12:00:00.000Z',
+        'in_reply_to_id' => null,
+        'account' => ['acct' => 'booster', 'display_name' => 'Booster', 'avatar' => 'https://fosstodon.org/booster.png', 'emojis' => []],
+        'reblog' => [
+            'id' => '200',
+            'in_reply_to_id' => '100',
+            'created_at' => '2026-06-01T10:00:00.000Z',
+            'url' => 'https://fosstodon.org/@author/200',
+            'content' => '<p>reply that got boosted</p>',
+            'account' => ['acct' => 'author', 'display_name' => 'Author', 'avatar' => 'https://fosstodon.org/author.png', 'header' => '', 'emojis' => []],
+            'media_attachments' => [],
+            'emojis' => [],
+            'card' => null,
+            'quote' => null,
+            'quote_id' => null,
+            'tags' => [],
+        ],
+    ];
+
+    $parentStatus = [
+        'id' => '100',
+        'content' => '<p>original post</p>',
+        'url' => $parentUrl,
+        'created_at' => '2026-06-01T09:00:00.000Z',
+        'account' => [
+            'display_name' => 'Original Author',
+            'acct' => 'original',
+            'avatar' => 'https://fosstodon.org/original.png',
+        ],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$reblog]);
+    $mastodon->shouldReceive('getStatus')->andReturnUsing(fn ($acct, $id) => $id === '100' ? $parentStatus : null);
+
+    $aggregator = new FeedAggregator(
+        $mastodon,
+        Mockery::mock(BlueskyFeedService::class),
+        app(PostNormalizer::class),
+    );
+
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['reply_to'])->not->toBeNull()
+        ->and($result['posts'][0]['reply_to']['author_name'])->toBe('Original Author')
+        ->and($result['posts'][0]['reply_to']['original_url'])->toBe($parentUrl);
+});
+
 it('deduplicates posts with the same original_url, keeping the newest boost', function () {
     $user = User::factory()->create();
     $account = SocialAccount::factory()->create([

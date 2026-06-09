@@ -33,7 +33,7 @@ class FeedAggregator
                     $host = parse_url($account->instance_url, PHP_URL_HOST);
                     $statuses = $this->mastodon->getHomeTimeline($account, $perProviderLimit, $accountCursor);
 
-                    $parents = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => $s['in_reply_to_id'] ?? null);
+                    $parents = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['in_reply_to_id'] ?? null);
                     // Quote IDs point to foreign posts — they are never in the timeline batch,
                     // so the batch short-circuit inside fetchMastodonStatuses is always bypassed here.
                     $quotes = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['quote_id'] ?? null);
@@ -47,7 +47,7 @@ class FeedAggregator
                         return $this->normalizer->fromMastodon(
                             $s,
                             $host,
-                            $parents[$s['in_reply_to_id'] ?? ''] ?? null,
+                            $parents[$source['in_reply_to_id'] ?? ''] ?? null,
                             $account->handle,
                             $quoteId ? ($quotes[$quoteId] ?? null) : null,
                         );

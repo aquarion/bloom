@@ -245,6 +245,39 @@ it('sets boosted_by for bluesky reposts', function () {
     expect($post['boosted_by'])->toBe('Reposter');
 });
 
+it('sets reply_to for a bluesky repost of a reply', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/reply123',
+            'record' => ['text' => 'reply that was reposted', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Author', 'handle' => 'author.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+        'reason' => [
+            '$type' => 'app.bsky.feed.defs#reasonRepost',
+            'by' => ['displayName' => 'Reposter', 'handle' => 'reposter.bsky.social'],
+        ],
+        'reply' => [
+            'parent' => [
+                'uri' => 'at://did:plc:xyz/app.bsky.feed.post/parent456',
+                'record' => ['text' => 'original parent body'],
+                'author' => [
+                    'displayName' => 'Parent Author',
+                    'handle' => 'parent.bsky.social',
+                    'avatar' => 'https://cdn.bsky.app/parent.jpg',
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['reply_to'])->not->toBeNull()
+        ->and($post['reply_to']['author_name'])->toBe('Parent Author')
+        ->and($post['reply_to']['author_handle'])->toBe('@parent.bsky.social')
+        ->and($post['boosted_by'])->toBe('Reposter');
+});
+
 it('sets boosted_by to null for regular bluesky posts', function () {
     $feedPost = [
         'post' => [

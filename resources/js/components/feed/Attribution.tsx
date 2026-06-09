@@ -157,21 +157,31 @@ export function Attribution({ post }: { post: Post }) {
         );
     }
 
+    const chip = (
+        <AuthorChip
+            name={post.author_name}
+            avatar={post.author_avatar}
+            emojis={post.emojis}
+            account={post.author_handle}
+            time={timeSince(post.created_at)}
+            absoluteTime={absoluteTime(post.created_at)}
+        />
+    );
+
+    if (post.original_url) {
+        return (
+            <a
+                href={post.original_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-w-0 items-center gap-2 text-left"
+            >
+                {chip}
+            </a>
+        );
+    }
+
     return (
-        <a
-            href={post.original_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex min-w-0 items-center gap-2 text-left"
-        >
-            <AuthorChip
-                name={post.author_name}
-                avatar={post.author_avatar}
-                emojis={post.emojis}
-                account={post.author_handle}
-                time={timeSince(post.created_at)}
-                absoluteTime={absoluteTime(post.created_at)}
-            />
-        </a>
+        <div className="flex min-w-0 items-center gap-2 text-left">{chip}</div>
     );
 }

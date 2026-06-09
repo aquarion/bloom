@@ -172,9 +172,11 @@ export default function Welcome({
                     <div className="flex-1" />
 
                     {/* Bottom: attribution + source badge */}
-                    <div className="pointer-events-auto flex items-center gap-3 px-4 pt-2 pb-6">
+                    <div className="pointer-events-auto flex items-center gap-2 px-4 pt-2 pb-6">
                         <Attribution post={current} />
-                        <SourceBadge post={current} />
+                        <div className="ml-auto flex-shrink-0">
+                            <SourceBadge post={current} />
+                        </div>
                     </div>
 
                     <ProgressBar progress={progress} />

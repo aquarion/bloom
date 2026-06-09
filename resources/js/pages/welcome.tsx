@@ -38,17 +38,26 @@ export default function Welcome({
             return;
         }
 
+        // advance() shifts queue[0] → current, so queue[1] becomes the new queue[0].
+        // Capture now (before the queue changes) to update the bottom layer in onComplete.
         const nextNext: Post | null = queue[1] ?? queue[0] ?? current;
+
         transitionEndRef.current = Date.now() + 700;
+
+        // Track whether advance() completed so onComplete doesn't update the
+        // bottom layer if flushSync threw (GSAP swallows callback exceptions).
         let advanceSucceeded = false;
 
         gsap.timeline({
+            // bgRef is back at opacity 1 — safe to update the bottom layer.
             onComplete: () => {
                 if (advanceSucceeded) {
                     setNextBackground(nextNext);
                 }
             },
         })
+            // bg fade matches content zoom-out duration so both finish at t=0.3,
+            // making the gsap.set(bg) in the call safe (no running tween to conflict).
             .to(bg, { opacity: 0, duration: 0.3, ease: 'power2.inOut' }, 0)
             .to(
                 content,
@@ -131,7 +140,10 @@ export default function Welcome({
 
                         <div className="border-white/10 border-t pt-4">
                             <div className="mb-1 flex items-center gap-2">
-                                <AppLogoIcon className="size-5" />
+                                <AppLogoIcon
+                                    className="size-5"
+                                    aria-hidden="true"
+                                />
                                 <span className="font-semibold text-white/50 text-xs uppercase tracking-wide">
                                     Bloom
                                 </span>

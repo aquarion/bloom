@@ -28,7 +28,7 @@ class WelcomeController extends Controller
 
         return Inertia::render('welcome', [
             'initialPosts' => $this->getPosts(),
-            'canRegister' => config('features.registration', true),
+            'canRegister' => true,
         ]);
     }
 

@@ -135,7 +135,7 @@ export default function Welcome({
 
                     <div className="flex-1" />
 
-                    <div className="pointer-events-auto flex flex-col gap-4 px-4 pt-2 pb-6">
+                    <div className="pointer-events-auto flex max-w-sm flex-col gap-4 px-4 pt-2 pb-6">
                         <Attribution post={current} />
 
                         <div className="border-white/10 border-t pt-4">

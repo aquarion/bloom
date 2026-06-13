@@ -14,7 +14,7 @@ function makeReducer(initialPosts: Post[]) {
 
         const [next, ...rest] = state.queue;
 
-        return { current: next, queue: rest };
+        return { current: next, queue: state.current ? [...rest, state.current] : rest };
     };
 }
 

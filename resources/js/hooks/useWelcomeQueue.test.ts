@@ -47,7 +47,7 @@ describe('useWelcomeQueue', () => {
         const { result } = renderHook(() => useWelcomeQueue(posts));
         act(() => result.current.advance());
         expect(result.current.current?.id).toBe('b');
-        expect(result.current.queue.map((p) => p.id)).toEqual(['c']);
+        expect(result.current.queue.map((p) => p.id)).toEqual(['c', 'a']);
     });
 
     it('loops back to the start when queue is exhausted', () => {

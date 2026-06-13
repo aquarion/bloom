@@ -42,10 +42,15 @@ class WelcomeController extends Controller
 
         try {
             $posts = $this->fetchAndNormalize();
-            Cache::put(self::DATA_KEY, $posts, now()->addSeconds(self::DATA_TTL));
-            Cache::put(self::FRESH_KEY, true, now()->addSeconds(self::FRESH_TTL));
 
-            return $posts;
+            if (empty($posts)) {
+                Log::warning('Welcome page post fetch returned no usable posts');
+            } else {
+                Cache::put(self::DATA_KEY, $posts, now()->addSeconds(self::DATA_TTL));
+                Cache::put(self::FRESH_KEY, true, now()->addSeconds(self::FRESH_TTL));
+
+                return $posts;
+            }
         } catch (\Throwable $e) {
             Log::warning('Welcome page post fetch failed', ['error' => $e->getMessage()]);
         }

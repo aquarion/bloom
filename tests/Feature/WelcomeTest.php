@@ -151,3 +151,58 @@ it('falls back to hardcoded posts when cache is empty and fetch fails', function
 
     expect(Cache::get('welcome.posts.data'))->toBeNull();
 });
+
+it('falls back to hardcoded posts when all fetched posts are filtered out and cache is empty', function () {
+    Http::fake([
+        'mastodon.social/api/v1/timelines/public*' => Http::response([
+            array_merge(mastodonStatus('1', ''), ['content' => '']),
+        ]),
+    ]);
+
+    $this->withoutVite()->get('/')->assertInertia(
+        fn ($page) => $page->component('welcome', false)->has('initialPosts')
+    );
+
+    expect(Cache::get('welcome.posts.data'))->toBeNull();
+    expect(Cache::has('welcome.posts.fresh'))->toBeFalse();
+});
+
+it('serves stale cache when all fetched posts are filtered out', function () {
+    $stale = [[
+        'id' => 'mastodon_cached_1',
+        'source' => 'mastodon',
+        'source_handle' => '',
+        'author_name' => 'Cached User',
+        'author_handle' => '@cached@mastodon.social',
+        'author_avatar' => '',
+        'author_banner' => null,
+        'body' => 'Stale cached body',
+        'media' => [],
+        'created_at' => '2024-01-01T00:00:00.000Z',
+        'original_url' => '',
+        'link_url' => null,
+        'link_title' => null,
+        'link_favicon' => null,
+        'reply_to' => null,
+        'quoted_post' => null,
+        'boosted_by' => null,
+        'boosted_by_avatar' => null,
+        'boosted_by_handle' => null,
+        'boosted_by_created_at' => null,
+        'emojis' => [],
+        'hashtags' => [],
+    ]];
+
+    Cache::put('welcome.posts.data', $stale, now()->addDays(7));
+    // Omit 'welcome.posts.fresh' so freshness is expired
+
+    Http::fake([
+        'mastodon.social/api/v1/timelines/public*' => Http::response([
+            array_merge(mastodonStatus('1', ''), ['content' => '']),
+        ]),
+    ]);
+
+    $this->withoutVite()->get('/')->assertInertia(
+        fn ($page) => $page->where('initialPosts.0.id', 'mastodon_cached_1')
+    );
+});

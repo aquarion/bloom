@@ -5,7 +5,7 @@
 
 ## Summary
 
-Replace the stock Laravel boilerplate `welcome.tsx` with a real landing page for Bloom. The page IS the app experience — it renders the full-screen feed UI in demo mode, cycling through public posts, with Bloom branding and sign-up/login CTAs overlaid at the bottom.
+Replace the stock Laravel boilerplate `welcome.tsx` with a real landing page for Bloom. The page IS the app experience — it renders the full-screen feed UI in demo mode, cycling through public posts, with Bloom branding and sign-up/login CTAs overlaid at the top.
 
 ## Routing
 
@@ -17,12 +17,14 @@ Replace the stock Laravel boilerplate `welcome.tsx` with a real landing page for
 
 A new controller fetches public Mastodon posts, normalises them, and passes them to the page as props.
 
-**Source:** `GET https://{instance}/api/v1/timelines/public?limit=10&only_media=false` — no authentication required. Instance is configurable (default: `mastodon.social`) via `config/services.php` or `config/feed.php`.
+**Source:** `GET https://{instance}/api/v1/timelines/public?limit=40` — no authentication required. Instance is configurable (default: `mastodon.social`) via `config/services.php` or `config/feed.php`.
 
 **Caching strategy:**
-- Cache key: `welcome.posts`, TTL: 6 hours
-- On cache miss: fetch from public timeline, normalise through `PostNormalizer`, cache result
-- On fetch failure: serve stale cache regardless of age (log a warning); do not surface errors to the visitor
+- Cache keys: `welcome.posts.data` (TTL: 7 days) and `welcome.posts.fresh` (TTL: 6 hours)
+- On `fresh` key present and `data` key present: serve cached data immediately (stale-while-revalidate)
+- On `fresh` key absent (stale or cold): fetch from public timeline, normalise through `PostNormalizer`
+  - If fetch succeeds and returns posts: update both cache keys and return fresh data
+  - If fetch fails or returns no usable posts: log a warning; fall back to stale `data` cache if present, or hardcoded posts
 - Cache completely cold AND fetch fails: fall back to 3–4 hardcoded example posts baked into the controller
 - Only posts with a non-empty body are kept (filters out media-only posts)
 
@@ -39,7 +41,7 @@ The page is `feed.tsx` in demo mode. Reuse all feed components and animation log
 - `PostContent` — post body, media, reply context, hashtags
 - `SourceBadge` — platform indicator (Mastodon / Bluesky)
 - `Attribution` — author name, avatar, handle
-- `ProgressBar` — thin progress bar at top showing time until next post
+- `ProgressBar` — thin progress bar at the bottom showing time until next post
 - `useAutoAdvance` — timer hook driving auto-advance
 - GSAP `handleAdvance` animation — full zoom/blur crossfade transition (identical to feed)
 
@@ -47,7 +49,7 @@ The page is `feed.tsx` in demo mode. Reuse all feed components and animation log
 - **No `useFeedQueue`** — welcome page uses a local looping queue instead (no cursor, no API fetching)
 - **Looping:** when the queue is exhausted, reset to `initialPosts` so posts cycle indefinitely
 - **Chrome layer — removed:** dashboard link, wake-lock button, pause/play button, debug panel
-- **Chrome layer — added:** Bloom CTA panel pinned at the bottom, overlaid above the attribution:
+- **Chrome layer — added:** Bloom CTA panel pinned at the top:
   - App name: `<AppLogoIcon>` + "Bloom" wordmark (small, muted — reuses the existing `AppLogo` component)
   - Tagline: "Social media. Without the scroll."
   - Sub-tagline: "Full-screen · Mastodon & Bluesky · No algorithm"
@@ -57,14 +59,6 @@ The page is `feed.tsx` in demo mode. Reuse all feed components and animation log
 ### Layout
 ```
 ┌────────────────────────────────┐
-│ [progress bar — top edge]      │
-│                                │
-│  Post body text (upper area)   │
-│                                │
-│  ↕ gradient fade to black      │
-│                                │
-│  Author avatar · name · handle │
-│  ──────────────────────────    │
 │  [AppLogoIcon] Bloom           │
 │  Social media.                 │
 │  Without the scroll.           │
@@ -72,6 +66,14 @@ The page is `feed.tsx` in demo mode. Reuse all feed components and animation log
 │  Bluesky · No algorithm        │
 │                                │
 │  [Sign up]      [Log in]       │
+│  ──────────────────────────    │
+│                                │
+│  Post body text (upper area)   │
+│                                │
+│  ↕ gradient fade to black      │
+│                                │
+│  Author avatar · name · handle │
+│ [progress bar — bottom edge]   │
 └────────────────────────────────┘
 ```
 

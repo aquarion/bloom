@@ -33,7 +33,7 @@ function mastodonStatus(string $id, string $body): array
 
 it('renders the welcome page for guests', function () {
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response([]),
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([]),
     ]);
 
     $this->withoutVite()->get('/')->assertInertia(
@@ -50,7 +50,7 @@ it('redirects authenticated users to the feed', function () {
 
 it('passes normalised posts from the public timeline', function () {
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response([
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([
             mastodonStatus('1', 'Hello Fediverse'),
         ]),
     ]);
@@ -64,7 +64,7 @@ it('passes normalised posts from the public timeline', function () {
 
 it('filters out posts with an empty body', function () {
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response([
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([
             array_merge(mastodonStatus('1', ''), ['content' => '']),
             mastodonStatus('2', 'Has a body'),
         ]),
@@ -78,7 +78,7 @@ it('filters out posts with an empty body', function () {
 
 it('caches successfully fetched posts', function () {
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response([
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([
             mastodonStatus('99', 'Cacheable post'),
         ]),
     ]);
@@ -91,7 +91,7 @@ it('caches successfully fetched posts', function () {
 
 it('serves a cached response on the second request without fetching again', function () {
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response([
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([
             mastodonStatus('1', 'First fetch'),
         ]),
     ]);
@@ -132,7 +132,7 @@ it('serves stale cache when the public timeline fetch fails', function () {
     // Omit 'welcome.posts.fresh' so freshness is expired
 
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response(null, 500),
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response(null, 500),
     ]);
 
     $this->withoutVite()->get('/')->assertInertia(
@@ -142,7 +142,7 @@ it('serves stale cache when the public timeline fetch fails', function () {
 
 it('falls back to hardcoded posts when cache is empty and fetch fails', function () {
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response(null, 500),
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response(null, 500),
     ]);
 
     $this->withoutVite()->get('/')->assertInertia(
@@ -154,7 +154,7 @@ it('falls back to hardcoded posts when cache is empty and fetch fails', function
 
 it('falls back to hardcoded posts when all fetched posts are filtered out and cache is empty', function () {
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response([
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([
             array_merge(mastodonStatus('1', ''), ['content' => '']),
         ]),
     ]);
@@ -197,7 +197,7 @@ it('serves stale cache when all fetched posts are filtered out', function () {
     // Omit 'welcome.posts.fresh' so freshness is expired
 
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response([
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([
             array_merge(mastodonStatus('1', ''), ['content' => '']),
         ]),
     ]);

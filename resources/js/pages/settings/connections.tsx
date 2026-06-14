@@ -1,4 +1,6 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, useForm } from '@inertiajs/react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useState } from 'react';
 import { SiBluesky, SiMastodon } from 'react-icons/si';
 import Heading from '@/components/heading';
 import InstanceCombobox from '@/components/InstanceCombobox';
@@ -16,6 +18,109 @@ interface SocialConnection {
     handle: string;
     instance_url: string | null;
     auth_failed_at: string | null;
+    feed_settings: {
+        max_posts?: number;
+        max_age_days?: number | null;
+    } | null;
+}
+
+function AccountFeedSettings({ connection }: { connection: SocialConnection }) {
+    const [open, setOpen] = useState(false);
+    const { data, setData, put, processing } = useForm({
+        max_posts: connection.feed_settings?.max_posts ?? 20,
+        max_age_days: connection.feed_settings?.max_age_days ?? null,
+    });
+
+    function submit(e: React.FormEvent) {
+        e.preventDefault();
+        put(`/settings/connections/${connection.id}/feed`);
+    }
+
+    return (
+        <div className="mt-2 border-t pt-2">
+            <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                className="flex items-center gap-1 text-muted-foreground text-xs hover:text-foreground"
+            >
+                {open ? (
+                    <ChevronUp className="h-3 w-3" />
+                ) : (
+                    <ChevronDown className="h-3 w-3" />
+                )}
+                Feed settings
+            </button>
+            {open && (
+                <form onSubmit={submit} className="mt-3 space-y-3">
+                    <div className="flex items-center gap-3">
+                        <div className="space-y-1">
+                            <Label
+                                htmlFor={`max_posts_${connection.id}`}
+                                className="text-xs"
+                            >
+                                Max posts
+                            </Label>
+                            <Input
+                                id={`max_posts_${connection.id}`}
+                                type="number"
+                                min={1}
+                                max={100}
+                                value={data.max_posts}
+                                onChange={(e) =>
+                                    setData('max_posts', Number(e.target.value))
+                                }
+                                className="h-8 w-20 text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label
+                                htmlFor={`max_age_${connection.id}`}
+                                className="text-xs"
+                            >
+                                Age cutoff (days)
+                            </Label>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    id={`max_age_${connection.id}`}
+                                    type="number"
+                                    min={1}
+                                    max={365}
+                                    value={data.max_age_days ?? ''}
+                                    onChange={(e) =>
+                                        setData(
+                                            'max_age_days',
+                                            e.target.value === ''
+                                                ? null
+                                                : Number(e.target.value),
+                                        )
+                                    }
+                                    className="h-8 w-20 text-sm"
+                                    placeholder="inherit"
+                                    disabled={data.max_age_days === null}
+                                />
+                                <label className="flex items-center gap-1 text-muted-foreground text-xs">
+                                    <input
+                                        type="checkbox"
+                                        checked={data.max_age_days === null}
+                                        onChange={(e) =>
+                                            setData(
+                                                'max_age_days',
+                                                e.target.checked ? null : 7,
+                                            )
+                                        }
+                                    />
+                                    Inherit
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <Button type="submit" size="sm" disabled={processing}>
+                        Save
+                    </Button>
+                </form>
+            )}
+        </div>
+    );
 }
 
 function BlueskyReauthForm({ connection }: { connection: SocialConnection }) {
@@ -187,33 +292,44 @@ export default function Connections({
                                                 connection={c}
                                             />
                                         ) : (
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-muted-foreground text-sm">
-                                                    <strong>{c.handle}</strong>
-                                                    {c.instance_url && (
-                                                        <span className="ml-1 text-xs">
-                                                            ({c.instance_url})
-                                                        </span>
-                                                    )}
-                                                </p>
-                                                <Form
-                                                    {...disconnectAccount.form({
-                                                        account: c.id,
-                                                    })}
-                                                >
-                                                    {({ processing }) => (
-                                                        <Button
-                                                            type="submit"
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            disabled={
-                                                                processing
-                                                            }
-                                                        >
-                                                            Disconnect
-                                                        </Button>
-                                                    )}
-                                                </Form>
+                                            <div>
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-muted-foreground text-sm">
+                                                        <strong>
+                                                            {c.handle}
+                                                        </strong>
+                                                        {c.instance_url && (
+                                                            <span className="ml-1 text-xs">
+                                                                (
+                                                                {c.instance_url}
+                                                                )
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                    <Form
+                                                        {...disconnectAccount.form(
+                                                            {
+                                                                account: c.id,
+                                                            },
+                                                        )}
+                                                    >
+                                                        {({ processing }) => (
+                                                            <Button
+                                                                type="submit"
+                                                                variant="destructive"
+                                                                size="sm"
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                            >
+                                                                Disconnect
+                                                            </Button>
+                                                        )}
+                                                    </Form>
+                                                </div>
+                                                <AccountFeedSettings
+                                                    connection={c}
+                                                />
                                             </div>
                                         )}
                                     </li>
@@ -275,28 +391,37 @@ export default function Connections({
                                         {c.auth_failed_at ? (
                                             <BlueskyReauthForm connection={c} />
                                         ) : (
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-muted-foreground text-sm">
-                                                    <strong>{c.handle}</strong>
-                                                </p>
-                                                <Form
-                                                    {...disconnectAccount.form({
-                                                        account: c.id,
-                                                    })}
-                                                >
-                                                    {({ processing }) => (
-                                                        <Button
-                                                            type="submit"
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            disabled={
-                                                                processing
-                                                            }
-                                                        >
-                                                            Disconnect
-                                                        </Button>
-                                                    )}
-                                                </Form>
+                                            <div>
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-muted-foreground text-sm">
+                                                        <strong>
+                                                            {c.handle}
+                                                        </strong>
+                                                    </p>
+                                                    <Form
+                                                        {...disconnectAccount.form(
+                                                            {
+                                                                account: c.id,
+                                                            },
+                                                        )}
+                                                    >
+                                                        {({ processing }) => (
+                                                            <Button
+                                                                type="submit"
+                                                                variant="destructive"
+                                                                size="sm"
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                            >
+                                                                Disconnect
+                                                            </Button>
+                                                        )}
+                                                    </Form>
+                                                </div>
+                                                <AccountFeedSettings
+                                                    connection={c}
+                                                />
                                             </div>
                                         )}
                                     </li>

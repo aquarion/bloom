@@ -33,7 +33,7 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::get('settings/connections', function (Request $request) {
         return Inertia::render('settings/connections', [
             'connections' => $request->user()->socialAccounts()
-                ->select('id', 'provider', 'handle', 'instance_url', 'auth_failed_at')
+                ->select('id', 'provider', 'handle', 'instance_url', 'auth_failed_at', 'feed_settings')
                 ->get(),
             'status' => $request->session()->get('status'),
         ]);

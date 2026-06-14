@@ -23,8 +23,6 @@ function reducer(state: State, action: Action): State {
                 ...(state.current ? [state.current.id] : []),
                 ...state.queue.map((p) => p.id),
             ]);
-            // New posts are sorted newest-first among themselves, then appended
-            // after the existing queue so already-buffered posts are never skipped.
             const incoming = action.posts
                 .filter((p) => {
                     if (seen.has(p.id)) {
@@ -38,8 +36,6 @@ function reducer(state: State, action: Action): State {
                 .sort((a, b) => b.created_at.localeCompare(a.created_at));
             const merged = [...state.queue, ...incoming];
 
-            // If current drained to null (e.g. fetchMore lagged behind advances),
-            // promote the first incoming post automatically.
             if (state.current === null && merged.length > 0) {
                 return {
                     current: merged[0],
@@ -53,50 +49,81 @@ function reducer(state: State, action: Action): State {
     }
 }
 
+function shouldSkipPost(
+    post: Post,
+    cwBehavior: 'skip' | 'blur' | 'show',
+    sensitiveMediaBehavior: 'skip' | 'blur' | 'show',
+): boolean {
+    if (post.cw_text !== null && cwBehavior === 'skip') {
+        return true;
+    }
+
+    if (post.sensitive_media && sensitiveMediaBehavior === 'skip') {
+        return true;
+    }
+
+    return false;
+}
+
 export function useFeedQueue({
     initialPosts,
     initialCursor,
+    cwBehavior = 'blur',
+    sensitiveMediaBehavior = 'blur',
 }: {
     initialPosts: Post[];
     initialCursor: string | null;
+    cwBehavior?: 'skip' | 'blur' | 'show';
+    sensitiveMediaBehavior?: 'skip' | 'blur' | 'show';
 }) {
+    const filterPost = useCallback(
+        (post: Post) =>
+            !shouldSkipPost(post, cwBehavior, sensitiveMediaBehavior),
+        [cwBehavior, sensitiveMediaBehavior],
+    );
+
+    const filteredInitial = initialPosts.filter(filterPost);
+
     const [state, dispatch] = useReducer(reducer, {
-        current: initialPosts[0] ?? null,
-        queue: initialPosts.slice(1),
+        current: filteredInitial[0] ?? null,
+        queue: filteredInitial.slice(1),
         cursor: initialCursor,
     });
 
     const fetching = useRef(false);
 
-    const fetchMore = useCallback(async (activeCursor: string) => {
-        if (fetching.current) {
-            return;
-        }
-
-        fetching.current = true;
-
-        try {
-            const { data } = await axios.get<FeedResponse>('/feed', {
-                params: { cursor: activeCursor },
-                headers: { Accept: 'application/json' },
-            });
-            dispatch({
-                type: 'enqueue',
-                posts: data.posts,
-                cursor: data.next_cursor,
-            });
-        } catch (error) {
-            const status = axios.isAxiosError(error)
-                ? error.response?.status
-                : undefined;
-
-            if (status === 401 || status === 419) {
-                router.visit('/login');
+    const fetchMore = useCallback(
+        async (activeCursor: string) => {
+            if (fetching.current) {
+                return;
             }
-        } finally {
-            fetching.current = false;
-        }
-    }, []);
+
+            fetching.current = true;
+
+            try {
+                const { data } = await axios.get<FeedResponse>('/feed', {
+                    params: { cursor: activeCursor },
+                    headers: { Accept: 'application/json' },
+                });
+                dispatch({
+                    type: 'enqueue',
+                    posts: data.posts.filter(filterPost),
+                    cursor: data.next_cursor,
+                });
+            } catch (error) {
+                const status = axios.isAxiosError(error)
+                    ? error.response?.status
+                    : undefined;
+
+                if (status === 401 || status === 419) {
+                    router.visit('/login');
+                }
+            } finally {
+                fetching.current = false;
+            }
+        },
+        [filterPost],
+    );
 
     useEffect(() => {
         if (state.queue.length <= REFILL_THRESHOLD && state.cursor) {

@@ -19,14 +19,20 @@ export default function Feed({
     initialPosts,
     initialCursor,
     debugEnabled,
+    cwBehavior,
+    sensitiveMediaBehavior,
 }: {
     initialPosts: Post[];
     initialCursor: string | null;
     debugEnabled: boolean;
+    cwBehavior: 'skip' | 'blur' | 'show';
+    sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
 }) {
     const { current, advance, queue } = useFeedQueue({
         initialPosts,
         initialCursor,
+        cwBehavior,
+        sensitiveMediaBehavior,
     });
     const [paused, setPaused] = useState(false);
 

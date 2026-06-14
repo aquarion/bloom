@@ -151,3 +151,56 @@ it('redirects to login when feed refill gets unauthenticated', async () => {
 
     expect(router.visit).toHaveBeenCalledWith('/login');
 });
+
+it('skips posts with cw_text when cwBehavior is skip', () => {
+    const cwPost = makePost('cw1');
+    cwPost.cw_text = 'Content warning';
+
+    const normalPost = makePost('normal1');
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            initialPosts: [cwPost, normalPost],
+            initialCursor: null,
+            cwBehavior: 'skip',
+            sensitiveMediaBehavior: 'show',
+        }),
+    );
+
+    expect(result.current.current?.id).toBe('normal1');
+    expect(result.current.queue).toHaveLength(0);
+});
+
+it('skips posts with sensitive_media when sensitiveMediaBehavior is skip', () => {
+    const sensitivePost = makePost('sensitive1');
+    sensitivePost.sensitive_media = true;
+
+    const normalPost = makePost('normal2');
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            initialPosts: [sensitivePost, normalPost],
+            initialCursor: null,
+            cwBehavior: 'show',
+            sensitiveMediaBehavior: 'skip',
+        }),
+    );
+
+    expect(result.current.current?.id).toBe('normal2');
+});
+
+it('does not skip cw posts when cwBehavior is blur', () => {
+    const cwPost = makePost('cw2');
+    cwPost.cw_text = 'Spoiler';
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            initialPosts: [cwPost],
+            initialCursor: null,
+            cwBehavior: 'blur',
+            sensitiveMediaBehavior: 'show',
+        }),
+    );
+
+    expect(result.current.current?.id).toBe('cw2');
+});

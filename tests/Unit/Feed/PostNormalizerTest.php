@@ -1603,3 +1603,133 @@ it('collapses blank lines left by stripping a hashtag-only paragraph', function 
 
     expect($post['body'])->toBe('Great post today');
 });
+
+it('sets cw_text from mastodon spoiler_text', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>hidden body</p>',
+        'created_at' => '2024-01-01T00:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'spoiler_text' => 'CW: politics',
+        'sensitive' => false,
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => 'https://mastodon.example/av.jpg'],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['cw_text'])->toBe('CW: politics')
+        ->and($post['sensitive_media'])->toBeFalse();
+});
+
+it('sets cw_text to null when mastodon spoiler_text is empty', function () {
+    $status = [
+        'id' => '2',
+        'content' => '<p>normal post</p>',
+        'created_at' => '2024-01-01T00:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/2',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => 'https://mastodon.example/av.jpg'],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['cw_text'])->toBeNull();
+});
+
+it('sets sensitive_media from mastodon sensitive flag', function () {
+    $status = [
+        'id' => '3',
+        'content' => '',
+        'created_at' => '2024-01-01T00:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/3',
+        'spoiler_text' => '',
+        'sensitive' => true,
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => 'https://mastodon.example/av.jpg'],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['sensitive_media'])->toBeTrue();
+});
+
+it('sets cw_text from bluesky adult content label', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/avatar.jpg',
+            ],
+            'labels' => [['val' => 'sexual']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('Adult content')
+        ->and($post['sensitive_media'])->toBeTrue();
+});
+
+it('sets cw_text from bluesky graphic-media label', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/avatar.jpg',
+            ],
+            'labels' => [['val' => 'graphic-media']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('Graphic media')
+        ->and($post['sensitive_media'])->toBeTrue();
+});
+
+it('sets cw_text to null when bluesky has no labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/avatar.jpg',
+            ],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBeNull()
+        ->and($post['sensitive_media'])->toBeFalse();
+});

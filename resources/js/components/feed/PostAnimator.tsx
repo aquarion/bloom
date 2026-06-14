@@ -140,10 +140,14 @@ export function PostAnimator({
     post,
     colors,
     onReady,
+    blurMedia = false,
+    onRevealMedia,
 }: {
     post: Post;
     colors: PostColors | null;
     onReady?: () => void;
+    blurMedia?: boolean;
+    onRevealMedia?: () => void;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const textRef = useRef<HTMLDivElement>(null);
@@ -366,12 +370,23 @@ export function PostAnimator({
 
             if (displaySrc) {
                 return (
-                    <div className="flex h-full w-full items-center justify-center p-4">
+                    <div className="relative flex h-full w-full items-center justify-center p-4">
                         <img
                             src={displaySrc}
                             alt={firstMedia.alt_text ?? ''}
-                            className="max-h-full max-w-full rounded object-contain"
+                            className={`max-h-full max-w-full rounded object-contain transition-all duration-300 ${blurMedia ? 'blur-xl' : ''}`}
                         />
+                        {blurMedia && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <button
+                                    type="button"
+                                    onClick={onRevealMedia}
+                                    className="rounded-full bg-black/60 px-4 py-1.5 text-sm text-white hover:bg-black/80"
+                                >
+                                    Show sensitive media
+                                </button>
+                            </div>
+                        )}
                     </div>
                 );
             }

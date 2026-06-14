@@ -47,6 +47,8 @@ export interface Post {
     emojis: Record<string, string>;
     /** Normalised hashtags: lowercase, no leading '#', deduplicated. e.g. ["rust", "programming"] */
     hashtags: string[];
+    cw_text: string | null;
+    sensitive_media: boolean;
 }
 
 export interface FeedResponse {

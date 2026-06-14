@@ -23,6 +23,10 @@ return [
     // Maximum characters shown in main post body
     'body_limit' => env('FEED_BODY_LIMIT', 512),
 
+    // Maximum age of posts to show (days). Posts older than this are filtered unless boosted.
+    // Set to null to disable. Overrideable per-user via feed_preferences.
+    'max_age_days' => env('FEED_MAX_AGE_DAYS', 7),
+
     // Mastodon instance used to fetch posts for the public welcome page
     'welcome_instance' => env('FEED_WELCOME_INSTANCE', 'fosstodon.org'),
 ];

@@ -32,6 +32,11 @@ const sidebarNavItems: NavItem[] = [
         href: editConnections(),
         icon: null,
     },
+    {
+        title: 'Feed',
+        href: '/settings/feed',
+        icon: null,
+    },
 ];
 
 export default function SettingsLayout({ children }: PropsWithChildren) {

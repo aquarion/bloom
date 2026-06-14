@@ -23,7 +23,7 @@ class FeedAggregator
         $cursors = $cursor ? json_decode(base64_decode($cursor), true) : [];
         $posts = collect();
 
-        $perProviderLimit = config('feed.per_provider_limit', 20);
+        $defaultLimit = config('feed.per_provider_limit', 20);
 
         foreach ($user->socialAccounts as $account) {
             $accountCursor = $cursors[$account->id] ?? null;
@@ -31,7 +31,8 @@ class FeedAggregator
             try {
                 if ($account->provider === 'mastodon') {
                     $host = parse_url($account->instance_url, PHP_URL_HOST);
-                    $statuses = $this->mastodon->getHomeTimeline($account, $perProviderLimit, $accountCursor);
+                    $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
+                    $statuses = $this->mastodon->getHomeTimeline($account, $perAccountLimit, $accountCursor);
 
                     $parents = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['in_reply_to_id'] ?? null);
                     // Quote IDs point to foreign posts — they are never in the timeline batch,
@@ -53,6 +54,7 @@ class FeedAggregator
                         );
                     }, $statuses);
 
+                    $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
                     $nextCursor = ! empty($statuses) ? end($statuses)['id'] : null;
                     $posts = $posts->concat($normalised);
                     if ($nextCursor) {
@@ -61,8 +63,10 @@ class FeedAggregator
                 }
 
                 if ($account->provider === 'bluesky') {
-                    $result = $this->bluesky->getHomeTimeline($account, $perProviderLimit, $accountCursor);
+                    $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
+                    $result = $this->bluesky->getHomeTimeline($account, $perAccountLimit, $accountCursor);
                     $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle), $result['posts']);
+                    $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
                     $posts = $posts->concat($normalised);
                     if ($result['cursor']) {
                         $cursors[$account->id] = $result['cursor'];
@@ -81,19 +85,104 @@ class FeedAggregator
         $sorted = $posts->sortByDesc('created_at')->values();
 
         $seen = [];
-        $deduped = $sorted->filter(function ($post) use (&$seen) {
+        $seenBodies = [];
+
+        $deduped = $sorted->filter(function ($post) use (&$seen, &$seenBodies) {
+            // URL-based dedup (existing)
             $key = $post['original_url'] ?: $post['id'];
             if (isset($seen[$key])) {
                 return false;
             }
             $seen[$key] = true;
 
+            // Content similarity dedup
+            $normBody = $this->normaliseBodyForDedup($post['body']);
+            if (mb_strlen($normBody, 'UTF-8') >= 30) {
+                $postTime = strtotime($post['created_at']);
+                foreach ($seenBodies as [$existingBody, $existingTime]) {
+                    if (abs($postTime - $existingTime) <= 86400) {
+                        similar_text($normBody, $existingBody, $pct);
+                        if ($pct >= 80.0) {
+                            return false;
+                        }
+                    }
+                }
+                $seenBodies[] = [$normBody, $postTime];
+            }
+
             return true;
         })->values()->take($bufferSize)->all();
+
+        $muteWords = $user->getPreference('mute_words', []);
+        $deduped = $this->applyMuteWords($deduped, $muteWords);
 
         $nextCursor = ! empty($deduped) ? base64_encode(json_encode($cursors)) : null;
 
         return ['posts' => $deduped, 'next_cursor' => $nextCursor];
+    }
+
+    private function resolveMaxAgeDays(User $user, SocialAccount $account): ?int
+    {
+        // Account level: null means "inherit from user" (per SocialAccount defaults design).
+        // A non-null value overrides; 0 is treated as "no cutoff".
+        $accountStored = is_array($account->feed_settings) ? $account->feed_settings : [];
+        if (array_key_exists('max_age_days', $accountStored)) {
+            $accountLevel = $accountStored['max_age_days'];
+
+            return ($accountLevel === null || $accountLevel === 0) ? null : (int) $accountLevel;
+        }
+
+        // User level: check raw stored prefs so explicit null or 0 disables the cutoff.
+        $userStored = is_array($user->feed_preferences) ? $user->feed_preferences : [];
+        if (array_key_exists('max_age_days', $userStored)) {
+            $userLevel = $userStored['max_age_days'];
+
+            return ($userLevel === null || $userLevel === 0) ? null : (int) $userLevel;
+        }
+
+        // User model default (7) is the authoritative fallback.
+        return (int) $user->getPreference('max_age_days', 7);
+    }
+
+    private function applyAgeCutoff(array $posts, ?int $maxAgeDays): array
+    {
+        if ($maxAgeDays === null) {
+            return $posts;
+        }
+
+        $cutoff = now()->subDays($maxAgeDays)->toIso8601String();
+
+        return array_values(array_filter($posts, function (array $post) use ($cutoff) {
+            return $post['boosted_by'] !== null || $post['created_at'] >= $cutoff;
+        }));
+    }
+
+    private function normaliseBodyForDedup(string $body): string
+    {
+        $text = mb_strtolower($body, 'UTF-8');
+        $text = preg_replace('/https?:\/\/\S+/u', '', $text) ?? $text;
+        $text = preg_replace('/#[\p{L}\p{N}_]+/u', '', $text) ?? $text;
+        $text = preg_replace('/[^\p{L}\p{N}\s]/u', '', $text) ?? $text;
+
+        return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+    }
+
+    private function applyMuteWords(array $posts, array $muteWords): array
+    {
+        if (empty($muteWords)) {
+            return $posts;
+        }
+
+        return array_values(array_filter($posts, function (array $post) use ($muteWords) {
+            $body = mb_strtolower($post['body'], 'UTF-8');
+            foreach ($muteWords as $word) {
+                if (mb_strpos($body, mb_strtolower($word, 'UTF-8')) !== false) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
     }
 
     private function fetchMastodonStatuses(SocialAccount $account, array $statuses, callable $idExtractor): array

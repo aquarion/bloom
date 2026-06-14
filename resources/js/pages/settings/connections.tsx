@@ -1,8 +1,8 @@
 import { Form, Head } from '@inertiajs/react';
 import { SiBluesky, SiMastodon } from 'react-icons/si';
 import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
 import InstanceCombobox from '@/components/InstanceCombobox';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

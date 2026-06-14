@@ -1,4 +1,5 @@
-import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { Toaster as Sonner  } from "sonner";
+import type {ToasterProps} from "sonner";
 import { useAppearance } from "@/hooks/use-appearance";
 import { useFlashToast } from "@/hooks/use-flash-toast";
 

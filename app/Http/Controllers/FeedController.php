@@ -24,6 +24,8 @@ class FeedController extends Controller
             'initialPosts' => $result['posts'],
             'initialCursor' => $result['next_cursor'],
             'debugEnabled' => Config::get('app.debug', false),
+            'cwBehavior' => $user->getPreference('cw_behavior', 'blur'),
+            'sensitiveMediaBehavior' => $user->getPreference('sensitive_media_behavior', 'blur'),
         ]);
     }
 }

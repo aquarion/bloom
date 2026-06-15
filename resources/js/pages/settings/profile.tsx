@@ -6,13 +6,14 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import SettingsPageLayout from '@/layouts/settings-page-layout';
 import { edit } from '@/routes/profile';
 
 export default function Profile({ status }: { status?: string }) {
     const { auth } = usePage().props;
 
     return (
-        <>
+        <SettingsPageLayout>
             <Head title="Profile settings" />
 
             <h1 className="sr-only">Profile settings</h1>
@@ -92,7 +93,7 @@ export default function Profile({ status }: { status?: string }) {
             </div>
 
             <DeleteUser />
-        </>
+        </SettingsPageLayout>
     );
 }
 

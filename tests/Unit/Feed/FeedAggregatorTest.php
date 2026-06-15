@@ -293,3 +293,477 @@ it('deduplicates posts with the same original_url, keeping the newest boost', fu
         ->and($result['posts'][0]['boosted_by'])->toBe('Alice')
         ->and($result['posts'][0]['original_url'])->toBe($sharedUrl);
 });
+
+it('respects per-account max_posts setting', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+        'feed_settings' => ['max_posts' => 3],
+    ]);
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')
+        ->with($account, 3, null)
+        ->andReturn([]);
+    $mastodon->shouldNotReceive('getStatus');
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $aggregator->fetch($user);
+});
+
+it('filters posts older than max_age_days when not boosted', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 7]]);
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $oldDate = now()->subDays(10)->toIso8601String();
+    $newDate = now()->subDays(2)->toIso8601String();
+
+    $makeStatus = fn (string $id, string $date) => [
+        'id' => $id,
+        'created_at' => $date,
+        'in_reply_to_id' => null,
+        'url' => "https://fosstodon.org/@author/{$id}",
+        'content' => "<p>post {$id}</p>",
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([
+        $makeStatus('old', $oldDate),
+        $makeStatus('new', $newDate),
+    ]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['id'])->toBe('mastodon_new');
+});
+
+it('keeps boosted posts regardless of age', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 7]]);
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $oldDate = now()->subDays(10)->toIso8601String();
+
+    $boostedOldStatus = [
+        'id' => '100',
+        'created_at' => now()->toIso8601String(),
+        'in_reply_to_id' => null,
+        'account' => ['display_name' => 'Booster', 'acct' => 'booster', 'avatar' => 'https://fosstodon.org/booster.png', 'emojis' => []],
+        'reblog' => [
+            'id' => '50',
+            'created_at' => $oldDate,
+            'in_reply_to_id' => null,
+            'url' => 'https://fosstodon.org/@author/50',
+            'content' => '<p>old but boosted</p>',
+            'spoiler_text' => '',
+            'sensitive' => false,
+            'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+            'media_attachments' => [],
+            'emojis' => [],
+            'card' => null,
+            'quote' => null,
+            'quote_id' => null,
+            'tags' => [],
+        ],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$boostedOldStatus]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['boosted_by'])->toBe('Booster');
+});
+
+it('uses per-account max_age_days override when set, ignoring user preference', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 3]]);
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+        'feed_settings' => ['max_age_days' => 14],
+    ]);
+
+    // Post is 10 days old — older than user preference (3 days) but within account override (14 days)
+    $tenDaysAgo = now()->subDays(10)->toIso8601String();
+
+    $status = [
+        'id' => '1',
+        'created_at' => $tenDaysAgo,
+        'in_reply_to_id' => null,
+        'url' => 'https://fosstodon.org/@author/1',
+        'content' => '<p>ten days old</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$status]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    // Should keep the post because account override (14 days) applies, not user preference (3 days)
+    expect($result['posts'])->toHaveCount(1);
+});
+
+it('skips age filter when max_age_days is null', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $oldDate = now()->subDays(30)->toIso8601String();
+
+    $oldStatus = [
+        'id' => '1',
+        'created_at' => $oldDate,
+        'in_reply_to_id' => null,
+        'url' => 'https://fosstodon.org/@author/1',
+        'content' => '<p>very old</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$oldStatus]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1);
+});
+
+it('deduplicates cross-platform posts with similar body within 24h', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+
+    $mastodonAccount = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $blueskyAccount = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $postTime = now()->toIso8601String();
+
+    $mastodonStatus = [
+        'id' => 'masto1',
+        'created_at' => $postTime,
+        'in_reply_to_id' => null,
+        'url' => 'https://fosstodon.org/@alice/masto1',
+        'content' => '<p>This is a cross-posted message about interesting things happening in the world today.</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $blueskyPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => [
+                'text' => 'This is a cross-posted message about interesting things happening in the world today.',
+                'createdAt' => $postTime,
+            ],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$mastodonStatus]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => [$blueskyPost], 'cursor' => null]);
+
+    $aggregator = new FeedAggregator($mastodon, $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1);
+});
+
+it('does not deduplicate similar posts older than 24h apart', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+
+    $mastodonAccount = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $blueskyAccount = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $mastodonStatus = [
+        'id' => 'masto2',
+        'created_at' => now()->toIso8601String(),
+        'in_reply_to_id' => null,
+        'url' => 'https://fosstodon.org/@alice/masto2',
+        'content' => '<p>This is a cross-posted message about interesting things happening in the world today.</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $blueskyPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz2',
+            'record' => [
+                'text' => 'This is a cross-posted message about interesting things happening in the world today.',
+                'createdAt' => now()->subDays(2)->toIso8601String(),
+            ],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$mastodonStatus]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => [$blueskyPost], 'cursor' => null]);
+
+    $aggregator = new FeedAggregator($mastodon, $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(2);
+});
+
+it('filters out posts containing muted words', function () {
+    $user = User::factory()->create(['feed_preferences' => [
+        'mute_words' => ['spam', 'giveaway'],
+        'max_age_days' => null,
+    ]]);
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $makeStatus = fn (string $id, string $body) => [
+        'id' => $id,
+        'created_at' => now()->toIso8601String(),
+        'in_reply_to_id' => null,
+        'url' => "https://fosstodon.org/@author/{$id}",
+        'content' => "<p>{$body}</p>",
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([
+        $makeStatus('1', 'This is a normal post'),
+        $makeStatus('2', 'Win a prize in this GIVEAWAY today'),
+        $makeStatus('3', 'Spam accounts are the worst'),
+    ]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['id'])->toBe('mastodon_1');
+});
+
+it('applies age cutoff to bluesky posts', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 7]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $oldDate = now()->subDays(10)->toIso8601String();
+    $newDate = now()->subDays(2)->toIso8601String();
+
+    $makeBlueskyPost = fn (string $rkey, string $date) => [
+        'post' => [
+            'uri' => "at://did:plc:abc/app.bsky.feed.post/{$rkey}",
+            'record' => ['text' => "post {$rkey}", 'createdAt' => $date],
+            'author' => ['displayName' => 'Me', 'handle' => 'me.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn([
+        'posts' => [$makeBlueskyPost('old', $oldDate), $makeBlueskyPost('new', $newDate)],
+        'cursor' => null,
+    ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['id'])->toContain('new');
+});
+
+it('account-level null max_age_days disables cutoff even when user has one set', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 3]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+        'feed_settings' => ['max_age_days' => null], // account explicitly disables cutoff
+    ]);
+
+    // Post is 10 days old — outside user's 3-day cutoff, but account disables it
+    $tenDaysAgo = now()->subDays(10)->toIso8601String();
+
+    $status = [
+        'id' => '1',
+        'created_at' => $tenDaysAgo,
+        'in_reply_to_id' => null,
+        'url' => 'https://fosstodon.org/@author/1',
+        'content' => '<p>old post</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$status]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1);
+});
+
+it('skips mute word check when list is empty', function () {
+    $user = User::factory()->create(['feed_preferences' => ['mute_words' => [], 'max_age_days' => null]]);
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $status = [
+        'id' => '1',
+        'created_at' => now()->toIso8601String(),
+        'in_reply_to_id' => null,
+        'url' => 'https://fosstodon.org/@author/1',
+        'content' => '<p>Normal post</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$status]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1);
+});

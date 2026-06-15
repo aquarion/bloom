@@ -56,6 +56,8 @@ class PostNormalizer
                 fn ($t) => mb_strtolower($t['name'] ?? '', 'UTF-8'),
                 $source['tags'] ?? []
             ))),
+            'cw_text' => isset($source['spoiler_text']) && $source['spoiler_text'] !== '' ? $source['spoiler_text'] : null,
+            'sensitive_media' => (bool) ($source['sensitive'] ?? false),
         ];
     }
 
@@ -83,6 +85,8 @@ class PostNormalizer
             $tagMatches[1]
         )));
 
+        $labelData = $this->blueskyLabels($post);
+
         return [
             'id' => "bluesky_{$post['uri']}",
             'source' => 'bluesky',
@@ -106,6 +110,8 @@ class PostNormalizer
             'boosted_by_created_at' => $repostBy ? ($reason['indexedAt'] ?? null) : null,
             'emojis' => [],
             'hashtags' => $hashtags,
+            'cw_text' => $labelData['cw_text'],
+            'sensitive_media' => $labelData['sensitive_media'],
         ];
     }
 
@@ -363,6 +369,28 @@ class PostNormalizer
         }
 
         return [];
+    }
+
+    private function blueskyLabels(array $post): array
+    {
+        $labels = array_map(fn ($l) => $l['val'] ?? '', $post['labels'] ?? []);
+        $adultLabels = ['sexual', 'nudity', 'porn'];
+        $graphicLabels = ['graphic-media', 'gore'];
+        $mediaLabels = array_merge($adultLabels, $graphicLabels);
+
+        $cwText = null;
+        if (array_intersect($labels, $adultLabels)) {
+            $cwText = 'Adult content';
+        } elseif (array_intersect($labels, $graphicLabels)) {
+            $cwText = 'Graphic media';
+        } elseif (! empty($labels)) {
+            $cwText = 'Content warning';
+        }
+
+        return [
+            'cw_text' => $cwText,
+            'sensitive_media' => ! empty(array_intersect($labels, $mediaLabels)),
+        ];
     }
 
     private function truncateUrls(string $text): string

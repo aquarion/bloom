@@ -32,7 +32,8 @@ test('inertia does not return 409 when version header matches', function () {
     $middleware = app(HandleInertiaRequests::class);
     $currentVersion = $middleware->version(request());
 
-    $this->get(route('dashboard'), [
+    // Dashboard now redirects, so test with feed page (the actual destination)
+    $this->get(route('feed'), [
         'X-Inertia' => 'true',
         'X-Inertia-Version' => $currentVersion,
     ])->assertOk();

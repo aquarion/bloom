@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\FeedSettingsController;
 use App\Http\Controllers\Settings\PasskeyController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
@@ -32,7 +33,7 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::get('settings/connections', function (Request $request) {
         return Inertia::render('settings/connections', [
             'connections' => $request->user()->socialAccounts()
-                ->select('id', 'provider', 'handle', 'instance_url', 'auth_failed_at')
+                ->select('id', 'provider', 'handle', 'instance_url', 'auth_failed_at', 'feed_settings')
                 ->get(),
             'status' => $request->session()->get('status'),
         ]);
@@ -52,6 +53,11 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
 
     // Disconnect any social account
     Route::delete('auth/connections/{account}', [ConnectionsController::class, 'destroy'])->name('connections.destroy');
+
+    // Feed settings
+    Route::get('settings/feed', [FeedSettingsController::class, 'edit'])->name('feed.settings.edit');
+    Route::put('settings/feed', [FeedSettingsController::class, 'update'])->name('feed.settings.update');
+    Route::put('settings/connections/{account}/feed', [FeedSettingsController::class, 'updateAccount'])->name('connections.feed.update');
 
     // Passkey management — register routes excluded from EnsurePasskeyExists
     Route::get('settings/passkeys/register/options', [PasskeyController::class, 'registerOptions'])

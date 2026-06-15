@@ -35,6 +35,8 @@ const makePost = (id: string, created_at?: string): Post => ({
     boosted_by_created_at: null,
     emojis: {},
     hashtags: [],
+    cw_text: null,
+    sensitive_media: false,
 });
 
 it('initialises with provided posts', () => {
@@ -148,4 +150,92 @@ it('redirects to login when feed refill gets unauthenticated', async () => {
     await act(async () => Promise.resolve());
 
     expect(router.visit).toHaveBeenCalledWith('/login');
+});
+
+it('skips posts with cw_text when cwBehavior is skip', () => {
+    const cwPost = makePost('cw1');
+    cwPost.cw_text = 'Content warning';
+
+    const normalPost = makePost('normal1');
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            initialPosts: [cwPost, normalPost],
+            initialCursor: null,
+            cwBehavior: 'skip',
+            sensitiveMediaBehavior: 'show',
+        }),
+    );
+
+    expect(result.current.current?.id).toBe('normal1');
+    expect(result.current.queue).toHaveLength(0);
+});
+
+it('skips posts with sensitive_media when sensitiveMediaBehavior is skip', () => {
+    const sensitivePost = makePost('sensitive1');
+    sensitivePost.sensitive_media = true;
+
+    const normalPost = makePost('normal2');
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            initialPosts: [sensitivePost, normalPost],
+            initialCursor: null,
+            cwBehavior: 'show',
+            sensitiveMediaBehavior: 'skip',
+        }),
+    );
+
+    expect(result.current.current?.id).toBe('normal2');
+});
+
+it('does not skip cw posts when cwBehavior is blur', () => {
+    const cwPost = makePost('cw2');
+    cwPost.cw_text = 'Spoiler';
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            initialPosts: [cwPost],
+            initialCursor: null,
+            cwBehavior: 'blur',
+            sensitiveMediaBehavior: 'show',
+        }),
+    );
+
+    expect(result.current.current?.id).toBe('cw2');
+});
+
+it('filters cw posts from fetchMore response when cwBehavior is skip', async () => {
+    const normalPost = makePost('normal-fetch');
+    const cwPost = makePost('cw-fetch');
+    cwPost.cw_text = 'Spoiler content';
+
+    // Start with enough posts and a cursor so fetchMore will be triggered
+    const posts = Array.from({ length: 6 }, (_, i) => makePost(`init-${i}`));
+
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [cwPost, normalPost], next_cursor: null },
+    });
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            initialPosts: posts,
+            initialCursor: 'cursor123',
+            cwBehavior: 'skip',
+            sensitiveMediaBehavior: 'show',
+        }),
+    );
+
+    // Advance enough to trigger fetchMore
+    await act(async () => result.current.advance());
+
+    await waitFor(() => {
+        // The CW post should be filtered, only normalPost added to queue
+        const allIds = [
+            result.current.current?.id,
+            ...result.current.queue.map((p) => p.id),
+        ].filter(Boolean);
+        expect(allIds).not.toContain('cw-fetch');
+        expect(allIds).toContain('normal-fetch');
+    });
 });

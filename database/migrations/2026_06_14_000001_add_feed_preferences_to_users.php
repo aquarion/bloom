@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('users', 'feed_preferences')) {
+            return;
+        }
+
         Schema::table('users', function (Blueprint $table) {
             $table->json('feed_preferences')->nullable()->after('email');
         });

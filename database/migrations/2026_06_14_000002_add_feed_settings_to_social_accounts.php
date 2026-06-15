@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('social_accounts', 'feed_settings')) {
+            return;
+        }
+
         Schema::table('social_accounts', function (Blueprint $table) {
             $table->json('feed_settings')->nullable()->after('auth_failed_at');
         });

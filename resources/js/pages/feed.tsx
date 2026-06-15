@@ -164,6 +164,7 @@ export default function Feed({
                 {/* Content layer: zoom/blur transition */}
                 <div ref={contentRef} className="absolute inset-0 z-10">
                     <PostContent
+                        key={current.id}
                         post={current}
                         onReady={() => setReadyForPostId(current.id)}
                         cwBehavior={cwBehavior}

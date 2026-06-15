@@ -31,13 +31,18 @@ class FeedSettingsController extends Controller
         ]);
 
         $user = $request->user();
-        $user->feed_preferences = array_merge($user->getPreferences(), [
-            'max_age_days' => $validated['max_age_days'] ?? null,
-            'mute_words' => $validated['mute_words'] ?? [],
-            'cw_behavior' => $validated['cw_behavior'],
-            'sensitive_media_behavior' => $validated['sensitive_media_behavior'],
-        ]);
-        $user->save();
+        $prefs = $user->getPreferences();
+        $prefs['mute_words'] = $validated['mute_words'] ?? [];
+        $prefs['cw_behavior'] = $validated['cw_behavior'];
+        $prefs['sensitive_media_behavior'] = $validated['sensitive_media_behavior'];
+        if (array_key_exists('max_age_days', $validated)) {
+            $prefs['max_age_days'] = $validated['max_age_days'];
+        }
+        $user->feed_preferences = $prefs;
+
+        if (! $user->save()) {
+            return back()->withErrors(['general' => 'Failed to save settings. Please try again.']);
+        }
 
         return redirect()->route('feed.settings.edit')->with('status', 'feed-settings-updated');
     }
@@ -55,7 +60,10 @@ class FeedSettingsController extends Controller
             'max_posts' => $validated['max_posts'],
             'max_age_days' => $validated['max_age_days'] ?? null,
         ]);
-        $account->save();
+
+        if (! $account->save()) {
+            return back()->withErrors(['general' => 'Failed to save account settings. Please try again.']);
+        }
 
         return redirect()->route('connections.edit')->with('status', 'account-feed-settings-updated');
     }

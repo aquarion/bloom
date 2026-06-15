@@ -204,3 +204,38 @@ it('does not skip cw posts when cwBehavior is blur', () => {
 
     expect(result.current.current?.id).toBe('cw2');
 });
+
+it('filters cw posts from fetchMore response when cwBehavior is skip', async () => {
+    const normalPost = makePost('normal-fetch');
+    const cwPost = makePost('cw-fetch');
+    cwPost.cw_text = 'Spoiler content';
+
+    // Start with enough posts and a cursor so fetchMore will be triggered
+    const posts = Array.from({ length: 6 }, (_, i) => makePost(`init-${i}`));
+
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [cwPost, normalPost], next_cursor: null },
+    });
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            initialPosts: posts,
+            initialCursor: 'cursor123',
+            cwBehavior: 'skip',
+            sensitiveMediaBehavior: 'show',
+        }),
+    );
+
+    // Advance enough to trigger fetchMore
+    await act(async () => result.current.advance());
+
+    await waitFor(() => {
+        // The CW post should be filtered, only normalPost added to queue
+        const allIds = [
+            result.current.current?.id,
+            ...result.current.queue.map((p) => p.id),
+        ].filter(Boolean);
+        expect(allIds).not.toContain('cw-fetch');
+        expect(allIds).toContain('normal-fetch');
+    });
+});

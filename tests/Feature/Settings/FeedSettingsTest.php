@@ -86,3 +86,43 @@ it('rejects per-account feed settings update for another user account', function
         ['max_posts' => 10, 'max_age_days' => null]
     )->assertForbidden();
 });
+
+it('rejects invalid cw_behavior for updateAccount', function () {
+    $user = User::factory()->withPasskey()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    // max_posts below minimum
+    $this->actingAs($user)->put(
+        route('connections.feed.update', ['account' => $account->id]),
+        ['max_posts' => 0, 'max_age_days' => null]
+    )->assertSessionHasErrors('max_posts');
+
+    // max_posts above maximum
+    $this->actingAs($user)->put(
+        route('connections.feed.update', ['account' => $account->id]),
+        ['max_posts' => 101, 'max_age_days' => null]
+    )->assertSessionHasErrors('max_posts');
+});
+
+it('rejects invalid max_age_days for updateAccount', function () {
+    $user = User::factory()->withPasskey()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    // max_age_days above maximum
+    $this->actingAs($user)->put(
+        route('connections.feed.update', ['account' => $account->id]),
+        ['max_posts' => 20, 'max_age_days' => 366]
+    )->assertSessionHasErrors('max_age_days');
+});

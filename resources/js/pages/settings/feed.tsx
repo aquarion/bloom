@@ -12,13 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-
-interface FeedPreferences {
-    max_age_days: number | null;
-    mute_words: string[];
-    cw_behavior: 'skip' | 'blur' | 'show';
-    sensitive_media_behavior: 'skip' | 'blur' | 'show';
-}
+import type { ContentBehavior, FeedPreferences } from '@/types/preferences';
 
 export default function FeedSettings({
     preferences,
@@ -177,10 +171,7 @@ export default function FeedSettings({
                     <Select
                         value={data.cw_behavior}
                         onValueChange={(v) =>
-                            setData(
-                                'cw_behavior',
-                                v as 'skip' | 'blur' | 'show',
-                            )
+                            setData('cw_behavior', v as ContentBehavior)
                         }
                     >
                         <SelectTrigger id="cw_behavior" className="w-48">
@@ -211,7 +202,7 @@ export default function FeedSettings({
                         onValueChange={(v) =>
                             setData(
                                 'sensitive_media_behavior',
-                                v as 'skip' | 'blur' | 'show',
+                                v as ContentBehavior,
                             )
                         }
                     >

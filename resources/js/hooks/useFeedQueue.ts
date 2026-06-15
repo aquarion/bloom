@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import axios from 'axios';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { FeedResponse, Post } from '@/types/post';
+import type { ContentBehavior } from '@/types/preferences';
 
 const REFILL_THRESHOLD = 5;
 
@@ -51,8 +52,8 @@ function reducer(state: State, action: Action): State {
 
 function shouldSkipPost(
     post: Post,
-    cwBehavior: 'skip' | 'blur' | 'show',
-    sensitiveMediaBehavior: 'skip' | 'blur' | 'show',
+    cwBehavior: ContentBehavior,
+    sensitiveMediaBehavior: ContentBehavior,
 ): boolean {
     if (post.cw_text !== null && cwBehavior === 'skip') {
         return true;
@@ -68,13 +69,13 @@ function shouldSkipPost(
 export function useFeedQueue({
     initialPosts,
     initialCursor,
-    cwBehavior = 'blur',
-    sensitiveMediaBehavior = 'blur',
+    cwBehavior = 'blur' as ContentBehavior,
+    sensitiveMediaBehavior = 'blur' as ContentBehavior,
 }: {
     initialPosts: Post[];
     initialCursor: string | null;
-    cwBehavior?: 'skip' | 'blur' | 'show';
-    sensitiveMediaBehavior?: 'skip' | 'blur' | 'show';
+    cwBehavior?: ContentBehavior;
+    sensitiveMediaBehavior?: ContentBehavior;
 }) {
     const filterPost = useCallback(
         (post: Post) =>
@@ -117,6 +118,11 @@ export function useFeedQueue({
 
                 if (status === 401 || status === 419) {
                     router.visit('/login');
+                } else {
+                    console.error(
+                        '[useFeedQueue] Failed to fetch more posts',
+                        error,
+                    );
                 }
             } finally {
                 fetching.current = false;

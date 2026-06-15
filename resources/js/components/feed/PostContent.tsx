@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { postDisplayColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
+import type { ContentBehavior } from '@/types/preferences';
 import { PostAnimator } from './PostAnimator';
 
 function CwOverlay({
@@ -32,15 +33,16 @@ export function PostContent({
 }: {
     post: Post;
     onReady?: () => void;
-    cwBehavior?: 'skip' | 'blur' | 'show';
-    sensitiveMediaBehavior?: 'skip' | 'blur' | 'show';
+    cwBehavior?: ContentBehavior;
+    sensitiveMediaBehavior?: ContentBehavior;
 }) {
     const colors = postDisplayColors(post);
     const [cwRevealed, setCwRevealed] = useState(false);
     const [mediaRevealed, setMediaRevealed] = useState(false);
 
+    const cwText = post.cw_text;
     const showCwOverlay =
-        post.cw_text !== null && cwBehavior === 'blur' && !cwRevealed;
+        cwText !== null && cwBehavior === 'blur' && !cwRevealed;
     const blurMedia =
         post.sensitive_media &&
         sensitiveMediaBehavior === 'blur' &&
@@ -55,9 +57,9 @@ export function PostContent({
                 blurMedia={blurMedia}
                 onRevealMedia={() => setMediaRevealed(true)}
             />
-            {showCwOverlay && (
+            {showCwOverlay && cwText !== null && (
                 <CwOverlay
-                    cwText={post.cw_text!}
+                    cwText={cwText}
                     onReveal={() => setCwRevealed(true)}
                 />
             )}

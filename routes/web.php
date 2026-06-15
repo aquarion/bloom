@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\PasskeyAuthController;
 use App\Http\Controllers\Auth\PasskeyRecoveryController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
@@ -46,7 +47,7 @@ Route::get('site.webmanifest', function () {
 })->name('manifest.webmanifest');
 
 Route::middleware(['auth', 'passkey.exists'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('feed', [FeedController::class, 'index'])->name('feed');
 
     Route::get('auth/passkey/confirm/options', [PasskeyAuthController::class, 'confirmOptions'])

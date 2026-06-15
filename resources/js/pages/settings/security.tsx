@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import PasskeyList from '@/components/passkey-list';
+import SettingsPageLayout from '@/layouts/settings-page-layout';
 import { edit } from '@/routes/security';
 
 type Props = {
@@ -14,7 +15,7 @@ type Props = {
 
 export default function Security({ passkeys = [] }: Props) {
     return (
-        <>
+        <SettingsPageLayout>
             <Head title="Security settings" />
 
             <h1 className="sr-only">Security settings</h1>
@@ -27,7 +28,7 @@ export default function Security({ passkeys = [] }: Props) {
                 />
                 <PasskeyList passkeys={passkeys} />
             </div>
-        </>
+        </SettingsPageLayout>
     );
 }
 

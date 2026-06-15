@@ -12,6 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import SettingsPageLayout from '@/layouts/settings-page-layout';
 import type { ContentBehavior, FeedPreferences } from '@/types/preferences';
 
 export default function FeedSettings({
@@ -53,7 +54,7 @@ export default function FeedSettings({
     }
 
     return (
-        <>
+        <SettingsPageLayout>
             <Head title="Feed settings" />
             <h1 className="sr-only">Feed settings</h1>
 
@@ -231,7 +232,7 @@ export default function FeedSettings({
                     Save
                 </Button>
             </form>
-        </>
+        </SettingsPageLayout>
     );
 }
 

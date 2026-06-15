@@ -8,6 +8,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import SettingsPageLayout from '@/layouts/settings-page-layout';
 import bluesky from '@/routes/bluesky';
 import { destroy as disconnectAccount, edit } from '@/routes/connections';
 import mastodon from '@/routes/mastodon';
@@ -216,7 +217,7 @@ export default function Connections({
     );
 
     return (
-        <>
+        <SettingsPageLayout>
             <Head title="Connected accounts" />
 
             <h1 className="sr-only">Connected accounts</h1>
@@ -491,7 +492,7 @@ export default function Connections({
                     </div>
                 </div>
             </div>
-        </>
+        </SettingsPageLayout>
     );
 }
 

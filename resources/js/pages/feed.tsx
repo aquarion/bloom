@@ -13,6 +13,7 @@ import { useAutoAdvance } from '@/hooks/useAutoAdvance';
 import { useFeedQueue } from '@/hooks/useFeedQueue';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { registerFeedDebug, setupDebugWindow } from '@/lib/debug';
+import { edit as connectionsEdit } from '@/routes/connections';
 import type { Post } from '@/types/post';
 
 export default function Feed({
@@ -176,9 +177,9 @@ export default function Feed({
                 <div className="pointer-events-none absolute inset-0 z-20 flex flex-col">
                     <div className="pointer-events-auto flex items-center gap-2 p-4">
                         <Link
-                            href="/dashboard"
+                            href={connectionsEdit()}
                             className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
-                            aria-label="Dashboard"
+                            aria-label="Home"
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"

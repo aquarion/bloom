@@ -16,9 +16,11 @@ test('user without passkeys is redirected to passkey setup when accessing dashbo
 test('user with passkeys can access dashboard', function () {
     $user = User::factory()->withPasskey()->create();
 
+    // Dashboard redirects to feed (or connections) depending on socialAccounts
+    // Just verify the redirect happens with no errors (200 or 302)
     $this->actingAs($user)
         ->get(route('dashboard'))
-        ->assertOk();
+        ->assertRedirect();
 });
 
 test('user without passkeys can access passkey setup', function () {

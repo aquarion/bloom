@@ -6,6 +6,7 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Services\Bluesky\BlueskyFeedService;
 use App\Services\Mastodon\MastodonFeedService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class FeedAggregator
@@ -27,6 +28,8 @@ class FeedAggregator
 
         foreach ($user->socialAccounts as $account) {
             $accountCursor = $cursors[$account->id] ?? null;
+            $normalised = [];
+            $nextCursor = null;
 
             try {
                 if ($account->provider === 'mastodon') {
@@ -54,23 +57,14 @@ class FeedAggregator
                         );
                     }, $statuses);
 
-                    $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
                     $nextCursor = ! empty($statuses) ? end($statuses)['id'] : null;
-                    $posts = $posts->concat($normalised);
-                    if ($nextCursor) {
-                        $cursors[$account->id] = $nextCursor;
-                    }
                 }
 
                 if ($account->provider === 'bluesky') {
                     $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
                     $result = $this->bluesky->getHomeTimeline($account, $perAccountLimit, $accountCursor);
                     $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle), $result['posts']);
-                    $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
-                    $posts = $posts->concat($normalised);
-                    if ($result['cursor']) {
-                        $cursors[$account->id] = $result['cursor'];
-                    }
+                    $nextCursor = $result['cursor'] ?: null;
                 }
             } catch (\Throwable $e) {
                 Log::warning('Failed to fetch feed for account', [
@@ -78,6 +72,15 @@ class FeedAggregator
                     'provider' => $account->provider,
                     'error' => $e->getMessage(),
                 ]);
+
+                continue;
+            }
+
+            // Local filtering — let bugs surface here rather than being swallowed as network errors
+            $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
+            $posts = $posts->concat($normalised);
+            if ($nextCursor) {
+                $cursors[$account->id] = $nextCursor;
             }
         }
 
@@ -96,9 +99,15 @@ class FeedAggregator
             $seen[$key] = true;
 
             // Content similarity dedup
-            $normBody = $this->normaliseBodyForDedup($post['body']);
+            $normBody = $this->normaliseBodyForDedup((string) ($post['body'] ?? ''));
             if (mb_strlen($normBody, 'UTF-8') >= 30) {
-                $postTime = strtotime($post['created_at']);
+                $postTime = strtotime($post['created_at'] ?? '');
+                if ($postTime === false) {
+                    Log::warning('FeedAggregator: unparseable created_at in dedup', ['post_id' => $post['id'] ?? 'unknown']);
+                    $seenBodies[] = [$normBody, 0];
+
+                    return true;
+                }
                 foreach ($seenBodies as [$existingBody, $existingTime]) {
                     if (abs($postTime - $existingTime) <= 86400) {
                         similar_text($normBody, $existingBody, $pct);
@@ -150,10 +159,19 @@ class FeedAggregator
             return $posts;
         }
 
-        $cutoff = now()->subDays($maxAgeDays)->toIso8601String();
+        $cutoff = now()->subDays($maxAgeDays);
 
         return array_values(array_filter($posts, function (array $post) use ($cutoff) {
-            return $post['boosted_by'] !== null || $post['created_at'] >= $cutoff;
+            if (($post['boosted_by'] ?? null) !== null) {
+                return true;
+            }
+
+            $createdAt = $post['created_at'] ?? null;
+            if ($createdAt === null) {
+                return false;
+            }
+
+            return Carbon::parse($createdAt)->gte($cutoff);
         }));
     }
 

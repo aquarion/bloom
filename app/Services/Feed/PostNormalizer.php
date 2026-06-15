@@ -384,7 +384,7 @@ class PostNormalizer
         } elseif (array_intersect($labels, $graphicLabels)) {
             $cwText = 'Graphic media';
         } elseif (! empty($labels)) {
-            $cwText = $labels[0];
+            $cwText = 'Content warning';
         }
 
         return [

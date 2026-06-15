@@ -655,6 +655,82 @@ it('filters out posts containing muted words', function () {
         ->and($result['posts'][0]['id'])->toBe('mastodon_1');
 });
 
+it('applies age cutoff to bluesky posts', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 7]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $oldDate = now()->subDays(10)->toIso8601String();
+    $newDate = now()->subDays(2)->toIso8601String();
+
+    $makeBlueskyPost = fn (string $rkey, string $date) => [
+        'post' => [
+            'uri' => "at://did:plc:abc/app.bsky.feed.post/{$rkey}",
+            'record' => ['text' => "post {$rkey}", 'createdAt' => $date],
+            'author' => ['displayName' => 'Me', 'handle' => 'me.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn([
+        'posts' => [$makeBlueskyPost('old', $oldDate), $makeBlueskyPost('new', $newDate)],
+        'cursor' => null,
+    ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['id'])->toContain('new');
+});
+
+it('account-level null max_age_days disables cutoff even when user has one set', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 3]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+        'feed_settings' => ['max_age_days' => null], // account explicitly disables cutoff
+    ]);
+
+    // Post is 10 days old — outside user's 3-day cutoff, but account disables it
+    $tenDaysAgo = now()->subDays(10)->toIso8601String();
+
+    $status = [
+        'id' => '1',
+        'created_at' => $tenDaysAgo,
+        'in_reply_to_id' => null,
+        'url' => 'https://fosstodon.org/@author/1',
+        'content' => '<p>old post</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$status]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1);
+});
+
 it('skips mute word check when list is empty', function () {
     $user = User::factory()->create(['feed_preferences' => ['mute_words' => [], 'max_age_days' => null]]);
     $account = SocialAccount::factory()->create([

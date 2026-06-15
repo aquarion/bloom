@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\SocialAccount;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -52,4 +53,18 @@ it('setPreference does not overwrite other preferences', function () {
 
     expect($user->getPreference('mute_words'))->toBe(['spam'])
         ->and($user->getPreference('max_age_days'))->toBe(5);
+});
+
+it('SocialAccount returns correct defaults from the trait', function () {
+    $account = SocialAccount::factory()->create();
+
+    expect($account->getPreference('max_posts'))->toBe(20)
+        ->and($account->getPreference('max_age_days'))->toBeNull();
+});
+
+it('SocialAccount can store and retrieve a preference', function () {
+    $account = SocialAccount::factory()->create(['feed_settings' => ['max_posts' => 5]]);
+
+    expect($account->getPreference('max_posts'))->toBe(5)
+        ->and($account->getPreference('max_age_days'))->toBeNull();
 });

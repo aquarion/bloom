@@ -25,6 +25,11 @@ trait HasJsonPreferences
         $current = $this->getPreferences();
         $current[$key] = $value;
         $this->$column = $current;
-        $this->save();
+
+        if (! $this->save()) {
+            throw new \RuntimeException(
+                sprintf('Failed to save preference "%s" on %s #%s', $key, static::class, $this->getKey())
+            );
+        }
     }
 }

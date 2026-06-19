@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\BetaTesterController;
 use App\Http\Controllers\Settings\FeedSettingsController;
 use App\Http\Controllers\Settings\PasskeyController;
 use App\Http\Controllers\Settings\ProfileController;
@@ -53,6 +54,10 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
 
     // Disconnect any social account
     Route::delete('auth/connections/{account}', [ConnectionsController::class, 'destroy'])->name('connections.destroy');
+
+    // Beta tester toggle
+    Route::patch('settings/profile/beta-tester', [BetaTesterController::class, 'update'])
+        ->name('beta-tester.update');
 
     // Feed settings
     Route::get('settings/feed', [FeedSettingsController::class, 'edit'])->name('feed.settings.edit');

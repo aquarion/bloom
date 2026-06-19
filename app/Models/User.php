@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasJsonPreferences;
+use App\Concerns\HasRoles;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -15,7 +16,7 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasJsonPreferences, Notifiable;
+    use HasFactory, HasJsonPreferences, HasRoles, Notifiable;
 
     protected string $preferencesColumn = 'feed_preferences';
 
@@ -28,6 +29,7 @@ class User extends Authenticatable
 
     protected $casts = [
         'feed_preferences' => 'array',
+        'roles' => 'array',
     ];
 
     protected function email(): Attribute

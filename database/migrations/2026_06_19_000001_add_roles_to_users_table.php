@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('users', 'roles')) {
+            return;
+        }
+
         Schema::table('users', function (Blueprint $table) {
             $table->json('roles')->default('[]')->after('email');
         });

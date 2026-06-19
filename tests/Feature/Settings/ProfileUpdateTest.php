@@ -50,6 +50,16 @@ test('email is stored lowercase on registration', function () {
     expect($user)->not->toBeNull();
 });
 
+test('profile page includes roles in inertia props', function () {
+    $user = User::factory()->withPasskey()->create(['roles' => ['beta_tester']]);
+
+    $this->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn ($page) => $page
+            ->has('auth.user.roles')
+        );
+});
+
 test('user can delete their account', function () {
     $user = User::factory()->withPasskey()->create();
 

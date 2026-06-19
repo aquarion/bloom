@@ -75,7 +75,11 @@ it('removeRole removes the role and persists', function () {
 
 it('removeRole is idempotent when role is not present', function () {
     $user = User::factory()->create(['roles' => ['admin']]);
+    $updatedAt = $user->updated_at;
+
     $user->removeRole(Role::BetaTester);
 
-    expect($user->fresh()->roles)->toBe(['admin']);
+    $fresh = $user->fresh();
+    expect($fresh->roles)->toBe(['admin'])
+        ->and($fresh->updated_at->eq($updatedAt))->toBeTrue();
 });

@@ -50,7 +50,13 @@ trait HasRoles
     public function removeRole(Role|string $role): void
     {
         $value = $role instanceof Role ? $role->value : $role;
-        $this->roles = array_values(array_filter($this->roles ?? [], fn ($r) => $r !== $value));
+        $current = $this->roles ?? [];
+
+        if (! in_array($value, $current, true)) {
+            return;
+        }
+
+        $this->roles = array_values(array_filter($current, fn ($r) => $r !== $value));
         $this->save();
     }
 }

@@ -2,10 +2,13 @@
 
 namespace App\Providers;
 
+use App\Enums\Role;
 use App\Models\Passkey;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -36,7 +39,19 @@ class AppServiceProvider extends ServiceProvider
         if (! $this->app->environment('local')) {
             \URL::forceScheme('https');
         }
+
         $this->configureDefaults();
+        $this->configureGates();
+    }
+
+    /**
+     * Configure authorization gates.
+     */
+    protected function configureGates(): void
+    {
+        Gate::define('admin', fn (User $user) => $user->hasRole(Role::Admin));
+        Gate::define('beta_tester', fn (User $user) => $user->hasRole(Role::BetaTester));
+        Gate::define('subscriber', fn (User $user) => $user->hasRole(Role::Subscriber));
     }
 
     /**

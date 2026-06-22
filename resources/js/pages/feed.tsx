@@ -5,16 +5,23 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Attribution } from '@/components/feed/Attribution';
 import { DebugPanel } from '@/components/feed/DebugPanel';
+import { KeyboardShortcutsOverlay } from '@/components/feed/KeyboardShortcutsOverlay';
 import { PostBackground } from '@/components/feed/PostBackground';
 import { PostContent } from '@/components/feed/PostContent';
 import { ProgressBar } from '@/components/feed/ProgressBar';
 import { SourceBadge } from '@/components/feed/SourceBadge';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
 import { useFeedQueue } from '@/hooks/useFeedQueue';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { registerFeedDebug, setupDebugWindow } from '@/lib/debug';
 import { edit as connectionsEdit } from '@/routes/connections';
 import type { Post } from '@/types/post';
+
+function extractFirstLink(html: string): string | null {
+    const match = html.match(/href="([^"]+)"/);
+    return match?.[1] ?? null;
+}
 
 export default function Feed({
     initialPosts,
@@ -29,13 +36,14 @@ export default function Feed({
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
 }) {
-    const { current, advance, queue } = useFeedQueue({
+    const { current, advance, queue, goBack } = useFeedQueue({
         initialPosts,
         initialCursor,
         cwBehavior,
         sensitiveMediaBehavior,
     });
     const [paused, setPaused] = useState(false);
+    const [showHelp, setShowHelp] = useState(false);
 
     const {
         isSupported: wakeLockSupported,
@@ -134,10 +142,42 @@ export default function Feed({
             );
     }, [advance, current, queue]);
 
+    const handleGoBack = useCallback(() => {
+        goBack();
+        setPaused(true);
+    }, [goBack]);
+
+    const openPost = useCallback(() => {
+        if (current) {
+            window.open(current.original_url, '_blank', 'noopener,noreferrer');
+        }
+    }, [current]);
+
+    const openLink = useCallback(() => {
+        if (!current) return;
+        const url = current.link_url ?? extractFirstLink(current.body);
+        if (url) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    }, [current]);
+
+    const toggleHelp = useCallback(() => setShowHelp((s) => !s), []);
+    const closeHelp = useCallback(() => setShowHelp(false), []);
+
     const { progress } = useAutoAdvance({
         duration: 8000,
         paused: paused || !animationReady,
         onAdvance: handleAdvance,
+    });
+
+    useKeyboardShortcuts({
+        j: handleAdvance,
+        k: handleGoBack,
+        ' ': () => setPaused((p) => !p),
+        o: openPost,
+        l: openLink,
+        '?': toggleHelp,
+        Escape: closeHelp,
     });
 
     if (!current) {
@@ -240,6 +280,7 @@ export default function Feed({
                     </div>
 
                     <ProgressBar progress={progress} />
+                    <KeyboardShortcutsOverlay open={showHelp} />
                 </div>
             </div>
         </>

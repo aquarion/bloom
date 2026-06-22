@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 type ShortcutMap = Record<string, () => void>;
 
@@ -7,7 +7,7 @@ const FORM_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
 export function useKeyboardShortcuts(shortcuts: ShortcutMap) {
     const shortcutsRef = useRef(shortcuts);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         shortcutsRef.current = shortcuts;
     });
 

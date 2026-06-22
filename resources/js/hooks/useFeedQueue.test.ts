@@ -239,3 +239,50 @@ it('filters cw posts from fetchMore response when cwBehavior is skip', async () 
         expect(allIds).toContain('normal-fetch');
     });
 });
+
+it('goBack is a no-op when history is empty', () => {
+    const posts = [makePost('1'), makePost('2')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    act(() => result.current.goBack());
+    expect(result.current.current?.id).toBe('1');
+});
+
+it('goBack restores the previous post after one advance', () => {
+    const posts = [makePost('1'), makePost('2'), makePost('3')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    act(() => result.current.advance());
+    expect(result.current.current?.id).toBe('2');
+    act(() => result.current.goBack());
+    expect(result.current.current?.id).toBe('1');
+});
+
+it('goBack does not modify the forward queue', () => {
+    const posts = [makePost('1'), makePost('2'), makePost('3')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    act(() => result.current.advance());
+    const queueBefore = result.current.queue.map((p) => p.id);
+    act(() => result.current.goBack());
+    expect(result.current.queue.map((p) => p.id)).toEqual(queueBefore);
+});
+
+it('caps history at 50 posts', () => {
+    const posts = Array.from({ length: 60 }, (_, i) => makePost(String(i)));
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    for (let i = 0; i < 55; i++) {
+        act(() => result.current.advance());
+    }
+    for (let i = 0; i < 50; i++) {
+        act(() => result.current.goBack());
+    }
+    const idBefore = result.current.current?.id;
+    act(() => result.current.goBack());
+    expect(result.current.current?.id).toBe(idBefore);
+});

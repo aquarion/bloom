@@ -116,7 +116,6 @@ jobs:
             APP_PR_NUMBER=${{ github.event.pull_request.number }}
             APP_BRANCH=${{ github.head_ref }}
             APP_ENV=${{ github.event_name == 'pull_request' && 'staging' || 'production' }}
-            APP_NAME=${{ env.APP_NAME }}
 
   deploy-staging:
     needs: build-and-push

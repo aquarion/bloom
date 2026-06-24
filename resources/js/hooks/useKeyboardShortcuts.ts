@@ -14,10 +14,13 @@ export function useKeyboardShortcuts(shortcuts: ShortcutMap) {
     useEffect(() => {
         function handleKeyDown(e: KeyboardEvent) {
             const target = e.target as HTMLElement;
+
             if (FORM_TAGS.has(target.tagName) || target.isContentEditable) {
                 return;
             }
+
             const handler = shortcutsRef.current[e.key];
+
             if (handler) {
                 e.preventDefault();
                 handler();
@@ -25,6 +28,7 @@ export function useKeyboardShortcuts(shortcuts: ShortcutMap) {
         }
 
         window.addEventListener('keydown', handleKeyDown);
+
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 }

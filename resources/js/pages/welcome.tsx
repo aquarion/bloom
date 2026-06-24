@@ -111,7 +111,7 @@ export default function Welcome({
 
     return (
         <>
-            <Head title="Bloom — social media without the scroll" />
+            <Head title="Social media without the scroll" />
             <div className="relative h-screen w-screen overflow-hidden bg-black">
                 {/* Background layer */}
                 <div className="absolute inset-0 z-0">

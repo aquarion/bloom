@@ -25,13 +25,18 @@ function reducer(state: State, action: Action): State {
             const history = state.current
                 ? [...state.history.slice(-(HISTORY_CAP - 1)), state.current]
                 : state.history;
+
             return { ...state, current: next ?? null, queue: rest, history };
         }
 
         case 'go_back': {
-            if (state.history.length === 0) return state;
+            if (state.history.length === 0) {
+                return state;
+            }
+
             const prev = state.history[state.history.length - 1];
             const history = state.history.slice(0, -1);
+
             return { ...state, current: prev, history };
         }
 
@@ -163,5 +168,11 @@ export function useFeedQueue({
         dispatch({ type: 'go_back' });
     }, []);
 
-    return { current: state.current, queue: state.queue, advance, goBack };
+    return {
+        current: state.current,
+        queue: state.queue,
+        advance,
+        goBack,
+        canGoBack: state.history.length > 0,
+    };
 }

@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { gsap } from 'gsap';
-import { Eye, EyeOff, Pause, Play } from 'lucide-react';
+import { Eye, EyeOff, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Attribution } from '@/components/feed/Attribution';
@@ -20,6 +20,7 @@ import type { Post } from '@/types/post';
 
 function extractFirstLink(html: string): string | null {
     const match = html.match(/href="([^"]+)"/);
+
     return match?.[1] ?? null;
 }
 
@@ -36,7 +37,7 @@ export default function Feed({
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
 }) {
-    const { current, advance, queue, goBack } = useFeedQueue({
+    const { current, advance, queue, goBack, canGoBack } = useFeedQueue({
         initialPosts,
         initialCursor,
         cwBehavior,
@@ -154,8 +155,12 @@ export default function Feed({
     }, [current]);
 
     const openLink = useCallback(() => {
-        if (!current) return;
+        if (!current) {
+            return;
+        }
+
         const url = current.link_url ?? extractFirstLink(current.body);
+
         if (url) {
             window.open(url, '_blank', 'noopener,noreferrer');
         }
@@ -266,8 +271,17 @@ export default function Feed({
                         <Attribution post={current} />
                         <button
                             type="button"
+                            onClick={handleGoBack}
+                            disabled={!canGoBack}
+                            className="ml-auto flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white/10 disabled:hover:text-white/60"
+                            aria-label="Previous"
+                        >
+                            <SkipBack className="h-4 w-4" />
+                        </button>
+                        <button
+                            type="button"
                             onClick={() => setPaused((p) => !p)}
-                            className="ml-auto flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
+                            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
                             aria-label={paused ? 'Resume' : 'Pause'}
                             aria-pressed={paused}
                         >
@@ -276,6 +290,14 @@ export default function Feed({
                             ) : (
                                 <Pause className="h-4 w-4" />
                             )}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleAdvance}
+                            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
+                            aria-label="Next"
+                        >
+                            <SkipForward className="h-4 w-4" />
                         </button>
                     </div>
 

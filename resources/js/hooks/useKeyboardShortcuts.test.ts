@@ -4,7 +4,9 @@ import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 
 function fireKeyOnWindow(key: string) {
     act(() => {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+        window.dispatchEvent(
+            new KeyboardEvent('keydown', { key, bubbles: true }),
+        );
     });
 }
 
@@ -26,6 +28,7 @@ it('suppresses the handler when focus is inside an input', () => {
     const handler = vi.fn();
     const input = document.createElement('input');
     document.body.appendChild(input);
+
     try {
         renderHook(() => useKeyboardShortcuts({ j: handler }));
         act(() => {
@@ -43,6 +46,7 @@ it('suppresses the handler when focus is inside a textarea', () => {
     const handler = vi.fn();
     const textarea = document.createElement('textarea');
     document.body.appendChild(textarea);
+
     try {
         renderHook(() => useKeyboardShortcuts({ j: handler }));
         act(() => {
@@ -60,6 +64,7 @@ it('suppresses the handler when focus is inside a select', () => {
     const handler = vi.fn();
     const select = document.createElement('select');
     document.body.appendChild(select);
+
     try {
         renderHook(() => useKeyboardShortcuts({ j: handler }));
         act(() => {

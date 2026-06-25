@@ -151,9 +151,14 @@ class PostNormalizer
                 : "@{$parent['account']['acct']}@{$parentHost}",
             'author_avatar' => $this->safeUrl($parent['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($parent['url'] ?? ''),
-            'body' => $this->truncateBody(
-                $this->extractBody($parent['content'])['body']
-            ),
+            ...(function () use ($parent) {
+                $extracted = $this->extractBody($parent['content'], $parent['mentions'] ?? [], null);
+
+                return [
+                    'body' => $this->truncateBody($extracted['body']),
+                    'chip_mentions' => $extracted['chip_mentions'],
+                ];
+            })(),
             'created_at' => $parent['created_at'] ?? null,
         ];
     }
@@ -179,7 +184,14 @@ class PostNormalizer
             'author_handle' => str_contains($acct, '@') ? "@{$acct}" : "@{$acct}@{$quoteHost}",
             'author_avatar' => $this->safeUrl($raw['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($raw['url'] ?? ''),
-            'body' => $this->truncateBody($this->extractBody($raw['content'] ?? '')['body']),
+            ...(function () use ($raw) {
+                $extracted = $this->extractBody($raw['content'] ?? '', $raw['mentions'] ?? [], null);
+
+                return [
+                    'body' => $this->truncateBody($extracted['body']),
+                    'chip_mentions' => $extracted['chip_mentions'],
+                ];
+            })(),
             'created_at' => $raw['created_at'] ?? null,
         ];
     }

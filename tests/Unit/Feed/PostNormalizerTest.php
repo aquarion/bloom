@@ -761,6 +761,7 @@ it('includes author identity and url in mastodon reply_to', function () {
         'author_avatar' => 'https://mastodon.social/avatars/original.jpg',
         'original_url' => 'https://mastodon.social/@original/456',
         'body' => 'This is the parent post body',
+        'chip_mentions' => [],
         'created_at' => null,
     ]);
 });
@@ -1214,6 +1215,7 @@ it('sets quoted_post from inline mastodon quote field', function () {
         'author_avatar' => 'https://mastodon.social/avatars/author.jpg',
         'original_url' => 'https://mastodon.social/@author/99',
         'body' => 'the quoted post',
+        'chip_mentions' => [],
         'created_at' => '2024-01-14T09:00:00.000Z',
     ]);
 });
@@ -1249,6 +1251,7 @@ it('sets quoted_post from pre-fetched quote status when no inline quote field', 
         'author_avatar' => 'https://mastodon.social/avatars/author.jpg',
         'original_url' => 'https://mastodon.social/@author/99',
         'body' => 'the quoted post',
+        'chip_mentions' => [],
         'created_at' => '2024-01-14T09:00:00.000Z',
     ]);
 });
@@ -1884,4 +1887,32 @@ it('returns no chip_mentions when mentions are absent', function () {
     $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['chip_mentions'])->toBe([]);
+});
+
+it('strips a trailing mention from a mastodon reply_to body to a chip', function () {
+    $parentStatus = [
+        'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => ''],
+        'url' => 'https://mastodon.example/@alice/0',
+        'content' => '<p>hello @bob</p>',
+        'created_at' => '2024-01-15T09:00:00.000Z',
+        'mentions' => [
+            ['id' => '3', 'username' => 'bob', 'url' => 'https://mastodon.example/@bob', 'acct' => 'bob'],
+        ],
+    ];
+    $status = [
+        'id' => '1',
+        'content' => '<p>reply</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'in_reply_to_id' => '0',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parentStatus);
+
+    expect($post['reply_to']['body'])->toBe('hello')
+        ->and($post['reply_to']['chip_mentions'])->toHaveCount(1)
+        ->and($post['reply_to']['chip_mentions'][0]['handle'])->toBe('@bob');
 });

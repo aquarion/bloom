@@ -83,3 +83,96 @@ it('clears auth_failed_at on successful timeline fetch', function () {
 
     expect($account->fresh()->auth_failed_at)->toBeNull();
 });
+
+it('resolves mastodon chip_mentions avatar/display_name via account lookup', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://mastodon.example',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        'mastodon.example/api/v1/accounts/lookup*' => Http::response([
+            'display_name' => 'Alice',
+            'avatar' => 'https://mastodon.example/avatars/alice.jpg',
+        ]),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '@alice', 'display_name' => '@alice', 'avatar' => '', 'profile_url' => 'https://mastodon.example/@alice'],
+            ],
+        ],
+    ];
+
+    $service = new MastodonFeedService;
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved[0]['chip_mentions'][0]['display_name'])->toBe('Alice')
+        ->and($resolved[0]['chip_mentions'][0]['avatar'])->toBe('https://mastodon.example/avatars/alice.jpg')
+        ->and($resolved[0]['chip_mentions'][0]['handle'])->toBe('@alice');
+});
+
+it('falls back to the placeholder when the mastodon lookup fails', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://mastodon.example',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        'mastodon.example/api/v1/accounts/lookup*' => Http::response([], 404),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '@ghost', 'display_name' => '@ghost', 'avatar' => '', 'profile_url' => 'https://mastodon.example/@ghost'],
+            ],
+        ],
+    ];
+
+    $service = new MastodonFeedService;
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved[0]['chip_mentions'][0]['display_name'])->toBe('@ghost')
+        ->and($resolved[0]['chip_mentions'][0]['avatar'])->toBe('');
+});
+
+it('strips unsafe avatar URL schemes when resolving mastodon chip_mentions', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://mastodon.example',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        'mastodon.example/api/v1/accounts/lookup*' => Http::response([
+            'display_name' => 'Mallory',
+            'avatar' => 'javascript:alert(1)',
+        ]),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '@mallory', 'display_name' => '@mallory', 'avatar' => '', 'profile_url' => 'https://mastodon.example/@mallory'],
+            ],
+        ],
+    ];
+
+    $service = new MastodonFeedService;
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved[0]['chip_mentions'][0]['avatar'])->toBe('');
+});

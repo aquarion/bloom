@@ -9,8 +9,9 @@ import { splitIntoLinesWithBoundaries } from '@/lib/block-text';
 import { EmojiText } from '@/lib/emoji-text';
 import type { PostColors } from '@/lib/post-colors';
 import { postColors } from '@/lib/post-colors';
-import type { Post } from '@/types/post';
+import type { Mention, Post } from '@/types/post';
 import { AuthorChip } from './AuthorChip';
+import { MentionChips } from './MentionChips';
 
 gsap.registerPlugin(SplitText);
 
@@ -28,6 +29,7 @@ function ContextPanel({
     emojis,
     body,
     original_url,
+    chip_mentions,
 }: {
     icon: React.ReactNode;
     author_name: string;
@@ -36,6 +38,7 @@ function ContextPanel({
     emojis: Record<string, string>;
     body: string;
     original_url: string;
+    chip_mentions: Mention[];
 }) {
     const content = (
         <>
@@ -49,6 +52,11 @@ function ContextPanel({
                 />
             </div>
             <p className="whitespace-pre-wrap">{body}</p>
+            {chip_mentions.length > 0 && (
+                <div className="mt-2">
+                    <MentionChips mentions={chip_mentions} />
+                </div>
+            )}
         </>
     );
 
@@ -408,6 +416,7 @@ export function PostAnimator({
                                 emojis={post.emojis}
                                 body={post.reply_to.body}
                                 original_url={post.reply_to.original_url}
+                                chip_mentions={post.reply_to.chip_mentions}
                             />
                         )}
                         {post.quoted_post && (
@@ -419,6 +428,7 @@ export function PostAnimator({
                                 emojis={post.emojis}
                                 body={post.quoted_post.body}
                                 original_url={post.quoted_post.original_url}
+                                chip_mentions={post.quoted_post.chip_mentions}
                             />
                         )}
                         {post.link_url && (
@@ -455,6 +465,7 @@ export function PostAnimator({
                                 emojis={post.emojis}
                                 body={post.reply_to.body}
                                 original_url={post.reply_to.original_url}
+                                chip_mentions={post.reply_to.chip_mentions}
                             />
                         )}
                         {post.quoted_post && (
@@ -466,6 +477,7 @@ export function PostAnimator({
                                 emojis={post.emojis}
                                 body={post.quoted_post.body}
                                 original_url={post.quoted_post.original_url}
+                                chip_mentions={post.quoted_post.chip_mentions}
                             />
                         )}
                     </div>
@@ -527,6 +539,9 @@ export function PostAnimator({
                             </span>
                         ))}
                     </div>
+                )}
+                {post.chip_mentions.length > 0 && (
+                    <MentionChips mentions={post.chip_mentions} />
                 )}
             </div>
         </div>

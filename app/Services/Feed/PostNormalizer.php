@@ -4,6 +4,13 @@ namespace App\Services\Feed;
 
 class PostNormalizer
 {
+    private MentionClassifier $mentionClassifier;
+
+    public function __construct()
+    {
+        $this->mentionClassifier = new MentionClassifier;
+    }
+
     public function fromMastodon(array $status, string $host, ?array $parentStatus = null, string $sourceHandle = '', ?array $quoteStatus = null): array
     {
         $source = $status['reblog'] ?? $status;
@@ -38,7 +45,7 @@ class PostNormalizer
                 : "@{$source['account']['acct']}@{$sourceHost}",
             'author_avatar' => $this->safeUrl($source['account']['avatar']),
             'author_banner' => $this->safeUrl($source['account']['header'] ?? '') ?: null,
-            'body' => $this->truncateBody($this->extractBody($source['content']), config('feed.body_limit', 1024)),
+            ...$this->buildMastodonBody($source['content'], $status['mentions'] ?? [], $parentStatus, $quoteStatus, $source),
             'media' => $this->normaliseMastodonMedia($source['media_attachments'] ?? []),
             'created_at' => $source['created_at'],
             'original_url' => $this->safeUrl($source['url']),
@@ -115,6 +122,20 @@ class PostNormalizer
         ];
     }
 
+    /**
+     * @return array{body: string, chip_mentions: array}
+     */
+    private function buildMastodonBody(string $content, array $apiMentions, ?array $parentStatus, ?array $quoteStatus, array $source): array
+    {
+        $originAcct = $parentStatus['account']['acct'] ?? ($source['quote']['quoted_status']['account']['acct'] ?? $quoteStatus['account']['acct'] ?? null);
+        $extracted = $this->extractBody($content, $apiMentions, $originAcct);
+
+        return [
+            'body' => $this->truncateBody($extracted['body'], config('feed.body_limit', 1024)),
+            'chip_mentions' => $extracted['chip_mentions'],
+        ];
+    }
+
     private function mastodonReplyTo(?array $parent, string $fallbackHost): ?array
     {
         if ($parent === null) {
@@ -131,7 +152,7 @@ class PostNormalizer
             'author_avatar' => $this->safeUrl($parent['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($parent['url'] ?? ''),
             'body' => $this->truncateBody(
-                $this->extractBody($parent['content'])
+                $this->extractBody($parent['content'])['body']
             ),
             'created_at' => $parent['created_at'] ?? null,
         ];
@@ -158,7 +179,7 @@ class PostNormalizer
             'author_handle' => str_contains($acct, '@') ? "@{$acct}" : "@{$acct}@{$quoteHost}",
             'author_avatar' => $this->safeUrl($raw['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($raw['url'] ?? ''),
-            'body' => $this->truncateBody($this->extractBody($raw['content'] ?? '')),
+            'body' => $this->truncateBody($this->extractBody($raw['content'] ?? '')['body']),
             'created_at' => $raw['created_at'] ?? null,
         ];
     }
@@ -266,13 +287,75 @@ class PostNormalizer
         return [];
     }
 
-    private function extractBody(string $html): string
+    private function extractBody(string $html, array $apiMentions = [], ?string $originAcct = null): array
     {
         $withBreaks = str_replace(['</p>', '<br>', '<br/>'], "\n", $html);
         $text = html_entity_decode(strip_tags($withBreaks), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        $text = $this->stripHashtags($this->stripUrls(trim($text)));
 
-        return $this->stripHashtags($this->stripUrls(trim($text)));
+        return $this->classifyMastodonMentions($text, $apiMentions, $originAcct);
+    }
+
+    /**
+     * @param  array<int, array{id?: string, username?: string, url?: string, acct?: string}>  $apiMentions  The status's top-level 'mentions' array.
+     * @return array{body: string, chip_mentions: array<int, array{handle: string, display_name: string, avatar: string, profile_url: string}>}
+     */
+    private function classifyMastodonMentions(string $plainText, array $apiMentions, ?string $originAcct): array
+    {
+        if (empty($apiMentions)) {
+            return ['body' => $plainText, 'chip_mentions' => []];
+        }
+
+        $byAcct = [];
+        $detected = [];
+
+        foreach ($apiMentions as $m) {
+            $acct = $m['acct'] ?? '';
+            if ($acct === '') {
+                continue;
+            }
+            $pattern = '/@'.preg_quote($acct, '/').'\b/';
+            if (preg_match($pattern, $plainText, $match, PREG_OFFSET_CAPTURE)) {
+                $start = $match[0][1];
+                $end = $start + strlen($match[0][0]);
+                $detected[] = ['id' => $acct, 'start' => $start, 'end' => $end];
+                $byAcct[$acct] = $m;
+            }
+        }
+
+        if (empty($detected)) {
+            return ['body' => $plainText, 'chip_mentions' => []];
+        }
+
+        $classified = $this->mentionClassifier->classify($plainText, $detected, $originAcct);
+
+        $chipMentions = [];
+        $body = $plainText;
+        $removed = 0;
+
+        foreach ($classified as $mention) {
+            if ($mention['role'] !== MentionClassifier::ROLE_CHIP) {
+                continue;
+            }
+
+            $apiMention = $byAcct[$mention['id']];
+            $chipMentions[] = [
+                'handle' => '@'.$apiMention['acct'],
+                'display_name' => '@'.$apiMention['acct'],
+                'avatar' => '',
+                'profile_url' => $this->safeUrl($apiMention['url']),
+            ];
+
+            $start = $mention['start'] - $removed;
+            $length = $mention['end'] - $mention['start'];
+            $body = substr($body, 0, $start).substr($body, $start + $length);
+            $removed += $length;
+        }
+
+        $body = trim(preg_replace('/[ \t]{2,}/', ' ', $body) ?? $body);
+
+        return ['body' => $body, 'chip_mentions' => $chipMentions];
     }
 
     private function stripUrls(string $text): string

@@ -1801,3 +1801,87 @@ it('maps unknown bluesky label to Content warning generic fallback', function ()
     expect($post['cw_text'])->toBe('Content warning')
         ->and($post['sensitive_media'])->toBeFalse();
 });
+
+it('classifies a single leading mastodon mention as inline by default', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>@alice thanks for the boost</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [
+            ['id' => '2', 'username' => 'alice', 'url' => 'https://mastodon.example/@alice', 'acct' => 'alice'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['body'])->toBe('@alice thanks for the boost')
+        ->and($post['chip_mentions'])->toBe([]);
+});
+
+it('strips a trailing mastodon mention to a chip', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out @alice</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [
+            ['id' => '2', 'username' => 'alice', 'url' => 'https://mastodon.example/@alice', 'acct' => 'alice'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['body'])->toBe('check this out')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['handle'])->toBe('@alice')
+        ->and($post['chip_mentions'][0]['display_name'])->toBe('@alice')
+        ->and($post['chip_mentions'][0]['avatar'])->toBe('')
+        ->and($post['chip_mentions'][0]['profile_url'])->toBe('https://mastodon.example/@alice');
+});
+
+it('strips a leading mastodon mention that matches the reply origin to a chip', function () {
+    $parentStatus = [
+        'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => ''],
+        'url' => 'https://mastodon.example/@alice/0',
+        'content' => '<p>original</p>',
+        'created_at' => '2024-01-15T09:00:00.000Z',
+    ];
+    $status = [
+        'id' => '1',
+        'content' => '<p>@alice no thanks</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'in_reply_to_id' => '0',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [
+            ['id' => '2', 'username' => 'alice', 'url' => 'https://mastodon.example/@alice', 'acct' => 'alice'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parentStatus);
+
+    expect($post['body'])->toBe('no thanks')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['handle'])->toBe('@alice');
+});
+
+it('returns no chip_mentions when mentions are absent', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>hello world</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['chip_mentions'])->toBe([]);
+});

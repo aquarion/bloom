@@ -218,7 +218,7 @@ class PostNormalizer
             'author_handle' => '@'.$handle,
             'author_avatar' => $this->safeUrl($parent['author']['avatar'] ?? ''),
             'original_url' => $this->blueskyPostUrl($handle, $parent['uri'] ?? ''),
-            'body' => $this->truncateBody($parent['record']['text']),
+            ...$this->buildNestedBlueskyBody($parent['record']['text'], $parent['record']['facets'] ?? []),
             'created_at' => $parent['record']['createdAt'] ?? null,
         ];
     }
@@ -255,7 +255,7 @@ class PostNormalizer
             'author_handle' => '@'.$handle,
             'author_avatar' => $this->safeUrl($record['author']['avatar'] ?? ''),
             'original_url' => $this->blueskyPostUrl($handle, $record['uri'] ?? ''),
-            'body' => $this->truncateBody($text),
+            ...$this->buildNestedBlueskyBody($text, $record['value']['facets'] ?? []),
             'created_at' => $record['value']['createdAt'] ?? null,
         ];
     }
@@ -390,6 +390,21 @@ class PostNormalizer
         $body = trim(preg_replace('/[ \t]{2,}/', ' ', $body) ?? $body);
 
         return ['body' => $body, 'chip_mentions' => $chipMentions];
+    }
+
+    /**
+     * @return array{body: string, chip_mentions: array}
+     */
+    private function buildNestedBlueskyBody(string $text, array $facets): array
+    {
+        // No grandparent post is fetched for replies/quotes, so there's no
+        // origin did to compare a leading mention against here.
+        $result = $this->classifyBlueskyMentions($text, $facets, null);
+
+        return [
+            'body' => $this->truncateBody($result['body']),
+            'chip_mentions' => $result['chip_mentions'],
+        ];
     }
 
     /**

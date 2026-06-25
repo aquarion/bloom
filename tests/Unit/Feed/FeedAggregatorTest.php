@@ -731,6 +731,50 @@ it('account-level null max_age_days disables cutoff even when user has one set',
     expect($result['posts'])->toHaveCount(1);
 });
 
+it('does not classify or resolve mentions when mentionsEnabled is false', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+    ]);
+
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out @alice</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://fosstodon.org/@user/1',
+        'in_reply_to_id' => null,
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'mentions' => [
+            ['id' => '2', 'username' => 'alice', 'url' => 'https://fosstodon.org/@alice', 'acct' => 'alice'],
+        ],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$status]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+    // Deliberately NOT stubbing resolveMentionProfiles — if FeedAggregator
+    // calls it despite mentionsEnabled being false, Mockery will throw.
+
+    $aggregator = new FeedAggregator(
+        $mastodon,
+        Mockery::mock(BlueskyFeedService::class),
+        app(PostNormalizer::class),
+    );
+
+    $result = $aggregator->fetch($user, mentionsEnabled: false);
+
+    expect($result['posts'][0]['body'])->toBe('check this out @alice')
+        ->and($result['posts'][0]['chip_mentions'])->toBe([]);
+});
+
 it('skips mute word check when list is empty', function () {
     $user = User::factory()->create(['feed_preferences' => ['mute_words' => [], 'max_age_days' => null]]);
     $account = SocialAccount::factory()->create([

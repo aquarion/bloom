@@ -11,7 +11,7 @@ class PostNormalizer
         $this->mentionClassifier = new MentionClassifier;
     }
 
-    public function fromMastodon(array $status, string $host, ?array $parentStatus = null, string $sourceHandle = '', ?array $quoteStatus = null): array
+    public function fromMastodon(array $status, string $host, ?array $parentStatus = null, string $sourceHandle = '', ?array $quoteStatus = null, bool $mentionsEnabled = true): array
     {
         $source = $status['reblog'] ?? $status;
         $sourceHost = isset($status['reblog'])
@@ -45,15 +45,15 @@ class PostNormalizer
                 : "@{$source['account']['acct']}@{$sourceHost}",
             'author_avatar' => $this->safeUrl($source['account']['avatar']),
             'author_banner' => $this->safeUrl($source['account']['header'] ?? '') ?: null,
-            ...$this->buildMastodonBody($source['content'], $status['mentions'] ?? [], $parentStatus, $quoteStatus, $source),
+            ...$this->buildMastodonBody($source['content'], $status['mentions'] ?? [], $parentStatus, $quoteStatus, $source, $mentionsEnabled),
             'media' => $this->normaliseMastodonMedia($source['media_attachments'] ?? []),
             'created_at' => $source['created_at'],
             'original_url' => $this->safeUrl($source['url']),
             'link_url' => $linkUrl,
             'link_title' => $card ? ($card['title'] ?? null) : null,
             'link_favicon' => $this->faviconUrl($linkUrl),
-            'reply_to' => $this->mastodonReplyTo($parentStatus, $host),
-            'quoted_post' => $this->mastodonQuotedPost($source, $host, $quoteStatus),
+            'reply_to' => $this->mastodonReplyTo($parentStatus, $host, $mentionsEnabled),
+            'quoted_post' => $this->mastodonQuotedPost($source, $host, $quoteStatus, $mentionsEnabled),
             'boosted_by' => $booster,
             'boosted_by_avatar' => $boosterAccount ? $this->safeUrl($boosterAccount['avatar'] ?? '') : null,
             'boosted_by_handle' => $boosterAccount ? '@'.$boosterAccount['acct'] : null,
@@ -68,7 +68,7 @@ class PostNormalizer
         ];
     }
 
-    public function fromBluesky(array $feedPost, string $sourceHandle = ''): array
+    public function fromBluesky(array $feedPost, string $sourceHandle = '', bool $mentionsEnabled = true): array
     {
         $post = $feedPost['post'];
         $record = $post['record'];
@@ -98,7 +98,9 @@ class PostNormalizer
             ?? ($this->blueskyQuotedAuthorDid($post['embed'] ?? null));
         // Must classify on the raw $text — facet byteStart/byteEnd offsets index into the
         // untransformed text, and stripping hashtags/URLs first would shift those positions.
-        $mentionResult = $this->classifyBlueskyMentions($text, $record['facets'] ?? [], $originDid);
+        $mentionResult = $mentionsEnabled
+            ? $this->classifyBlueskyMentions($text, $record['facets'] ?? [], $originDid)
+            : ['body' => $text, 'chip_mentions' => []];
         $body = $this->truncateBody($this->stripHashtags($this->stripUrls($mentionResult['body'])), config('feed.body_limit', 1024));
 
         return [
@@ -116,8 +118,8 @@ class PostNormalizer
             'link_url' => $linkUrl,
             'link_title' => $externalData['title'] ?? null,
             'link_favicon' => $this->faviconUrl($linkUrl),
-            'reply_to' => $this->blueskyReplyTo($feedPost['reply']['parent'] ?? null),
-            'quoted_post' => $this->blueskyQuotedPost($post['embed'] ?? null),
+            'reply_to' => $this->blueskyReplyTo($feedPost['reply']['parent'] ?? null, $mentionsEnabled),
+            'quoted_post' => $this->blueskyQuotedPost($post['embed'] ?? null, $mentionsEnabled),
             'boosted_by' => $booster,
             'boosted_by_avatar' => $repostBy ? $this->safeUrl($repostBy['avatar'] ?? '') : null,
             'boosted_by_handle' => $repostBy ? '@'.($repostBy['handle'] ?? '') : null,
@@ -133,8 +135,17 @@ class PostNormalizer
     /**
      * @return array{body: string, chip_mentions: array}
      */
-    private function buildMastodonBody(string $content, array $apiMentions, ?array $parentStatus, ?array $quoteStatus, array $source): array
+    private function buildMastodonBody(string $content, array $apiMentions, ?array $parentStatus, ?array $quoteStatus, array $source, bool $mentionsEnabled): array
     {
+        if (! $mentionsEnabled) {
+            $extracted = $this->extractBody($content, [], null);
+
+            return [
+                'body' => $this->truncateBody($extracted['body'], config('feed.body_limit', 1024)),
+                'chip_mentions' => [],
+            ];
+        }
+
         $originAcct = $parentStatus['account']['acct'] ?? ($source['quote']['quoted_status']['account']['acct'] ?? $quoteStatus['account']['acct'] ?? null);
         $extracted = $this->extractBody($content, $apiMentions, $originAcct);
 
@@ -147,8 +158,15 @@ class PostNormalizer
     /**
      * @return array{body: string, chip_mentions: array}
      */
-    private function buildNestedMastodonBody(string $content, array $mentions): array
+    private function buildNestedMastodonBody(string $content, array $mentions, bool $mentionsEnabled): array
     {
+        if (! $mentionsEnabled) {
+            return [
+                'body' => $this->truncateBody($this->extractBody($content, [], null)['body']),
+                'chip_mentions' => [],
+            ];
+        }
+
         // No grandparent post is fetched for replies/quotes, so there's no
         // origin handle to compare a leading mention against here.
         $extracted = $this->extractBody($content, $mentions, null);
@@ -159,7 +177,7 @@ class PostNormalizer
         ];
     }
 
-    private function mastodonReplyTo(?array $parent, string $fallbackHost): ?array
+    private function mastodonReplyTo(?array $parent, string $fallbackHost, bool $mentionsEnabled): ?array
     {
         if ($parent === null) {
             return null;
@@ -174,12 +192,12 @@ class PostNormalizer
                 : "@{$parent['account']['acct']}@{$parentHost}",
             'author_avatar' => $this->safeUrl($parent['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($parent['url'] ?? ''),
-            ...$this->buildNestedMastodonBody($parent['content'], $parent['mentions'] ?? []),
+            ...$this->buildNestedMastodonBody($parent['content'], $parent['mentions'] ?? [], $mentionsEnabled),
             'created_at' => $parent['created_at'] ?? null,
         ];
     }
 
-    private function mastodonQuotedPost(array $source, string $host, ?array $quoteStatus): ?array
+    private function mastodonQuotedPost(array $source, string $host, ?array $quoteStatus, bool $mentionsEnabled): ?array
     {
         $inlineQuote = $source['quote'] ?? null;
         // Mastodon 4.3+ wraps the quote as { state, quoted_status }.
@@ -200,12 +218,12 @@ class PostNormalizer
             'author_handle' => str_contains($acct, '@') ? "@{$acct}" : "@{$acct}@{$quoteHost}",
             'author_avatar' => $this->safeUrl($raw['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($raw['url'] ?? ''),
-            ...$this->buildNestedMastodonBody($raw['content'] ?? '', $raw['mentions'] ?? []),
+            ...$this->buildNestedMastodonBody($raw['content'] ?? '', $raw['mentions'] ?? [], $mentionsEnabled),
             'created_at' => $raw['created_at'] ?? null,
         ];
     }
 
-    private function blueskyReplyTo(?array $parent): ?array
+    private function blueskyReplyTo(?array $parent, bool $mentionsEnabled): ?array
     {
         if ($parent === null || ! isset($parent['record']['text'])) {
             return null;
@@ -218,12 +236,12 @@ class PostNormalizer
             'author_handle' => '@'.$handle,
             'author_avatar' => $this->safeUrl($parent['author']['avatar'] ?? ''),
             'original_url' => $this->blueskyPostUrl($handle, $parent['uri'] ?? ''),
-            ...$this->buildNestedBlueskyBody($parent['record']['text'], $parent['record']['facets'] ?? []),
+            ...$this->buildNestedBlueskyBody($parent['record']['text'], $parent['record']['facets'] ?? [], $mentionsEnabled),
             'created_at' => $parent['record']['createdAt'] ?? null,
         ];
     }
 
-    private function blueskyQuotedPost(?array $embed): ?array
+    private function blueskyQuotedPost(?array $embed, bool $mentionsEnabled): ?array
     {
         if ($embed === null) {
             return null;
@@ -255,7 +273,7 @@ class PostNormalizer
             'author_handle' => '@'.$handle,
             'author_avatar' => $this->safeUrl($record['author']['avatar'] ?? ''),
             'original_url' => $this->blueskyPostUrl($handle, $record['uri'] ?? ''),
-            ...$this->buildNestedBlueskyBody($text, $record['value']['facets'] ?? []),
+            ...$this->buildNestedBlueskyBody($text, $record['value']['facets'] ?? [], $mentionsEnabled),
             'created_at' => $record['value']['createdAt'] ?? null,
         ];
     }
@@ -395,8 +413,12 @@ class PostNormalizer
     /**
      * @return array{body: string, chip_mentions: array}
      */
-    private function buildNestedBlueskyBody(string $text, array $facets): array
+    private function buildNestedBlueskyBody(string $text, array $facets, bool $mentionsEnabled): array
     {
+        if (! $mentionsEnabled) {
+            return ['body' => $this->truncateBody($text), 'chip_mentions' => []];
+        }
+
         // No grandparent post is fetched for replies/quotes, so there's no
         // origin did to compare a leading mention against here.
         $result = $this->classifyBlueskyMentions($text, $facets, null);

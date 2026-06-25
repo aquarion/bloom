@@ -17,7 +17,7 @@ class FeedAggregator
         private PostNormalizer $normalizer,
     ) {}
 
-    public function fetch(User $user, int $limit = 20, ?string $cursor = null): array
+    public function fetch(User $user, int $limit = 20, ?string $cursor = null, bool $mentionsEnabled = false): array
     {
         $user->loadMissing('socialAccounts');
 
@@ -42,7 +42,7 @@ class FeedAggregator
                     // so the batch short-circuit inside fetchMastodonStatuses is always bypassed here.
                     $quotes = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['quote_id'] ?? null);
 
-                    $normalised = array_map(function ($s) use ($host, $parents, $quotes, $account) {
+                    $normalised = array_map(function ($s) use ($host, $parents, $quotes, $account, $mentionsEnabled) {
                         $source = $s['reblog'] ?? $s;
                         // $quoteId matches the key used by the extractor above, so $quotes[$quoteId] resolves
                         // the pre-fetched status (or null if unavailable) to pass into the normalizer.
@@ -54,8 +54,13 @@ class FeedAggregator
                             $parents[$source['in_reply_to_id'] ?? ''] ?? null,
                             $account->handle,
                             $quoteId ? ($quotes[$quoteId] ?? null) : null,
+                            $mentionsEnabled,
                         );
                     }, $statuses);
+
+                    if ($mentionsEnabled) {
+                        $normalised = $this->mastodon->resolveMentionProfiles($normalised, $account);
+                    }
 
                     $nextCursor = ! empty($statuses) ? end($statuses)['id'] : null;
                 }
@@ -63,7 +68,12 @@ class FeedAggregator
                 if ($account->provider === 'bluesky') {
                     $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
                     $result = $this->bluesky->getHomeTimeline($account, $perAccountLimit, $accountCursor);
-                    $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle), $result['posts']);
+                    $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle, $mentionsEnabled), $result['posts']);
+
+                    if ($mentionsEnabled) {
+                        $normalised = $this->bluesky->resolveMentionProfiles($normalised, $account);
+                    }
+
                     $nextCursor = $result['cursor'] ?: null;
                 }
             } catch (\Throwable $e) {

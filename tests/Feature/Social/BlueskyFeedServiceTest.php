@@ -279,3 +279,58 @@ it('clears auth_failed_at on successful token refresh', function () {
 
     expect($account->fresh()->auth_failed_at)->toBeNull();
 });
+
+it('resolves chip_mentions placeholder profile_url dids into real handle/avatar/profile_url', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        '*app.bsky.actor.getProfiles*' => Http::response([
+            'profiles' => [
+                ['did' => 'did:plc:alice', 'handle' => 'alice.bsky.social', 'displayName' => 'Alice', 'avatar' => 'https://example.com/alice.jpg'],
+            ],
+        ]),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '', 'display_name' => '', 'avatar' => '', 'profile_url' => 'did:plc:alice'],
+            ],
+        ],
+    ];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved[0]['chip_mentions'][0]['handle'])->toBe('@alice.bsky.social')
+        ->and($resolved[0]['chip_mentions'][0]['display_name'])->toBe('Alice')
+        ->and($resolved[0]['chip_mentions'][0]['avatar'])->toBe('https://example.com/alice.jpg')
+        ->and($resolved[0]['chip_mentions'][0]['profile_url'])->toBe('https://bsky.app/profile/alice.bsky.social');
+});
+
+it('leaves chip_mentions with no placeholder dids untouched', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake();
+
+    $posts = [['id' => 'p1', 'chip_mentions' => []]];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved)->toBe($posts);
+    Http::assertNothingSent();
+});

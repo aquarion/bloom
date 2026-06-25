@@ -55,7 +55,7 @@ class BlueskyFeedService
 
         $didsToCheck = [];
         foreach ($normalisedPosts as $post) {
-            foreach ($post['chip_mentions'] ?? [] as $mention) {
+            foreach ($this->collectChipMentions($post) as $mention) {
                 if (str_starts_with($mention['profile_url'] ?? '', 'did:')) {
                     $didsToCheck[$mention['profile_url']] = true;
                 }
@@ -117,25 +117,57 @@ class BlueskyFeedService
             }
         }
 
-        return array_map(function (array $post) use ($profiles) {
-            $post['chip_mentions'] = array_map(function (array $mention) use ($profiles) {
-                $did = $mention['profile_url'] ?? '';
-                $profile = $profiles[$did] ?? null;
+        $mapMention = function (array $mention) use ($profiles): array {
+            $did = $mention['profile_url'] ?? '';
+            $profile = $profiles[$did] ?? null;
 
-                if (! is_array($profile) || empty($profile['handle'])) {
-                    return $mention;
-                }
+            if (! is_array($profile) || empty($profile['handle'])) {
+                return $mention;
+            }
 
-                return [
-                    'handle' => '@'.$profile['handle'],
-                    'display_name' => $profile['displayName'] ?: $profile['handle'],
-                    'avatar' => $profile['avatar'] ?? '',
-                    'profile_url' => "https://bsky.app/profile/{$profile['handle']}",
-                ];
-            }, $post['chip_mentions'] ?? []);
+            return [
+                'handle' => '@'.$profile['handle'],
+                'display_name' => $profile['displayName'] ?: $profile['handle'],
+                'avatar' => $profile['avatar'] ?? '',
+                'profile_url' => "https://bsky.app/profile/{$profile['handle']}",
+            ];
+        };
+
+        return array_map(function (array $post) use ($mapMention) {
+            $post['chip_mentions'] = array_map($mapMention, $post['chip_mentions'] ?? []);
+
+            if (isset($post['reply_to']) && is_array($post['reply_to'])) {
+                $post['reply_to']['chip_mentions'] = array_map($mapMention, $post['reply_to']['chip_mentions'] ?? []);
+            }
+
+            if (isset($post['quoted_post']) && is_array($post['quoted_post'])) {
+                $post['quoted_post']['chip_mentions'] = array_map($mapMention, $post['quoted_post']['chip_mentions'] ?? []);
+            }
 
             return $post;
         }, $normalisedPosts);
+    }
+
+    /**
+     * Collect chip_mentions from a post's top-level body plus its nested reply_to/quoted_post
+     * bodies (which receive the same mention-classification treatment as the main body).
+     *
+     * @param  array<string, mixed>  $post
+     * @return array<int, array<string, mixed>>
+     */
+    private function collectChipMentions(array $post): array
+    {
+        $mentions = $post['chip_mentions'] ?? [];
+
+        if (isset($post['reply_to']) && is_array($post['reply_to'])) {
+            $mentions = array_merge($mentions, $post['reply_to']['chip_mentions'] ?? []);
+        }
+
+        if (isset($post['quoted_post']) && is_array($post['quoted_post'])) {
+            $mentions = array_merge($mentions, $post['quoted_post']['chip_mentions'] ?? []);
+        }
+
+        return $mentions;
     }
 
     private function enrichWithBanners(array $feedPosts, SocialAccount $account): array

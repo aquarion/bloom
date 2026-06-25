@@ -20,6 +20,9 @@ class MastodonFeedService
     // How long to cache an individual status (reply parents rarely change).
     private const STATUS_TTL = 900;
 
+    // How long to cache a resolved (or failed) mention-account lookup.
+    private const MENTION_PROFILE_TTL = 86400;
+
     public function getStatus(SocialAccount $account, string $id): ?array
     {
         $key = "mastodon:status:{$account->id}:{$id}";
@@ -77,6 +80,78 @@ class MastodonFeedService
         return $merged;
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $normalisedPosts  Posts already shaped by PostNormalizer::fromMastodon, each with a 'chip_mentions' key.
+     */
+    public function resolveMentionProfiles(array $normalisedPosts, SocialAccount $account): array
+    {
+        $cache = $this->userCache($account);
+        $sentinel = '__uncached__';
+
+        $acctsToCheck = [];
+        foreach ($normalisedPosts as $post) {
+            foreach ($post['chip_mentions'] ?? [] as $mention) {
+                if (($mention['avatar'] ?? '') === '' && ! empty($mention['handle'])) {
+                    $acct = ltrim($mention['handle'], '@');
+                    $acctsToCheck[$acct] = true;
+                }
+            }
+        }
+
+        if (empty($acctsToCheck)) {
+            return $normalisedPosts;
+        }
+
+        $resolved = [];
+
+        foreach (array_keys($acctsToCheck) as $acct) {
+            $key = "mastodon:mention_profile:{$account->id}:{$acct}";
+            $cached = $cache->get($key, $sentinel);
+
+            if ($cached !== $sentinel) {
+                $resolved[$acct] = $cached ?: null;
+
+                continue;
+            }
+
+            try {
+                $response = Http::timeout(10)->withToken($account->access_token)
+                    ->get("{$account->instance_url}/api/v1/accounts/lookup", ['acct' => $acct])
+                    ->throw()
+                    ->json();
+
+                $profile = [
+                    'display_name' => $response['display_name'] ?? null,
+                    'avatar' => $this->safeUrl($response['avatar'] ?? null) ?: null,
+                ];
+                $resolved[$acct] = $profile;
+                $cache->put($key, $profile, self::MENTION_PROFILE_TTL);
+            } catch (\Throwable $e) {
+                $resolved[$acct] = null;
+                $cache->put($key, '', self::MENTION_PROFILE_TTL);
+            }
+        }
+
+        return array_map(function (array $post) use ($resolved) {
+            $post['chip_mentions'] = array_map(function (array $mention) use ($resolved) {
+                $acct = ltrim($mention['handle'] ?? '', '@');
+                $profile = $resolved[$acct] ?? null;
+
+                if (! is_array($profile)) {
+                    return $mention;
+                }
+
+                return [
+                    ...$mention,
+                    'display_name' => $profile['display_name'] ?: $mention['display_name'],
+                    'avatar' => $profile['avatar'] ?? '',
+                ];
+            }, $post['chip_mentions'] ?? []);
+
+            return $post;
+        }, $normalisedPosts);
+    }
+
     private function fetchTimeline(SocialAccount $account, array $params): array
     {
         $response = Http::timeout(15)->withToken($account->access_token)
@@ -100,5 +175,16 @@ class MastodonFeedService
     private function userCache(SocialAccount $account)
     {
         return Cache::tags(["user:{$account->user_id}"]);
+    }
+
+    private function safeUrl(?string $url): string
+    {
+        if (! $url) {
+            return '';
+        }
+
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+
+        return in_array($scheme, ['https', 'http'], true) ? $url : '';
     }
 }

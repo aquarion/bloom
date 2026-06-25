@@ -1827,6 +1827,34 @@ it('classifies a single leading mastodon mention as inline by default', function
         ->and($post['chip_mentions'])->toBe([]);
 });
 
+it('detects cross-instance mastodon mentions rendered with bare username, not full acct', function () {
+    // Mastodon's HTML only ever shows the bare local username in the body
+    // ("@alice"), never the full acct ("@alice@remote.example") — only the
+    // anchor's href carries the host. A real-world multi-mention reply with
+    // entirely remote mentions, matching the structure of a genuine post that
+    // previously failed to classify any of its mentions.
+    $status = [
+        'id' => '1',
+        'content' => '<p><span class="h-card"><a href="https://remote.example/@alice" class="u-url mention">@<span>alice</span></a></span> <span class="h-card"><a href="https://other.example/@bob" class="u-url mention">@<span>bob</span></a></span> Sounds like you took a similar path to me.</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'in_reply_to_id' => '0',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [
+            ['id' => '2', 'username' => 'alice', 'acct' => 'alice@remote.example', 'url' => 'https://remote.example/@alice'],
+            ['id' => '3', 'username' => 'bob', 'acct' => 'bob@other.example', 'url' => 'https://other.example/@bob'],
+        ],
+    ];
+    $parentStatus = ['account' => ['acct' => 'alice@remote.example', 'avatar' => '', 'display_name' => 'Alice'], 'url' => 'x', 'content' => '<p>orig</p>', 'created_at' => null];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parentStatus);
+
+    expect($post['body'])->toBe('@alice Sounds like you took a similar path to me.')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['handle'])->toBe('@bob@other.example');
+});
+
 it('strips a trailing mastodon mention to a chip', function () {
     $status = [
         'id' => '1',

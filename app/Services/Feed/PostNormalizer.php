@@ -364,10 +364,15 @@ class PostNormalizer
 
         foreach ($apiMentions as $m) {
             $acct = $m['acct'] ?? '';
-            if ($acct === '') {
+            $username = $m['username'] ?? '';
+            if ($acct === '' || $username === '') {
                 continue;
             }
-            $pattern = '/@'.preg_quote($acct, '/').'\b/';
+            // Mastodon renders mentions in the body as the bare local username
+            // ("@fanf"), never the full acct ("@fanf@mendeddrum.org") — only the
+            // href carries the host. Matching against $acct here would silently
+            // fail to detect every remote mention.
+            $pattern = '/@'.preg_quote($username, '/').'\b/';
             if (preg_match($pattern, $plainText, $match, PREG_OFFSET_CAPTURE)) {
                 $start = $match[0][1];
                 $end = $start + strlen($match[0][0]);

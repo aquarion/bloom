@@ -27,6 +27,9 @@ function makePost(id: string): Post {
         boosted_by_created_at: null,
         emojis: {},
         hashtags: [],
+        chip_mentions: [],
+        cw_text: null,
+        sensitive_media: false,
     };
 }
 

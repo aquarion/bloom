@@ -5,6 +5,7 @@ namespace App\Services\Mastodon;
 use App\Models\SocialAccount;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class MastodonFeedService
 {
@@ -127,8 +128,14 @@ class MastodonFeedService
                 $resolved[$acct] = $profile;
                 $cache->put($key, $profile, self::MENTION_PROFILE_TTL);
             } catch (\Throwable $e) {
+                Log::warning('Failed to fetch Mastodon profile for mention resolution', [
+                    'acct' => $acct,
+                    'error' => $e->getMessage(),
+                ]);
                 $resolved[$acct] = null;
-                $cache->put($key, '', self::MENTION_PROFILE_TTL);
+                // Cache a short-TTL negative result so repeated failures don't
+                // hammer the endpoint, but recover quickly after an outage.
+                $cache->put($key, '', 300);
             }
         }
 

@@ -1,14 +1,28 @@
 import type { Mention } from '@/types/post';
 import { AuthorChip } from './AuthorChip';
 
+function dedupeByProfileUrl(mentions: Mention[]): Mention[] {
+    const seen = new Map<string, Mention>();
+
+    for (const mention of mentions) {
+        if (!seen.has(mention.profile_url)) {
+            seen.set(mention.profile_url, mention);
+        }
+    }
+
+    return [...seen.values()];
+}
+
 export function MentionChips({ mentions }: { mentions: Mention[] }) {
-    if (mentions.length === 0) {
+    const uniqueMentions = dedupeByProfileUrl(mentions);
+
+    if (uniqueMentions.length === 0) {
         return null;
     }
 
     return (
         <div className="flex flex-wrap items-center gap-2">
-            {mentions.map((mention) => (
+            {uniqueMentions.map((mention) => (
                 <a
                     key={mention.profile_url}
                     href={mention.profile_url}

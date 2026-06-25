@@ -315,6 +315,71 @@ it('resolves chip_mentions placeholder profile_url dids into real handle/avatar/
         ->and($resolved[0]['chip_mentions'][0]['profile_url'])->toBe('https://bsky.app/profile/alice.bsky.social');
 });
 
+it('falls back to a navigable bsky.app URL when chip_mentions resolution finds no profile', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        '*app.bsky.actor.getProfiles*' => Http::response(['profiles' => []]),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '', 'display_name' => '', 'avatar' => '', 'profile_url' => 'did:plc:ghost'],
+            ],
+        ],
+    ];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    $mention = $resolved[0]['chip_mentions'][0];
+
+    expect($mention['handle'])->toBe('did:plc:ghost')
+        ->and($mention['display_name'])->toBe('did:plc:ghost')
+        ->and($mention['avatar'])->toBe('')
+        ->and($mention['profile_url'])->toBe('https://bsky.app/profile/did:plc:ghost');
+});
+
+it('falls back to a navigable bsky.app URL when the getProfiles request throws', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        '*app.bsky.actor.getProfiles*' => Http::response(['error' => 'ServerError'], 500),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '', 'display_name' => '', 'avatar' => '', 'profile_url' => 'did:plc:ghost'],
+            ],
+        ],
+    ];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    $mention = $resolved[0]['chip_mentions'][0];
+
+    expect($mention['handle'])->toBe('did:plc:ghost')
+        ->and($mention['display_name'])->toBe('did:plc:ghost')
+        ->and($mention['profile_url'])->toBe('https://bsky.app/profile/did:plc:ghost');
+});
+
 it('strips unsafe avatar URL schemes when resolving chip_mentions', function () {
     $user = User::factory()->create();
     $account = SocialAccount::factory()->create([

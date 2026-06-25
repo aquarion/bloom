@@ -91,7 +91,7 @@ class MastodonFeedService
 
         $acctsToCheck = [];
         foreach ($normalisedPosts as $post) {
-            foreach ($post['chip_mentions'] ?? [] as $mention) {
+            foreach ($this->collectChipMentions($post) as $mention) {
                 if (($mention['avatar'] ?? '') === '' && ! empty($mention['handle'])) {
                     $acct = ltrim($mention['handle'], '@');
                     $acctsToCheck[$acct] = true;
@@ -139,24 +139,56 @@ class MastodonFeedService
             }
         }
 
-        return array_map(function (array $post) use ($resolved) {
-            $post['chip_mentions'] = array_map(function (array $mention) use ($resolved) {
-                $acct = ltrim($mention['handle'] ?? '', '@');
-                $profile = $resolved[$acct] ?? null;
+        $mapMention = function (array $mention) use ($resolved): array {
+            $acct = ltrim($mention['handle'] ?? '', '@');
+            $profile = $resolved[$acct] ?? null;
 
-                if (! is_array($profile)) {
-                    return $mention;
-                }
+            if (! is_array($profile)) {
+                return $mention;
+            }
 
-                return [
-                    ...$mention,
-                    'display_name' => $profile['display_name'] ?: $mention['display_name'],
-                    'avatar' => $profile['avatar'] ?? '',
-                ];
-            }, $post['chip_mentions'] ?? []);
+            return [
+                ...$mention,
+                'display_name' => $profile['display_name'] ?: $mention['display_name'],
+                'avatar' => $profile['avatar'] ?? '',
+            ];
+        };
+
+        return array_map(function (array $post) use ($mapMention) {
+            $post['chip_mentions'] = array_map($mapMention, $post['chip_mentions'] ?? []);
+
+            if (isset($post['reply_to']) && is_array($post['reply_to'])) {
+                $post['reply_to']['chip_mentions'] = array_map($mapMention, $post['reply_to']['chip_mentions'] ?? []);
+            }
+
+            if (isset($post['quoted_post']) && is_array($post['quoted_post'])) {
+                $post['quoted_post']['chip_mentions'] = array_map($mapMention, $post['quoted_post']['chip_mentions'] ?? []);
+            }
 
             return $post;
         }, $normalisedPosts);
+    }
+
+    /**
+     * Collect chip_mentions from a post's top-level body plus its nested reply_to/quoted_post
+     * bodies (which receive the same mention-classification treatment as the main body).
+     *
+     * @param  array<string, mixed>  $post
+     * @return array<int, array<string, mixed>>
+     */
+    private function collectChipMentions(array $post): array
+    {
+        $mentions = $post['chip_mentions'] ?? [];
+
+        if (isset($post['reply_to']) && is_array($post['reply_to'])) {
+            $mentions = array_merge($mentions, $post['reply_to']['chip_mentions'] ?? []);
+        }
+
+        if (isset($post['quoted_post']) && is_array($post['quoted_post'])) {
+            $mentions = array_merge($mentions, $post['quoted_post']['chip_mentions'] ?? []);
+        }
+
+        return $mentions;
     }
 
     private function fetchTimeline(SocialAccount $account, array $params): array

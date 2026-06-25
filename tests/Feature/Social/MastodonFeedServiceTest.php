@@ -176,3 +176,83 @@ it('strips unsafe avatar URL schemes when resolving mastodon chip_mentions', fun
 
     expect($resolved[0]['chip_mentions'][0]['avatar'])->toBe('');
 });
+
+it('resolves mastodon chip_mentions nested inside reply_to and quoted_post', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://mastodon.example',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        'mastodon.example/api/v1/accounts/lookup*' => Http::sequence()
+            ->push(['display_name' => 'Alice', 'avatar' => 'https://mastodon.example/avatars/alice.jpg'])
+            ->push(['display_name' => 'Bob', 'avatar' => 'https://mastodon.example/avatars/bob.jpg']),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [],
+            'reply_to' => [
+                'author_name' => 'Someone',
+                'chip_mentions' => [
+                    ['handle' => '@alice', 'display_name' => '@alice', 'avatar' => '', 'profile_url' => 'https://mastodon.example/@alice'],
+                ],
+            ],
+            'quoted_post' => [
+                'author_name' => 'Someone Else',
+                'chip_mentions' => [
+                    ['handle' => '@bob', 'display_name' => '@bob', 'avatar' => '', 'profile_url' => 'https://mastodon.example/@bob'],
+                ],
+            ],
+        ],
+    ];
+
+    $service = new MastodonFeedService;
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved[0]['reply_to']['chip_mentions'][0]['display_name'])->toBe('Alice')
+        ->and($resolved[0]['reply_to']['chip_mentions'][0]['avatar'])->toBe('https://mastodon.example/avatars/alice.jpg')
+        ->and($resolved[0]['reply_to']['chip_mentions'][0]['handle'])->toBe('@alice')
+        ->and($resolved[0]['quoted_post']['chip_mentions'][0]['display_name'])->toBe('Bob')
+        ->and($resolved[0]['quoted_post']['chip_mentions'][0]['avatar'])->toBe('https://mastodon.example/avatars/bob.jpg')
+        ->and($resolved[0]['quoted_post']['chip_mentions'][0]['handle'])->toBe('@bob');
+});
+
+it('does not crash when mastodon reply_to and quoted_post are null', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://mastodon.example',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        'mastodon.example/api/v1/accounts/lookup*' => Http::response([
+            'display_name' => 'Alice',
+            'avatar' => 'https://mastodon.example/avatars/alice.jpg',
+        ]),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '@alice', 'display_name' => '@alice', 'avatar' => '', 'profile_url' => 'https://mastodon.example/@alice'],
+            ],
+            'reply_to' => null,
+            'quoted_post' => null,
+        ],
+    ];
+
+    $service = new MastodonFeedService;
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved[0]['chip_mentions'][0]['display_name'])->toBe('Alice')
+        ->and($resolved[0]['reply_to'])->toBeNull()
+        ->and($resolved[0]['quoted_post'])->toBeNull();
+});

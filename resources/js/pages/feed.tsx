@@ -6,6 +6,7 @@ import { flushSync } from 'react-dom';
 import { Attribution } from '@/components/feed/Attribution';
 import { DebugPanel } from '@/components/feed/DebugPanel';
 import { KeyboardShortcutsOverlay } from '@/components/feed/KeyboardShortcutsOverlay';
+import { MentionChips } from '@/components/feed/MentionChips';
 import { PostBackground } from '@/components/feed/PostBackground';
 import { PostContent } from '@/components/feed/PostContent';
 import { ProgressBar } from '@/components/feed/ProgressBar';
@@ -265,6 +266,9 @@ export default function Feed({
 
                     <div className="pointer-events-auto flex items-center gap-2 px-4 pt-2 pb-3">
                         <Attribution post={current} />
+                        {current.chip_mentions.length > 0 && (
+                            <MentionChips mentions={current.chip_mentions} />
+                        )}
                         <button
                             type="button"
                             onClick={handleGoBack}

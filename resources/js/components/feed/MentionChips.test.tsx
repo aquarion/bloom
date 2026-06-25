@@ -32,3 +32,16 @@ it('links each chip to its profile_url in a new tab', () => {
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
 });
+
+it('dedupes mentions sharing the same profile_url', () => {
+    render(
+        <MentionChips
+            mentions={[
+                makeMention('@alice'),
+                makeMention('@alice'),
+                makeMention('@bob'),
+            ]}
+        />,
+    );
+    expect(screen.getAllByRole('link')).toHaveLength(2);
+});

@@ -540,9 +540,6 @@ export function PostAnimator({
                         ))}
                     </div>
                 )}
-                {post.chip_mentions.length > 0 && (
-                    <MentionChips mentions={post.chip_mentions} />
-                )}
             </div>
         </div>
     );

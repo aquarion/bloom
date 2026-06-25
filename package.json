@@ -56,7 +56,7 @@
 		"@tailwindcss/vite": "^4.1.11",
 		"@types/react": "^19.2.16",
 		"@types/react-dom": "^19.2.0",
-		"axios": "^1.16.0",
+		"axios": "^1.18.1",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"concurrently": "^10.0",

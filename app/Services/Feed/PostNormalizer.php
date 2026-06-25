@@ -136,6 +136,21 @@ class PostNormalizer
         ];
     }
 
+    /**
+     * @return array{body: string, chip_mentions: array}
+     */
+    private function buildNestedMastodonBody(string $content, array $mentions): array
+    {
+        // No grandparent post is fetched for replies/quotes, so there's no
+        // origin handle to compare a leading mention against here.
+        $extracted = $this->extractBody($content, $mentions, null);
+
+        return [
+            'body' => $this->truncateBody($extracted['body']),
+            'chip_mentions' => $extracted['chip_mentions'],
+        ];
+    }
+
     private function mastodonReplyTo(?array $parent, string $fallbackHost): ?array
     {
         if ($parent === null) {
@@ -151,14 +166,7 @@ class PostNormalizer
                 : "@{$parent['account']['acct']}@{$parentHost}",
             'author_avatar' => $this->safeUrl($parent['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($parent['url'] ?? ''),
-            ...(function () use ($parent) {
-                $extracted = $this->extractBody($parent['content'], $parent['mentions'] ?? [], null);
-
-                return [
-                    'body' => $this->truncateBody($extracted['body']),
-                    'chip_mentions' => $extracted['chip_mentions'],
-                ];
-            })(),
+            ...$this->buildNestedMastodonBody($parent['content'], $parent['mentions'] ?? []),
             'created_at' => $parent['created_at'] ?? null,
         ];
     }
@@ -184,14 +192,7 @@ class PostNormalizer
             'author_handle' => str_contains($acct, '@') ? "@{$acct}" : "@{$acct}@{$quoteHost}",
             'author_avatar' => $this->safeUrl($raw['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($raw['url'] ?? ''),
-            ...(function () use ($raw) {
-                $extracted = $this->extractBody($raw['content'] ?? '', $raw['mentions'] ?? [], null);
-
-                return [
-                    'body' => $this->truncateBody($extracted['body']),
-                    'chip_mentions' => $extracted['chip_mentions'],
-                ];
-            })(),
+            ...$this->buildNestedMastodonBody($raw['content'] ?? '', $raw['mentions'] ?? []),
             'created_at' => $raw['created_at'] ?? null,
         ];
     }

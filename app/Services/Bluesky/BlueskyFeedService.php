@@ -94,7 +94,7 @@ class BlueskyFeedService
                     $resolved = [
                         'handle' => $profile['handle'] ?? null,
                         'displayName' => $profile['displayName'] ?? null,
-                        'avatar' => $profile['avatar'] ?? null,
+                        'avatar' => $this->safeUrl($profile['avatar'] ?? null) ?: null,
                     ];
                     $profiles[$did] = $resolved;
                     $fetched[$did] = true;
@@ -251,5 +251,16 @@ class BlueskyFeedService
 
             return $call($tokens['access_token']);
         }
+    }
+
+    private function safeUrl(?string $url): string
+    {
+        if (! $url) {
+            return '';
+        }
+
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+
+        return in_array($scheme, ['https', 'http'], true) ? $url : '';
     }
 }

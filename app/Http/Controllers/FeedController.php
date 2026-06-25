@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Role;
 use App\Services\Feed\FeedAggregator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -14,7 +15,7 @@ class FeedController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $result = $this->aggregator->fetch($user);
+        $result = $this->aggregator->fetch($user, mentionsEnabled: $user->hasRole(Role::BetaTester));
 
         if ($request->wantsJson()) {
             return response()->json($result);

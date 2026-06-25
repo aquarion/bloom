@@ -1916,3 +1916,67 @@ it('strips a trailing mention from a mastodon reply_to body to a chip', function
         ->and($post['reply_to']['chip_mentions'])->toHaveCount(1)
         ->and($post['reply_to']['chip_mentions'][0]['handle'])->toBe('@bob');
 });
+
+it('classifies a single leading bluesky mention as inline by default', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => [
+                'text' => '@alice.bsky.social thanks for the boost',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+                'facets' => [
+                    [
+                        'index' => ['byteStart' => 0, 'byteEnd' => 18],
+                        'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:alice']],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toBe('@alice.bsky.social thanks for the boost')
+        ->and($post['chip_mentions'])->toBe([]);
+});
+
+it('strips a trailing bluesky mention to a chip', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => [
+                'text' => 'check this out @alice.bsky.social',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+                'facets' => [
+                    [
+                        'index' => ['byteStart' => 15, 'byteEnd' => 34],
+                        'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:alice']],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toBe('check this out')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['handle'])->toBe('')
+        ->and($post['chip_mentions'][0]['profile_url'])->toBe('did:plc:alice');
+});
+
+it('returns no chip_mentions when bluesky facets are absent', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => ['text' => 'hello world', 'createdAt' => '2024-01-15T10:00:00.000Z'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['chip_mentions'])->toBe([]);
+});

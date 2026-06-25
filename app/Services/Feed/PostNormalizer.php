@@ -94,6 +94,11 @@ class PostNormalizer
 
         $labelData = $this->blueskyLabels($post);
 
+        $originDid = ($feedPost['reply']['parent']['author']['did'] ?? null)
+            ?? ($this->blueskyQuotedAuthorDid($post['embed'] ?? null));
+        $mentionResult = $this->classifyBlueskyMentions($text, $record['facets'] ?? [], $originDid);
+        $body = $this->truncateBody($this->stripHashtags($this->stripUrls($mentionResult['body'])), config('feed.body_limit', 1024));
+
         return [
             'id' => "bluesky_{$post['uri']}",
             'source' => 'bluesky',
@@ -102,7 +107,7 @@ class PostNormalizer
             'author_handle' => '@'.$author['handle'],
             'author_avatar' => $this->safeUrl($author['avatar'] ?? ''),
             'author_banner' => $this->safeUrl($author['banner'] ?? '') ?: null,
-            'body' => $this->truncateBody($this->stripHashtags($this->stripUrls($text)), config('feed.body_limit', 1024)),
+            'body' => $body,
             'media' => $this->normaliseBlueskyMedia($post['embed'] ?? null),
             'created_at' => $record['createdAt'],
             'original_url' => $this->blueskyPostUrl($author['handle'], $post['uri']),
@@ -119,6 +124,7 @@ class PostNormalizer
             'hashtags' => $hashtags,
             'cw_text' => $labelData['cw_text'],
             'sensitive_media' => $labelData['sensitive_media'],
+            'chip_mentions' => $mentionResult['chip_mentions'],
         ];
     }
 
@@ -252,6 +258,19 @@ class PostNormalizer
         ];
     }
 
+    private function blueskyQuotedAuthorDid(?array $embed): ?string
+    {
+        if ($embed === null) {
+            return null;
+        }
+
+        $type = $embed['$type'] ?? '';
+        $record = $type === 'app.bsky.embed.record#view' ? ($embed['record'] ?? null)
+            : ($type === 'app.bsky.embed.recordWithMedia#view' ? ($embed['record']['record'] ?? null) : null);
+
+        return $record['author']['did'] ?? null;
+    }
+
     private function normaliseMastodonMedia(array $attachments): array
     {
         return array_values(array_filter(array_map(function ($a) {
@@ -358,6 +377,69 @@ class PostNormalizer
                 'display_name' => '@'.$apiMention['acct'],
                 'avatar' => '',
                 'profile_url' => $this->safeUrl($apiMention['url']),
+            ];
+
+            $start = $mention['start'] - $removed;
+            $length = $mention['end'] - $mention['start'];
+            $body = substr($body, 0, $start).substr($body, $start + $length);
+            $removed += $length;
+        }
+
+        $body = trim(preg_replace('/[ \t]{2,}/', ' ', $body) ?? $body);
+
+        return ['body' => $body, 'chip_mentions' => $chipMentions];
+    }
+
+    /**
+     * @param  array<int, array{index?: array{byteStart?: int, byteEnd?: int}, features?: array<int, array{'$type'?: string, did?: string}>}>  $facets
+     * @return array{body: string, chip_mentions: array<int, array{handle: string, display_name: string, avatar: string, profile_url: string}>}
+     */
+    private function classifyBlueskyMentions(string $text, array $facets, ?string $originDid): array
+    {
+        $detected = [];
+
+        foreach ($facets as $facet) {
+            $did = null;
+            foreach ($facet['features'] ?? [] as $feature) {
+                if (($feature['$type'] ?? '') === 'app.bsky.richtext.facet#mention' && ! empty($feature['did'])) {
+                    $did = $feature['did'];
+                    break;
+                }
+            }
+
+            if ($did === null) {
+                continue;
+            }
+
+            $detected[] = [
+                'id' => $did,
+                'start' => $facet['index']['byteStart'] ?? 0,
+                'end' => $facet['index']['byteEnd'] ?? 0,
+            ];
+        }
+
+        if (empty($detected)) {
+            return ['body' => $text, 'chip_mentions' => []];
+        }
+
+        $classified = $this->mentionClassifier->classify($text, $detected, $originDid);
+
+        $chipMentions = [];
+        $body = $text;
+        $removed = 0;
+
+        foreach ($classified as $mention) {
+            if ($mention['role'] !== MentionClassifier::ROLE_CHIP) {
+                continue;
+            }
+
+            // Placeholder values — a later task resolves the real handle/display_name/avatar
+            // via a batched getProfiles lookup keyed on this did (stashed in profile_url).
+            $chipMentions[] = [
+                'handle' => '',
+                'display_name' => '',
+                'avatar' => '',
+                'profile_url' => $mention['id'],
             ];
 
             $start = $mention['start'] - $removed;

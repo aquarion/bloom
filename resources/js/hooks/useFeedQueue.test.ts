@@ -271,17 +271,47 @@ it('goBack does not modify the forward queue', () => {
     expect(result.current.queue.map((p) => p.id)).toEqual(queueBefore);
 });
 
+it('canGoBack is false when history is empty', () => {
+    const posts = [makePost('1'), makePost('2')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    expect(result.current.canGoBack).toBe(false);
+});
+
+it('canGoBack is true after advancing at least once', () => {
+    const posts = [makePost('1'), makePost('2')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    act(() => result.current.advance());
+    expect(result.current.canGoBack).toBe(true);
+});
+
+it('canGoBack returns to false once history is exhausted by goBack', () => {
+    const posts = [makePost('1'), makePost('2')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    act(() => result.current.advance());
+    act(() => result.current.goBack());
+    expect(result.current.canGoBack).toBe(false);
+});
+
 it('caps history at 50 posts', () => {
     const posts = Array.from({ length: 60 }, (_, i) => makePost(String(i)));
     const { result } = renderHook(() =>
         useFeedQueue({ initialPosts: posts, initialCursor: null }),
     );
+
     for (let i = 0; i < 55; i++) {
         act(() => result.current.advance());
     }
+
     for (let i = 0; i < 50; i++) {
         act(() => result.current.goBack());
     }
+
     const idBefore = result.current.current?.id;
     act(() => result.current.goBack());
     expect(result.current.current?.id).toBe(idBefore);

@@ -122,7 +122,14 @@ class BlueskyFeedService
             $profile = $profiles[$did] ?? null;
 
             if (! is_array($profile) || empty($profile['handle'])) {
-                return $mention;
+                // Unresolved — still give the frontend a navigable, non-blank chip
+                // rather than a raw `did:` URI with an empty name.
+                return [
+                    'handle' => $mention['handle'] ?: $did,
+                    'display_name' => $mention['display_name'] ?: $did,
+                    'avatar' => $mention['avatar'] ?? '',
+                    'profile_url' => str_starts_with($did, 'did:') ? "https://bsky.app/profile/{$did}" : $did,
+                ];
             }
 
             return [

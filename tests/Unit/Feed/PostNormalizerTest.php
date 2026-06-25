@@ -319,6 +319,7 @@ it('sets quoted_post for bluesky record embeds', function () {
         'author_avatar' => 'https://cdn.bsky.app/quoted.jpg',
         'original_url' => 'https://bsky.app/profile/quoted.bsky.social/post/quoteid',
         'body' => 'quoted body',
+        'chip_mentions' => [],
         'created_at' => null,
     ]);
 });
@@ -351,6 +352,7 @@ it('sets quoted_post for bluesky recordWithMedia embeds', function () {
         'author_avatar' => 'https://cdn.bsky.app/quoted.jpg',
         'original_url' => 'https://bsky.app/profile/quoted.bsky.social/post/mediaquote',
         'body' => 'quoted body with media',
+        'chip_mentions' => [],
         'created_at' => null,
     ]);
 });
@@ -873,6 +875,7 @@ it('includes author identity and url in bluesky reply_to', function () {
         'author_avatar' => 'https://cdn.bsky.app/bob.jpg',
         'original_url' => 'https://bsky.app/profile/bob.bsky.social/post/parent456',
         'body' => 'parent body text',
+        'chip_mentions' => [],
         'created_at' => null,
     ]);
 });
@@ -2011,4 +2014,36 @@ it('returns no chip_mentions when bluesky facets are absent', function () {
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
     expect($post['chip_mentions'])->toBe([]);
+});
+
+it('strips a trailing mention from a bluesky reply_to body to a chip', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => ['text' => 'reply', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+        ],
+        'reply' => [
+            'parent' => [
+                'uri' => 'at://did:plc:alice/app.bsky.feed.post/0',
+                'author' => ['handle' => 'alice.bsky.social', 'displayName' => 'Alice', 'did' => 'did:plc:alice'],
+                'record' => [
+                    'text' => 'hello @bob.bsky.social',
+                    'createdAt' => '2024-01-15T10:00:00.000Z',
+                    'facets' => [
+                        [
+                            'index' => ['byteStart' => 6, 'byteEnd' => 23],
+                            'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:bob']],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['reply_to']['body'])->toBe('hello')
+        ->and($post['reply_to']['chip_mentions'])->toHaveCount(1)
+        ->and($post['reply_to']['chip_mentions'][0]['profile_url'])->toBe('did:plc:bob');
 });

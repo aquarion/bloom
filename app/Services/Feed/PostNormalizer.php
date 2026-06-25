@@ -96,6 +96,8 @@ class PostNormalizer
 
         $originDid = ($feedPost['reply']['parent']['author']['did'] ?? null)
             ?? ($this->blueskyQuotedAuthorDid($post['embed'] ?? null));
+        // Must classify on the raw $text — facet byteStart/byteEnd offsets index into the
+        // untransformed text, and stripping hashtags/URLs first would shift those positions.
         $mentionResult = $this->classifyBlueskyMentions($text, $record['facets'] ?? [], $originDid);
         $body = $this->truncateBody($this->stripHashtags($this->stripUrls($mentionResult['body'])), config('feed.body_limit', 1024));
 

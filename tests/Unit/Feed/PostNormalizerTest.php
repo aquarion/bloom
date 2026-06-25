@@ -1967,6 +1967,38 @@ it('strips a trailing bluesky mention to a chip', function () {
         ->and($post['chip_mentions'][0]['profile_url'])->toBe('did:plc:alice');
 });
 
+it('keeps bluesky mention byte offsets correct when a multibyte character precedes a stripped hashtag', function () {
+    // '🎉' is 4 bytes in UTF-8. If hashtag-stripping ran before mention classification,
+    // the #test hashtag's removal would shift byte offsets for anything after it,
+    // corrupting the mention's byteStart/byteEnd and stripping the wrong text.
+    $text = '🎉 #test check this out @alice.bsky.social';
+    $mentionByteStart = strlen('🎉 #test check this out ');
+    $mentionByteEnd = $mentionByteStart + strlen('@alice.bsky.social');
+
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => [
+                'text' => $text,
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+                'facets' => [
+                    [
+                        'index' => ['byteStart' => $mentionByteStart, 'byteEnd' => $mentionByteEnd],
+                        'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:alice']],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toBe('🎉 check this out')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['profile_url'])->toBe('did:plc:alice');
+});
+
 it('returns no chip_mentions when bluesky facets are absent', function () {
     $feedPost = [
         'post' => [

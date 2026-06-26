@@ -54,7 +54,8 @@ function ContextPanel({
             <p className="whitespace-pre-wrap">{body}</p>
             {chip_mentions.length > 0 && (
                 <div className="mt-2">
-                    <MentionChips mentions={chip_mentions} />
+                    {/* ContextPanel is narrow (max-w-[40ch]) — cap visible chips so a heavily-mentioned reply/quote doesn't blow out the panel width. */}
+                    <MentionChips mentions={chip_mentions} maxVisible={2} />
                 </div>
             )}
         </>

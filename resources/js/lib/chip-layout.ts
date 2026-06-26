@@ -27,7 +27,24 @@ export interface ChipLayoutResult {
  * the last mention loses its full chip first, then the one before it, and
  * so on, until the row fits.
  */
-export function computeChipLayout({
+export function computeChipLayout(input: ChipLayoutInput): ChipLayoutResult {
+    const result = computeLayout(input);
+
+    // modes.length + hiddenCount must always account for every input mention
+    // exactly once — this is the invariant every caller (MentionChips) relies
+    // on when zipping modes back against the mention list by index.
+    if (import.meta.env.DEV) {
+        console.assert(
+            result.modes.length + result.hiddenCount ===
+                input.fullWidths.length,
+            'computeChipLayout: modes.length + hiddenCount must equal fullWidths.length',
+        );
+    }
+
+    return result;
+}
+
+function computeLayout({
     fullWidths,
     availableWidth,
     avatarWidth,

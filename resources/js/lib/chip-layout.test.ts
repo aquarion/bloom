@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { ChipLayoutInput } from './chip-layout';
 import { computeChipLayout } from './chip-layout';
 
 describe('computeChipLayout', () => {
@@ -115,5 +116,88 @@ describe('computeChipLayout', () => {
         });
 
         expect(result).toEqual({ modes: [], hiddenCount: 3 });
+    });
+
+    it('treats an exact width match as fitting (inclusive boundary)', () => {
+        // 2 full (200) + 1 gap (8) = 208, exactly equal to availableWidth.
+        const result = computeChipLayout({
+            fullWidths: [100, 100],
+            availableWidth: 208,
+            avatarWidth: 40,
+            gap: 8,
+            badgeWidth: 56,
+        });
+
+        expect(result).toEqual({ modes: ['full', 'full'], hiddenCount: 0 });
+    });
+
+    it('hides the single mention entirely (with a hidden count, not a crash) when availableWidth is negative', () => {
+        // n=1 still has no gap term, but the badge-reservation fallback kicks
+        // in below zero: nothing fits, so the lone mention is fully hidden.
+        // The caller (MentionChips) still renders a "+1" badge for it.
+        const result = computeChipLayout({
+            fullWidths: [50],
+            availableWidth: -10,
+            avatarWidth: 40,
+            gap: 8,
+            badgeWidth: 56,
+        });
+
+        expect(result).toEqual({ modes: [], hiddenCount: 1 });
+    });
+
+    it('maintains modes.length + hiddenCount === fullWidths.length across a range of inputs', () => {
+        const cases: ChipLayoutInput[] = [
+            {
+                fullWidths: [],
+                availableWidth: 100,
+                avatarWidth: 40,
+                gap: 8,
+                badgeWidth: 56,
+            },
+            {
+                fullWidths: [50],
+                availableWidth: 10,
+                avatarWidth: 40,
+                gap: 8,
+                badgeWidth: 56,
+            },
+            {
+                fullWidths: [80, 80, 80, 80, 80],
+                availableWidth: 120,
+                avatarWidth: 40,
+                gap: 8,
+                badgeWidth: 56,
+            },
+            {
+                fullWidths: [30, 60, 90, 120],
+                availableWidth: 250,
+                avatarWidth: 40,
+                gap: 8,
+                badgeWidth: 56,
+            },
+            {
+                fullWidths: [200, 5, 5, 5, 5, 5, 5],
+                availableWidth: 50,
+                avatarWidth: 40,
+                gap: 8,
+                badgeWidth: 56,
+            },
+            {
+                fullWidths: [10, 10, 10],
+                availableWidth: 0,
+                avatarWidth: 40,
+                gap: 8,
+                badgeWidth: 56,
+            },
+        ];
+
+        for (const input of cases) {
+            const result = computeChipLayout(input);
+
+            expect(result.modes.length + result.hiddenCount).toBe(
+                input.fullWidths.length,
+            );
+        }
     });
 });

@@ -1,6 +1,6 @@
 import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
-import { Quote, Reply } from 'lucide-react';
+import { AtSign, Quote, Reply } from 'lucide-react';
 import type React from 'react';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { pickTemplate, SplitText } from '@/lib/animations';
@@ -53,9 +53,9 @@ function ContextPanel({
             </div>
             <p className="whitespace-pre-wrap">{body}</p>
             {chip_mentions.length > 0 && (
-                <div className="mt-2">
-                    {/* ContextPanel is narrow (max-w-[40ch]) — cap visible chips so a heavily-mentioned reply/quote doesn't blow out the panel width. */}
-                    <MentionChips mentions={chip_mentions} maxVisible={2} />
+                <div className="mt-2 flex items-center gap-2">
+                    <AtSign className="size-4 flex-shrink-0 text-white/30" />
+                    <MentionChips mentions={chip_mentions} />
                 </div>
             )}
         </>

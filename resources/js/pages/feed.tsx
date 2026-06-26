@@ -1,6 +1,14 @@
 import { Head, Link } from '@inertiajs/react';
 import { gsap } from 'gsap';
-import { Eye, EyeOff, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import {
+    AtSign,
+    Eye,
+    EyeOff,
+    Pause,
+    Play,
+    SkipBack,
+    SkipForward,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Attribution } from '@/components/feed/Attribution';
@@ -267,7 +275,12 @@ export default function Feed({
                     <div className="pointer-events-auto flex items-center gap-2 px-4 pt-2 pb-3">
                         <Attribution post={current} />
                         {current.chip_mentions.length > 0 && (
-                            <MentionChips mentions={current.chip_mentions} />
+                            <>
+                                <AtSign className="size-4 flex-shrink-0 text-white/30" />
+                                <MentionChips
+                                    mentions={current.chip_mentions}
+                                />
+                            </>
                         )}
                         <button
                             type="button"

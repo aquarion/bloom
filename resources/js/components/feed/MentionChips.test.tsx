@@ -45,3 +45,27 @@ it('dedupes mentions sharing the same profile_url', () => {
     );
     expect(screen.getAllByRole('link')).toHaveLength(2);
 });
+
+it('caps rendered chips to maxVisible and shows a "+N more" badge for the rest', () => {
+    render(
+        <MentionChips
+            mentions={[
+                makeMention('@alice'),
+                makeMention('@bob'),
+                makeMention('@carol'),
+            ]}
+            maxVisible={2}
+        />,
+    );
+    expect(screen.getAllByRole('link')).toHaveLength(2);
+    expect(screen.getByText('+1 more')).toBeInTheDocument();
+});
+
+it('does not show a "+N more" badge when maxVisible is unset', () => {
+    render(
+        <MentionChips
+            mentions={[makeMention('@alice'), makeMention('@bob')]}
+        />,
+    );
+    expect(screen.queryByText(/more/)).not.toBeInTheDocument();
+});

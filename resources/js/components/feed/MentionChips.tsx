@@ -13,16 +13,29 @@ function dedupeByProfileUrl(mentions: Mention[]): Mention[] {
     return [...seen.values()];
 }
 
-export function MentionChips({ mentions }: { mentions: Mention[] }) {
+export function MentionChips({
+    mentions,
+    maxVisible,
+}: {
+    mentions: Mention[];
+    /** Caps the number of rendered chips, showing a "+N more" badge for the rest. Unset = show all (no cap). */
+    maxVisible?: number;
+}) {
     const uniqueMentions = dedupeByProfileUrl(mentions);
 
     if (uniqueMentions.length === 0) {
         return null;
     }
 
+    const visibleMentions =
+        maxVisible !== undefined
+            ? uniqueMentions.slice(0, maxVisible)
+            : uniqueMentions;
+    const hiddenCount = uniqueMentions.length - visibleMentions.length;
+
     return (
         <div className="flex flex-wrap items-center gap-2">
-            {uniqueMentions.map((mention) => (
+            {visibleMentions.map((mention) => (
                 <a
                     key={mention.profile_url}
                     href={mention.profile_url}
@@ -38,6 +51,11 @@ export function MentionChips({ mentions }: { mentions: Mention[] }) {
                     />
                 </a>
             ))}
+            {hiddenCount > 0 && (
+                <span className="flex-shrink-0 rounded-full bg-white/10 px-2 py-1 text-white/50 text-xs">
+                    +{hiddenCount} more
+                </span>
+            )}
         </div>
     );
 }

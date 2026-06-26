@@ -36,8 +36,11 @@ function reducer(state: State, action: Action): State {
 
             const prev = state.history[state.history.length - 1];
             const history = state.history.slice(0, -1);
+            const queue = state.current
+                ? [state.current, ...state.queue]
+                : state.queue;
 
-            return { ...state, current: prev, history };
+            return { ...state, current: prev, queue, history };
         }
 
         case 'enqueue': {

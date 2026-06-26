@@ -261,15 +261,14 @@ it('goBack restores the previous post after one advance', () => {
     expect(result.current.current?.id).toBe('1');
 });
 
-it('goBack does not modify the forward queue', () => {
+it('goBack restores the departed post to the front of the queue', () => {
     const posts = [makePost('1'), makePost('2'), makePost('3')];
     const { result } = renderHook(() =>
         useFeedQueue({ initialPosts: posts, initialCursor: null }),
     );
     act(() => result.current.advance());
-    const queueBefore = result.current.queue.map((p) => p.id);
     act(() => result.current.goBack());
-    expect(result.current.queue.map((p) => p.id)).toEqual(queueBefore);
+    expect(result.current.queue.map((p) => p.id)).toEqual(['2', '3']);
 });
 
 it('canGoBack is false when history is empty', () => {
@@ -287,6 +286,20 @@ it('canGoBack is true after advancing at least once', () => {
     );
     act(() => result.current.advance());
     expect(result.current.canGoBack).toBe(true);
+});
+
+it('goBack then advance again restores the original order without dropping posts', () => {
+    const posts = [makePost('1'), makePost('2'), makePost('3')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+
+    act(() => result.current.advance()); // current: 2, queue: [3]
+    act(() => result.current.goBack()); // current: 1, queue should become [2, 3]
+    act(() => result.current.advance()); // current: 2, queue: [3]
+
+    expect(result.current.current?.id).toBe('2');
+    expect(result.current.queue.map((p) => p.id)).toEqual(['3']);
 });
 
 it('canGoBack returns to false once history is exhausted by goBack', () => {

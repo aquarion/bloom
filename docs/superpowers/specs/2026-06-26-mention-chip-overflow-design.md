@@ -101,11 +101,25 @@ export function MentionAvatarChip({ mention }: { mention: Mention }) {
 - `resources/js/components/feed/PostAnimator.tsx`: `ContextPanel`'s `<MentionChips mentions={chip_mentions} maxVisible={2} />` → `<MentionChips mentions={chip_mentions} />`. Remove the now-stale comment about capping to 2 for the narrow panel.
 - `resources/js/pages/feed.tsx`: the attribution row's `MentionChips` needs to actually have a bounded width to measure against. Wrap it (or have `MentionChips`' own outer container default to) `min-w-0 flex-1` so it shrinks to share space with `Attribution` and the nav buttons rather than growing unbounded — this is the root cause of today's wrap-to-2-lines behavior, not just a `MentionChips`-internal issue. `min-w-0 flex-1` is harmless when `MentionChips` is used in a block context (the preview card), since those properties only take effect inside a flex parent.
 
-### 5. Testing
+### 5. `@` icon prefix
+
+Mirrors the existing relationship icons in `Attribution.tsx` (`Quote`, `Repeat2` from `lucide-react`, both rendered `size-4 flex-shrink-0 text-white/30`) so the mention-chip row reads as "these accounts are mentioned" rather than appearing unexplained next to the post's own attribution.
+
+Add a fixed-width `AtSign` icon (`lucide-react`, same `size-4 flex-shrink-0 text-white/30` styling) immediately before each `<MentionChips>` usage, as a sibling in the surrounding markup — *not* inside `MentionChips` itself:
+
+- `resources/js/pages/feed.tsx`: in the attribution row, before `<MentionChips mentions={current.chip_mentions} />`.
+- `resources/js/components/feed/PostAnimator.tsx`: in `ContextPanel`'s rendered content, before `<MentionChips mentions={chip_mentions} />`.
+
+Both render only when `chip_mentions.length > 0` (the existing condition already guarding each `<MentionChips>` call) — the icon and the chip row appear and disappear together.
+
+Because the icon is a sibling element outside `MentionChips`' own measured container (not inside the `ref`'d div that `ResizeObserver` watches), no change is needed to `computeChipLayout` or the measurement logic — the icon simply takes its fixed width out of the flex row first, and `MentionChips`' container naturally measures whatever width is left over, the same way it already shares space with `Attribution` and the nav buttons.
+
+### 6. Testing
 
 - `resources/js/lib/chip-layout.test.ts` (new): exhaustive cases for `computeChipLayout` — all fit full; rightmost-N collapse to avatar one at a time as width shrinks; all-avatar still doesn't fit → hide-from-right + badge; single mention; zero mentions; degenerate too-narrow-for-anything case.
 - `resources/js/components/feed/MentionChips.test.tsx` (rewrite): the existing jsdom `ResizeObserver` polyfill (`resources/js/test/setup.ts`) never fires its callback, so tests drive the *initial* synchronous measurement path — `vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get')` (or `getBoundingClientRect`) stubbed per-test to simulate specific measured/available widths, then assert which mentions render as full chips (`getByText` on display name) vs avatar-only (`getByTitle`, no display name text in the DOM) vs hidden (badge text). Keep the existing dedupe-by-`profile_url` test as-is.
 - `resources/js/components/feed/MentionAvatarChip.test.tsx` (new): renders an avatar image with the right `title`/`alt`/`href`, falls back to the `bloom` placeholder when `avatar` is empty (mirroring `AuthorChip`'s existing fallback test, if one exists).
+- No new test for the `@` icon itself — it's a one-line conditional render alongside an existing condition, covered indirectly by any existing snapshot/render test of `feed.tsx`/`ContextPanel`; not worth a dedicated assertion.
 
 ## Out of scope
 

@@ -94,3 +94,100 @@ it('creates a new matomo site when none matches app url', function () {
 
     expect($config['site_id'])->toBe(7);
 });
+
+it('creates missing goals', function () {
+    Http::fake([
+        'stat.istic.net/*' => function ($request) {
+            $method = $request->data()['method'] ?? '';
+
+            if ($method === 'SitesManager.getAllSites') {
+                return Http::response([['idsite' => '3', 'main_url' => 'https://bloom.example.com']]);
+            }
+
+            if ($method === 'Goals.getGoals') {
+                return Http::response([]);
+            }
+
+            if ($method === 'Goals.addGoal') {
+                return Http::response(['value' => '5']);
+            }
+
+            return Http::response([], 200);
+        },
+    ]);
+
+    $config = (new MatomoService)->getConfig();
+
+    expect($config['goals']['registration'])->toBe(5);
+});
+
+it('uses existing goals instead of creating new ones', function () {
+    Http::fake([
+        'stat.istic.net/*' => function ($request) {
+            $method = $request->data()['method'] ?? '';
+
+            if ($method === 'SitesManager.getAllSites') {
+                return Http::response([['idsite' => '3', 'main_url' => 'https://bloom.example.com']]);
+            }
+
+            if ($method === 'Goals.getGoals') {
+                return Http::response([
+                    ['idgoal' => '2', 'name' => 'Registration complete'],
+                ]);
+            }
+
+            return Http::response([], 200);
+        },
+    ]);
+
+    $config = (new MatomoService)->getConfig();
+
+    expect($config['goals']['registration'])->toBe(2);
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), 'Goals.addGoal'));
+});
+
+it('caches the config and does not call the api on subsequent requests', function () {
+    Http::fake([
+        'stat.istic.net/*' => function ($request) {
+            $method = $request->data()['method'] ?? '';
+
+            if ($method === 'SitesManager.getAllSites') {
+                return Http::response([['idsite' => '3', 'main_url' => 'https://bloom.example.com']]);
+            }
+
+            if ($method === 'Goals.getGoals') {
+                return Http::response([['idgoal' => '1', 'name' => 'Registration complete']]);
+            }
+
+            return Http::response([], 200);
+        },
+    ]);
+
+    $service = new MatomoService;
+    $service->getConfig();
+    $service->getConfig();
+
+    Http::assertSentCount(2); // only the first call hits the API
+});
+
+it('returns the tracker url in the config', function () {
+    Http::fake([
+        'stat.istic.net/*' => function ($request) {
+            $method = $request->data()['method'] ?? '';
+
+            if ($method === 'SitesManager.getAllSites') {
+                return Http::response([['idsite' => '3', 'main_url' => 'https://bloom.example.com']]);
+            }
+
+            if ($method === 'Goals.getGoals') {
+                return Http::response([['idgoal' => '1', 'name' => 'Registration complete']]);
+            }
+
+            return Http::response([], 200);
+        },
+    ]);
+
+    $config = (new MatomoService)->getConfig();
+
+    expect($config['tracker_url'])->toBe('https://stat.istic.net');
+});

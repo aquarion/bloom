@@ -3,6 +3,7 @@
 namespace App\Services\Mastodon;
 
 use App\Models\SocialAccount;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -34,7 +35,25 @@ class MastodonFeedService
                     ->get("{$account->instance_url}/api/v1/statuses/{$id}")
                     ->throw()
                     ->json();
-            } catch (\Throwable) {
+            } catch (RequestException $e) {
+                if ($e->response->status() !== 404) {
+                    Log::warning('Failed to fetch Mastodon status', [
+                        'account_id' => $account->id,
+                        'status_id' => $id,
+                        'http_status' => $e->response->status(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                return null;
+            } catch (\Throwable $e) {
+                Log::error('Unexpected error fetching Mastodon status', [
+                    'account_id' => $account->id,
+                    'status_id' => $id,
+                    'exception' => $e::class,
+                    'error' => $e->getMessage(),
+                ]);
+
                 return null;
             }
         });
@@ -102,21 +121,14 @@ class MastodonFeedService
             $params['since_id'] = $existing[0]['id'];
         }
 
-        try {
-            $response = Http::timeout(15)
-                ->get("{$instanceUrl}/api/v1/timelines/public", $params);
+        $response = Http::timeout(15)
+            ->get("{$instanceUrl}/api/v1/timelines/public", $params);
 
-            if ($response->status() === 401) {
-                return null;
-            }
-
-            $response->throw();
-        } catch (\Throwable $e) {
-            if (isset($response) && $response->status() === 401) {
-                return null;
-            }
-            throw $e;
+        if ($response->status() === 401) {
+            return null;
         }
+
+        $response->throw();
 
         $fetched = $response->json();
 

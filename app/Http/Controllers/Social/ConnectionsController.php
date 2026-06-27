@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Social;
 use App\Http\Controllers\Controller;
 use App\Models\SocialAccount;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class ConnectionsController extends Controller
@@ -116,7 +117,13 @@ class ConnectionsController extends Controller
         if (! app()->runningUnitTests()) {
             $ip = gethostbyname($host);
 
+            // gethostbyname returns the input unchanged when resolution fails.
+            if ($ip === $host) {
+                throw ValidationException::withMessages(['instance_url' => 'Could not resolve that domain. Check the URL and try again.']);
+            }
+
             if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                Log::warning('Blocked instance URL resolving to private/reserved IP', ['host' => $host, 'ip' => $ip]);
                 throw ValidationException::withMessages(['instance_url' => 'Instance URL is not allowed.']);
             }
         }

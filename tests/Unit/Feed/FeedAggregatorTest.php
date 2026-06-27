@@ -811,3 +811,123 @@ it('skips mute word check when list is empty', function () {
 
     expect($result['posts'])->toHaveCount(1);
 });
+
+it('fetches public mastodon timeline without authentication', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    SocialAccount::factory()->publicMastodon('https://social.example')->create(['user_id' => $user->id]);
+
+    $status = [
+        'id' => '1',
+        'created_at' => now()->toIso8601String(),
+        'in_reply_to_id' => null,
+        'url' => 'https://social.example/@author/1',
+        'content' => '<p>public post</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://social.example/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getPublicTimeline')
+        ->once()
+        ->with('https://social.example', Mockery::any())
+        ->andReturn([$status]);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['source'])->toBe('mastodon')
+        ->and($result['posts'][0]['source_instance'])->toBe('social.example');
+});
+
+it('falls back to home account when public mastodon returns 401', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    SocialAccount::factory()->publicMastodon('https://social.example')->create(['user_id' => $user->id]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'feed_type' => 'home',
+        'instance_url' => 'https://social.example',
+        'access_token' => 'tok',
+        'handle' => '@me@social.example',
+    ]);
+
+    $status = [
+        'id' => '2',
+        'created_at' => now()->toIso8601String(),
+        'in_reply_to_id' => null,
+        'url' => 'https://social.example/@author/2',
+        'content' => '<p>home post</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://social.example/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getPublicTimeline')->andReturn(null);
+    // called twice: once as fallback for the public account, once for the home account's own iteration
+    $mastodon->shouldReceive('getHomeTimeline')->twice()->andReturn([$status]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->not->toBeEmpty();
+});
+
+it('fetches bluesky algorithmic feed using home account credentials', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    $homeAccount = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'tok',
+        'handle' => '@alice.bsky.social',
+    ]);
+    SocialAccount::factory()->blueskyFeed('at://did:plc:test/app.bsky.feed.generator/whats-hot')->create([
+        'user_id' => $user->id,
+    ]);
+
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:author/app.bsky.feed.post/abc',
+            'cid' => 'cid1',
+            'author' => ['did' => 'did:plc:author', 'handle' => 'author.bsky.social', 'displayName' => 'Author', 'avatar' => 'https://cdn.bsky.app/av.jpg', 'banner' => null],
+            'record' => ['$type' => 'app.bsky.feed.post', 'text' => 'hello algo feed', 'createdAt' => now()->toIso8601String()],
+            'indexedAt' => now()->toIso8601String(),
+            'likeCount' => 0,
+            'repostCount' => 0,
+            'replyCount' => 0,
+        ],
+    ];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    // The home account's own iteration calls getHomeTimeline; it returns nothing interesting here
+    $bluesky->shouldReceive('getHomeTimeline')
+        ->once()
+        ->andReturn(['posts' => [], 'cursor' => null]);
+    $bluesky->shouldReceive('getFeed')
+        ->once()
+        ->with(Mockery::any(), 'at://did:plc:test/app.bsky.feed.generator/whats-hot', Mockery::any(), null)
+        ->andReturn(['posts' => [$feedPost], 'cursor' => null]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['source'])->toBe('bluesky');
+});

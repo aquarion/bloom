@@ -32,7 +32,7 @@ class FeedAggregator
             $nextCursor = null;
 
             try {
-                if ($account->provider === 'mastodon') {
+                if ($account->feed_type === 'home' && $account->provider === 'mastodon') {
                     $host = parse_url($account->instance_url, PHP_URL_HOST);
                     $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
                     $statuses = $this->mastodon->getHomeTimeline($account, $perAccountLimit, $accountCursor);
@@ -63,15 +63,86 @@ class FeedAggregator
                     }
 
                     $nextCursor = ! empty($statuses) ? end($statuses)['id'] : null;
-                }
+                } elseif ($account->feed_type === 'public_mastodon') {
+                    $host = parse_url($account->instance_url, PHP_URL_HOST);
+                    $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
+                    $statuses = $this->mastodon->getPublicTimeline($account->instance_url, $perAccountLimit);
+                    $authAccount = null;
 
-                if ($account->provider === 'bluesky') {
+                    if ($statuses === null) {
+                        // Instance requires auth — fall back to a home account on the same instance
+                        $authAccount = $user->socialAccounts
+                            ->where('provider', 'mastodon')
+                            ->where('feed_type', 'home')
+                            ->first(fn ($a) => parse_url($a->instance_url, PHP_URL_HOST) === $host);
+
+                        if ($authAccount === null) {
+                            $account->update(['auth_failed_at' => now()]);
+
+                            continue;
+                        }
+
+                        $statuses = $this->mastodon->getHomeTimeline($authAccount, $perAccountLimit, $accountCursor);
+                    }
+
+                    $parents = $authAccount !== null
+                        ? $this->fetchMastodonStatuses($authAccount, $statuses, fn ($s) => ($s['reblog'] ?? $s)['in_reply_to_id'] ?? null)
+                        : [];
+                    $quotes = $authAccount !== null
+                        ? $this->fetchMastodonStatuses($authAccount, $statuses, fn ($s) => ($s['reblog'] ?? $s)['quote_id'] ?? null)
+                        : [];
+
+                    $normalised = array_map(function ($s) use ($host, $parents, $quotes, $mentionsEnabled) {
+                        $source = $s['reblog'] ?? $s;
+                        $quoteId = $source['quote_id'] ?? null;
+
+                        return $this->normalizer->fromMastodon(
+                            $s,
+                            $host,
+                            $parents[$source['in_reply_to_id'] ?? ''] ?? null,
+                            null,
+                            $quoteId ? ($quotes[$quoteId] ?? null) : null,
+                            $mentionsEnabled,
+                        );
+                    }, $statuses);
+
+                    if ($mentionsEnabled && $authAccount !== null) {
+                        $normalised = $this->mastodon->resolveMentionProfiles($normalised, $authAccount);
+                    }
+
+                    $nextCursor = null;
+                } elseif ($account->feed_type === 'home') {
                     $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
                     $result = $this->bluesky->getHomeTimeline($account, $perAccountLimit, $accountCursor);
                     $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle, $mentionsEnabled), $result['posts']);
 
                     if ($mentionsEnabled) {
                         $normalised = $this->bluesky->resolveMentionProfiles($normalised, $account);
+                    }
+
+                    $nextCursor = $result['cursor'] ?: null;
+                } elseif ($account->feed_type === 'bluesky_feed') {
+                    $feedUri = $account->getPreference('feed_uri');
+                    if (empty($feedUri)) {
+                        continue;
+                    }
+
+                    $homeAccount = $user->socialAccounts
+                        ->where('provider', 'bluesky')
+                        ->where('feed_type', 'home')
+                        ->sortBy('id')
+                        ->first();
+
+                    if ($homeAccount === null) {
+                        continue;
+                    }
+
+                    $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
+                    $result = $this->bluesky->getFeed($homeAccount, $feedUri, $perAccountLimit, $accountCursor);
+                    $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $homeAccount->handle, $mentionsEnabled), $result['posts']);
+
+                    if ($mentionsEnabled) {
+                        $normalised = $this->bluesky->resolveMentionProfiles($normalised, $homeAccount);
                     }
 
                     $nextCursor = $result['cursor'] ?: null;

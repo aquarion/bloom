@@ -11,7 +11,7 @@ class PostNormalizer
         $this->mentionClassifier = new MentionClassifier;
     }
 
-    public function fromMastodon(array $status, string $host, ?array $parentStatus = null, string $sourceHandle = '', ?array $quoteStatus = null, bool $mentionsEnabled = true): array
+    public function fromMastodon(array $status, string $host, ?array $parentStatus = null, ?string $sourceHandle = '', ?array $quoteStatus = null, bool $mentionsEnabled = true): array
     {
         $source = $status['reblog'] ?? $status;
         $sourceHost = isset($status['reblog'])

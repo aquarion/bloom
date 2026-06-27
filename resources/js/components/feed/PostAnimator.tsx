@@ -529,18 +529,29 @@ export function PostAnimator({
                         aria-hidden="true"
                         className="absolute top-0 left-full flex h-full flex-col items-center justify-center gap-1 overflow-hidden pl-3"
                     >
-                        {[...new Set(post.hashtags)].map((tag) => (
-                            <span
-                                key={tag}
-                                className="rounded-full bg-white/10 px-1.5 py-1.5 text-sm"
-                                style={{
-                                    color: textColor,
-                                    writingMode: 'vertical-rl',
-                                }}
-                            >
-                                #{tag}
-                            </span>
-                        ))}
+                        {[...new Set(post.hashtags)].map((tag) => {
+                            const href =
+                                post.source === 'mastodon' &&
+                                post.source_instance
+                                    ? `https://${post.source_instance}/tags/${tag}`
+                                    : `https://bsky.app/search?q=%23${tag}`;
+
+                            return (
+                                <a
+                                    key={tag}
+                                    href={href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="rounded-full bg-white/10 px-1.5 py-1.5 text-sm"
+                                    style={{
+                                        color: textColor,
+                                        writingMode: 'vertical-rl',
+                                    }}
+                                >
+                                    #{tag}
+                                </a>
+                            );
+                        })}
                     </div>
                 )}
             </div>

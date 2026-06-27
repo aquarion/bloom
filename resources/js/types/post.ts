@@ -36,6 +36,7 @@ export interface Post {
     id: string;
     source: 'mastodon' | 'bluesky';
     source_handle: string;
+    source_instance: string | null;
     author_name: string;
     author_handle: string;
     author_avatar: string;

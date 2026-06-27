@@ -8,6 +8,7 @@ function makePost(id: string): Post {
         id,
         source: 'mastodon',
         source_handle: '',
+        source_instance: null,
         author_name: 'Test',
         author_handle: '@test@example.com',
         author_avatar: '',

@@ -517,3 +517,41 @@ it('does not crash when reply_to and quoted_post are null', function () {
         ->and($resolved[0]['reply_to'])->toBeNull()
         ->and($resolved[0]['quoted_post'])->toBeNull();
 });
+
+it('calls getFeed with the correct feed uri and returns posts and cursor', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'access_token' => 'test-token',
+    ]);
+
+    Http::fake([
+        '*/app.bsky.feed.getFeed*' => Http::response([
+            'feed' => [
+                ['post' => [
+                    'uri' => 'at://did/app.bsky.feed.post/abc',
+                    'record' => ['text' => 'Hello', '$type' => 'app.bsky.feed.post', 'createdAt' => now()->toIso8601String()],
+                    'author' => ['did' => 'did:plc:1', 'handle' => 'alice.test', 'displayName' => 'Alice'],
+                ]],
+            ],
+            'cursor' => 'cursor123',
+        ], 200),
+    ]);
+
+    $auth = Mockery::mock(BlueskyAuthService::class);
+    $auth->shouldReceive('getToken')
+        ->with($account)
+        ->andReturn('test-token');
+
+    $service = new BlueskyFeedService($auth);
+    $result = $service->getFeed($account, 'at://did:plc:test/app.bsky.feed.generator/whats-hot', 20);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['cursor'])->toBe('cursor123');
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), 'getFeed') &&
+        str_contains($request->url(), 'whats-hot')
+    );
+});

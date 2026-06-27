@@ -45,6 +45,33 @@ class BlueskyFeedService
         return $result;
     }
 
+    public function getFeed(SocialAccount $account, string $feedUri, int $limit = 20, ?string $cursor = null): array
+    {
+        $params = ['feed' => $feedUri, 'limit' => $limit];
+        if ($cursor !== null) {
+            $params['cursor'] = $cursor;
+        }
+
+        $cacheKey = 'bluesky:feed:'.$account->id.':'.md5($feedUri).':'.($cursor ?? 'head');
+
+        $result = Cache::tags(["user:{$account->user_id}"])->remember($cacheKey, self::TIMELINE_TTL, function () use ($account, $params) {
+            $response = $this->request($account, fn (string $token) => Http::withToken($token)
+                ->get(self::BASE.'/app.bsky.feed.getFeed', $params)
+                ->throw()
+                ->json()
+            );
+
+            return [
+                'posts' => $response['feed'] ?? [],
+                'cursor' => $response['cursor'] ?? null,
+            ];
+        });
+
+        $result['posts'] = $this->enrichWithBanners($result['posts'], $account);
+
+        return $result;
+    }
+
     /**
      * @param  array<int, array<string, mixed>>  $normalisedPosts  Posts already shaped by PostNormalizer::fromBluesky, each with a 'chip_mentions' key.
      */

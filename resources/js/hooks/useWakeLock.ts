@@ -37,6 +37,7 @@ export function useWakeLock() {
                 sentinelRef.current = sentinel;
                 setIsActive(true);
 
+                // eslint-disable-next-line @eslint-react/web-api-no-leaked-event-listener -- WakeLockSentinel fires once and is then invalid; no removeEventListener possible
                 sentinel.addEventListener('release', () => {
                     sentinelRef.current = null;
 

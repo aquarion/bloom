@@ -34,6 +34,7 @@ function absoluteTime(dateStr: string): string {
 }
 
 export function Attribution({ post }: { post: Post }) {
+    // eslint-disable-next-line @eslint-react/use-state
     const [, setTick] = useState(0);
     useEffect(() => {
         const id = setInterval(() => setTick((t) => t + 1), 30_000);

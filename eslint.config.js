@@ -1,103 +1,93 @@
 import js from "@eslint/js";
 import stylistic from "@stylistic/eslint-plugin";
-import importPlugin from "eslint-plugin-import";
-import react from "eslint-plugin-react";
+import importX from "eslint-plugin-import-x"; // Migrated to import-x
+import eslintReact from "@eslint-react/eslint-plugin"; // Migrated to modern eslint-react
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import typescript from "typescript-eslint";
 
 const controlStatements = [
-	"if",
-	"return",
-	"for",
-	"while",
-	"do",
-	"switch",
-	"try",
-	"throw",
+        "if",
+        "return",
+        "for",
+        "while",
+        "do",
+        "switch",
+        "try",
+        "throw",
 ];
 const paddingAroundControl = [
-	...controlStatements.flatMap((stmt) => [
-		{ blankLine: "always", prev: "*", next: stmt },
-		{ blankLine: "always", prev: stmt, next: "*" },
-	]),
+        ...controlStatements.flatMap((stmt) => [
+                { blankLine: "always", prev: "*", next: stmt },
+                { blankLine: "always", prev: stmt, next: "*" },
+        ]),
 ];
 
 /** @type {import('eslint').Linter.Config[]} */
-export default [
-	js.configs.recommended,
-	reactHooks.configs.flat["recommended-latest"],
-	...typescript.configs.recommended,
-	{
-		...react.configs.flat.recommended,
-		...react.configs.flat["jsx-runtime"], // Required for React 17+
-		languageOptions: {
-			globals: {
-				...globals.browser,
-			},
-		},
-		rules: {
-			"react/react-in-jsx-scope": "off",
-			"react/prop-types": "off",
-			"react/no-unescaped-entities": "off",
-		},
-		settings: {
-			react: {
-				version: "detect",
-			},
-		},
-	},
-	{
-		plugins: {
-			import: importPlugin,
-		},
-		settings: {
-			"import/resolver": {
-				typescript: {
-					alwaysTryTypes: true,
-					project: "./tsconfig.json",
-				},
-				node: true,
-			},
-		},
-		rules: {
-			"@typescript-eslint/no-explicit-any": "off",
-			"@typescript-eslint/consistent-type-imports": [
-				"error",
-				{
-					prefer: "type-imports",
-					fixStyle: "separate-type-imports",
-				},
-			],
-			"import/consistent-type-specifier-style": ["error", "prefer-top-level"],
-		},
-	},
-	{
-		plugins: {
-			"@stylistic": stylistic,
-		},
-		rules: {
-			curly: ["error", "all"],
-			"@stylistic/brace-style": ["error", "1tbs", { allowSingleLine: false }],
-			"@stylistic/padding-line-between-statements": [
-				"error",
-				...paddingAroundControl,
-			],
-		},
-	},
-	{
-		ignores: [
-			".remember",
-			"vendor",
-			"node_modules",
-			"public",
-			"bootstrap/ssr",
-			"tailwind.config.js",
-			"vite.config.ts",
-			"resources/js/actions/**",
-			"resources/js/components/ui/*",
-			"resources/js/routes/**",
-			"resources/js/wayfinder/**",
-		],
-	},
-];
+export default typescript.config(
+        js.configs.recommended,
+        reactHooks.configs.flat["recommended-latest"],
+        ...typescript.configs.recommended,
+        eslintReact.configs["recommended-typescript"], // Core modern React linting rules
+        {
+                languageOptions: {
+                        globals: {
+                                ...globals.browser,
+                        },
+                },
+        },
+        {
+                plugins: {
+                        "import-x": importX,
+                },
+                settings: {
+                        "import-x/resolver": {
+                                typescript: {
+                                        alwaysTryTypes: true,
+                                        project: "./tsconfig.json",
+                                },
+                                node: true,
+                        },
+                },
+                rules: {
+                        "@typescript-eslint/no-explicit-any": "off",
+                        "@eslint-react/dom-no-flush-sync": "off", // intentional: GSAP mid-transition state swap requires flushSync
+                        "@typescript-eslint/consistent-type-imports": [
+                                "error",
+                                {
+                                        prefer: "type-imports",
+                                        fixStyle: "separate-type-imports",
+                                },
+                        ],
+                        "import-x/consistent-type-specifier-style": ["error", "prefer-top-level"],
+                },
+        },
+        {
+                plugins: {
+                        "@stylistic": stylistic,
+                },
+                rules: {
+                        curly: ["error", "all"],
+                        "@stylistic/brace-style": ["error", "1tbs", { allowSingleLine: false }],
+                        "@stylistic/padding-line-between-statements": [
+                                "error",
+                                ...paddingAroundControl,
+                        ],
+                },
+        },
+        {
+                ignores: [
+                        ".remember",
+                        "vendor",        // PHP dependencies
+                        "node_modules",  // JS dependencies
+                        "public",        // compiled assets
+                        "bootstrap/ssr", // compiled SSR bundle
+                        "tailwind.config.js",
+                        "vite.config.ts",
+                        "resources/js/actions/**",   // auto-generated by Wayfinder
+                        "resources/js/components/ui/*", // shadcn/ui components — third-party, not modified
+                        "resources/js/routes/**",    // auto-generated by Wayfinder
+                        "resources/js/wayfinder/**", // auto-generated by Wayfinder
+                ],
+        },
+);

@@ -153,6 +153,7 @@ export function PostAnimator({
     const textRef = useRef<HTMLDivElement>(null);
     const panelsRef = useRef<HTMLDivElement>(null);
     const onReadyRef = useRef(onReady);
+    // eslint-disable-next-line @eslint-react/naming-convention-ref-name
     const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
     // Tracks which body the font sizes were computed for so they naturally
     // become null when body changes without needing setState inside an effect.
@@ -265,6 +266,7 @@ export function PostAnimator({
             sizes = sizes.map((s) => s * scale);
         }
 
+        // eslint-disable-next-line @eslint-react/set-state-in-effect
         setFontSizeState({ body, sizes });
     }, [lines, body, paragraphStarts]);
 

@@ -91,15 +91,15 @@ export function useFeedQueue({
         cursor: initialCursor,
     });
 
-    const fetching = useRef(false);
+    const fetchingRef = useRef(false);
 
     const fetchMore = useCallback(
         async (activeCursor: string) => {
-            if (fetching.current) {
+            if (fetchingRef.current) {
                 return;
             }
 
-            fetching.current = true;
+            fetchingRef.current = true;
 
             try {
                 const { data } = await axios.get<FeedResponse>('/feed', {
@@ -125,7 +125,7 @@ export function useFeedQueue({
                     );
                 }
             } finally {
-                fetching.current = false;
+                fetchingRef.current = false;
             }
         },
         [filterPost],

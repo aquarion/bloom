@@ -43,10 +43,13 @@
 
 - [ ] **Step 1: Write the migration**
 
+Follow the same defensive pattern as `2026_05_27_140458_update_social_accounts_for_multi_account.php`: wrap each schema change in a try/catch that re-throws on anything other than "already exists / duplicate" errors, so partial re-runs don't abort.
+
 ```php
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
@@ -54,17 +57,57 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('social_accounts', function (Blueprint $table) {
-            $table->string('feed_type')->default('home')->after('provider');
-            $table->text('access_token')->nullable()->change();
-            $table->string('handle')->nullable()->change();
-        });
+        // Add feed_type column — idempotent: skip if it already exists
+        try {
+            if (! Schema::hasColumn('social_accounts', 'feed_type')) {
+                Schema::table('social_accounts', function (Blueprint $table) {
+                    $table->string('feed_type')->default('home')->after('provider');
+                });
+            }
+        } catch (QueryException $e) {
+            if (! str_contains($e->getMessage(), 'Duplicate column name')
+                && ! str_contains($e->getMessage(), 'already exists')) {
+                throw $e;
+            }
+        }
+
+        // Make access_token nullable (was non-nullable text)
+        try {
+            Schema::table('social_accounts', function (Blueprint $table) {
+                $table->text('access_token')->nullable()->change();
+            });
+        } catch (QueryException $e) {
+            if (! str_contains($e->getMessage(), 'already')) {
+                throw $e;
+            }
+        }
+
+        // Make handle nullable (was non-nullable string)
+        try {
+            Schema::table('social_accounts', function (Blueprint $table) {
+                $table->string('handle')->nullable()->change();
+            });
+        } catch (QueryException $e) {
+            if (! str_contains($e->getMessage(), 'already')) {
+                throw $e;
+            }
+        }
     }
 
     public function down(): void
     {
+        try {
+            Schema::table('social_accounts', function (Blueprint $table) {
+                $table->dropColumn('feed_type');
+            });
+        } catch (QueryException $e) {
+            if (! str_contains($e->getMessage(), "Can't DROP")
+                && ! str_contains($e->getMessage(), 'no such column')) {
+                throw $e;
+            }
+        }
+
         Schema::table('social_accounts', function (Blueprint $table) {
-            $table->dropColumn('feed_type');
             $table->text('access_token')->nullable(false)->change();
             $table->string('handle')->nullable(false)->change();
         });
@@ -97,7 +140,7 @@ protected $fillable = [
 In `database/factories/SocialAccountFactory.php`, add two named states after the `definition()` method:
 
 ```php
-public function publicMastodon(string $instanceUrl = 'https://mastodon.social'): static
+public function publicMastodon(string $instanceUrl = 'https://social.example'): static
 {
     return $this->state([
         'provider' => 'mastodon',
@@ -113,7 +156,7 @@ public function blueskyFeed(string $feedUri = 'at://did:plc:test/app.bsky.feed.g
     return $this->state([
         'provider' => 'bluesky',
         'feed_type' => 'bluesky_feed',
-        'instance_url' => 'https://bsky.social',
+        'instance_url' => 'https://pds.example',
         'access_token' => null,
         'handle' => null,
         'feed_settings' => ['feed_uri' => $feedUri],
@@ -153,13 +196,13 @@ Append to `tests/Feature/Social/MastodonFeedServiceTest.php`:
 ```php
 it('returns public timeline statuses without a token', function () {
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response([
+        'social.example/api/v1/timelines/public*' => Http::response([
             ['id' => '1', 'content' => '<p>Hello</p>', 'created_at' => now()->toIso8601String()],
         ], 200),
     ]);
 
     $service = new MastodonFeedService;
-    $result = $service->getPublicTimeline('https://mastodon.social', 20);
+    $result = $service->getPublicTimeline('https://social.example', 20);
 
     expect($result)->toHaveCount(1)
         ->and($result[0]['id'])->toBe('1');
@@ -172,27 +215,27 @@ it('returns public timeline statuses without a token', function () {
 
 it('returns null when public timeline returns 401', function () {
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::response(
+        'social.example/api/v1/timelines/public*' => Http::response(
             ['error' => 'This API requires an authenticated user'], 401
         ),
     ]);
 
     $service = new MastodonFeedService;
-    $result = $service->getPublicTimeline('https://mastodon.social', 20);
+    $result = $service->getPublicTimeline('https://social.example', 20);
 
     expect($result)->toBeNull();
 });
 
 it('caches public timeline without user tag', function () {
     Http::fake([
-        'mastodon.social/api/v1/timelines/public*' => Http::sequence()
+        'social.example/api/v1/timelines/public*' => Http::sequence()
             ->push([['id' => '1', 'content' => '<p>Hi</p>']], 200)
             ->push([['id' => '2', 'content' => '<p>Cached</p>']], 200),
     ]);
 
     $service = new MastodonFeedService;
-    $service->getPublicTimeline('https://mastodon.social', 20);
-    $second = $service->getPublicTimeline('https://mastodon.social', 20);
+    $service->getPublicTimeline('https://social.example', 20);
+    $second = $service->getPublicTimeline('https://social.example', 20);
 
     // Second call returns cached result (id 1, not 2)
     expect($second[0]['id'])->toBe('1');
@@ -312,7 +355,7 @@ it('calls getFeed with the correct feed uri and returns posts and cursor', funct
     Http::fake([
         '*/app.bsky.feed.getFeed*' => Http::response([
             'feed' => [
-                ['post' => ['uri' => 'at://did/app.bsky.feed.post/abc', 'record' => ['text' => 'Hello', '$type' => 'app.bsky.feed.post', 'createdAt' => now()->toIso8601String()], 'author' => ['did' => 'did:plc:1', 'handle' => 'alice.bsky.social', 'displayName' => 'Alice']]],
+                ['post' => ['uri' => 'at://did/app.bsky.feed.post/abc', 'record' => ['text' => 'Hello', '$type' => 'app.bsky.feed.post', 'createdAt' => now()->toIso8601String()], 'author' => ['did' => 'did:plc:1', 'handle' => 'alice.test', 'displayName' => 'Alice']]],
             ],
             'cursor' => 'cursor123',
         ], 200),
@@ -419,15 +462,15 @@ it('includes source_instance from the mastodon host', function () {
         'id' => '1',
         'content' => '<p>Hello</p>',
         'created_at' => '2024-01-15T10:00:00.000Z',
-        'url' => 'https://fosstodon.org/@alice/1',
+        'url' => 'https://social.example/@alice/1',
         'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => '', 'header' => '', 'emojis' => []],
         'media_attachments' => [], 'tags' => [], 'mentions' => [], 'emojis' => [],
         'sensitive' => false, 'spoiler_text' => '', 'card' => null, 'reblog' => null,
     ];
 
-    $result = (new PostNormalizer)->fromMastodon($status, 'fosstodon.org');
+    $result = (new PostNormalizer)->fromMastodon($status, 'social.example');
 
-    expect($result['source_instance'])->toBe('fosstodon.org');
+    expect($result['source_instance'])->toBe('social.example');
 });
 
 it('sets source_instance to null for bluesky posts', function () {
@@ -435,7 +478,7 @@ it('sets source_instance to null for bluesky posts', function () {
         'post' => [
             'uri' => 'at://did:plc:1/app.bsky.feed.post/abc',
             'record' => ['$type' => 'app.bsky.feed.post', 'text' => 'Hello', 'createdAt' => '2024-01-15T10:00:00.000Z'],
-            'author' => ['did' => 'did:plc:1', 'handle' => 'alice.bsky.social', 'displayName' => 'Alice', 'avatar' => ''],
+            'author' => ['did' => 'did:plc:1', 'handle' => 'alice.test', 'displayName' => 'Alice', 'avatar' => ''],
             'indexedAt' => '2024-01-15T10:00:00.000Z',
         ],
     ];
@@ -514,13 +557,13 @@ it('fetches public mastodon timeline without token', function () {
     $rawStatus = ['id' => '1', 'content' => '<p>Public post</p>', 'created_at' => now()->toIso8601String(),
         'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => '', 'header' => '', 'emojis' => []],
         'media_attachments' => [], 'tags' => [], 'mentions' => [], 'emojis' => [], 'sensitive' => false, 'spoiler_text' => '',
-        'url' => 'https://mastodon.social/@alice/1', 'card' => null, 'reblog' => null, 'in_reply_to_id' => null,
+        'url' => 'https://social.example/@alice/1', 'card' => null, 'reblog' => null, 'in_reply_to_id' => null,
     ];
 
     $mastodon = Mockery::mock(MastodonFeedService::class);
     $mastodon->shouldReceive('getPublicTimeline')
         ->once()
-        ->with('https://mastodon.social', Mockery::any())
+        ->with('https://social.example', Mockery::any())
         ->andReturn([$rawStatus]);
     $mastodon->shouldNotReceive('getHomeTimeline');
 
@@ -537,25 +580,25 @@ it('fetches public mastodon timeline without token', function () {
 
 it('falls back to home timeline when public mastodon returns null (auth required)', function () {
     $user = User::factory()->create();
-    $publicAccount = SocialAccount::factory()->publicMastodon('https://fosstodon.org')->create(['user_id' => $user->id]);
+    $publicAccount = SocialAccount::factory()->publicMastodon('https://other.example')->create(['user_id' => $user->id]);
     $homeAccount = SocialAccount::factory()->create([
         'user_id' => $user->id,
         'provider' => 'mastodon',
         'feed_type' => 'home',
-        'instance_url' => 'https://fosstodon.org',
+        'instance_url' => 'https://other.example',
         'access_token' => 'token',
     ]);
 
     $rawStatus = ['id' => '1', 'content' => '<p>Authed post</p>', 'created_at' => now()->toIso8601String(),
         'account' => ['display_name' => 'Bob', 'acct' => 'bob', 'avatar' => '', 'header' => '', 'emojis' => []],
         'media_attachments' => [], 'tags' => [], 'mentions' => [], 'emojis' => [], 'sensitive' => false, 'spoiler_text' => '',
-        'url' => 'https://fosstodon.org/@bob/1', 'card' => null, 'reblog' => null, 'in_reply_to_id' => null,
+        'url' => 'https://other.example/@bob/1', 'card' => null, 'reblog' => null, 'in_reply_to_id' => null,
     ];
 
     $mastodon = Mockery::mock(MastodonFeedService::class);
     $mastodon->shouldReceive('getPublicTimeline')
         ->once()
-        ->with('https://fosstodon.org', Mockery::any())
+        ->with('https://other.example', Mockery::any())
         ->andReturn(null);
     $mastodon->shouldReceive('getHomeTimeline')
         ->once()
@@ -802,7 +845,7 @@ it('stores a public mastodon feed', function () {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user)
-        ->post('/auth/public-mastodon', ['instance_url' => 'mastodon.social']);
+        ->post('/auth/public-mastodon', ['instance_url' => 'social.example']);
 
     $response->assertRedirect(route('connections.edit'));
     $response->assertSessionHas('status', 'public-mastodon-added');
@@ -811,7 +854,7 @@ it('stores a public mastodon feed', function () {
         'user_id' => $user->id,
         'provider' => 'mastodon',
         'feed_type' => 'public_mastodon',
-        'instance_url' => 'https://mastodon.social',
+        'instance_url' => 'https://social.example',
     ]);
 });
 
@@ -820,7 +863,7 @@ it('does not create duplicate public mastodon feed for same instance', function 
     SocialAccount::factory()->publicMastodon()->create(['user_id' => $user->id]);
 
     $this->actingAs($user)
-        ->post('/auth/public-mastodon', ['instance_url' => 'mastodon.social'])
+        ->post('/auth/public-mastodon', ['instance_url' => 'social.example'])
         ->assertSessionHas('status', 'public-mastodon-already-added');
 
     expect(SocialAccount::where('user_id', $user->id)->count())->toBe(1);
@@ -1506,11 +1549,8 @@ npm run lint
 
 Expected: no errors.
 
-- [ ] **Step 3: Close GitHub issues**
+- [ ] **Step 3: Push the branch**
 
 ```bash
-gh issue close 117 --comment "Implemented: users can follow any Mastodon server's public timeline from the connections page. Falls back to their home account credentials if the instance requires auth."
-gh issue close 118 --comment "Implemented: Bluesky algorithmic feeds can be added from the connections page under a connected Bluesky account."
-gh issue close 110 --comment "Implemented: hashtag pills are now links — Mastodon tags open the instance tag page, Bluesky tags open bsky.app search."
-gh issue close 143 --comment "Was already implemented in the mention chips PRs."
+git push
 ```

@@ -94,6 +94,19 @@ it('adds a public mastodon instance', function () {
     ]);
 });
 
+it('rejects private/loopback instance URLs to prevent SSRF', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    foreach (['https://127.0.0.1', 'https://192.168.1.1', 'https://10.0.0.1', 'https://169.254.169.254'] as $url) {
+        $response = $this->actingAs($user)->post('/auth/connections/public-mastodon', [
+            'instance_url' => $url,
+        ]);
+        $response->assertSessionHasErrors('instance_url');
+    }
+
+    $this->assertDatabaseCount('social_accounts', 0);
+});
+
 it('rejects duplicate public mastodon instance', function () {
     $user = User::factory()->withPasskey()->create();
     SocialAccount::factory()->publicMastodon('https://social.example')->create(['user_id' => $user->id]);

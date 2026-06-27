@@ -17,6 +17,8 @@ class ConnectionsController extends Controller
 
         $instanceUrl = rtrim($request->input('instance_url'), '/');
 
+        $this->validateInstanceUrl($instanceUrl);
+
         $exists = $request->user()->socialAccounts()
             ->where('provider', 'mastodon')
             ->where('feed_type', 'public_mastodon')
@@ -89,6 +91,35 @@ class ConnectionsController extends Controller
 
         return redirect()->route('connections.edit')
             ->with('status', $provider.'-disconnected');
+    }
+
+    private function validateInstanceUrl(string $url): void
+    {
+        $parsed = parse_url($url);
+
+        if (! $parsed || ($parsed['scheme'] ?? '') !== 'https') {
+            throw ValidationException::withMessages(['instance_url' => 'Instance URL must use HTTPS.']);
+        }
+
+        $host = $parsed['host'] ?? '';
+
+        // If the host is a bare IP address, reject private/reserved ranges immediately.
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            if (! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                throw ValidationException::withMessages(['instance_url' => 'Instance URL is not allowed.']);
+            }
+
+            return;
+        }
+
+        // For hostnames, resolve and check the resulting IP (skip in unit tests where DNS is unavailable).
+        if (! app()->runningUnitTests()) {
+            $ip = gethostbyname($host);
+
+            if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                throw ValidationException::withMessages(['instance_url' => 'Instance URL is not allowed.']);
+            }
+        }
     }
 
     private function blueskyFeedUrlToAtUri(string $input): string

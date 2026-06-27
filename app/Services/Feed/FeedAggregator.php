@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Services\Bluesky\BlueskyFeedService;
 use App\Services\Mastodon\MastodonFeedService;
 use Carbon\Carbon;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 
 class FeedAggregator
@@ -77,12 +79,20 @@ class FeedAggregator
                             ->first(fn ($a) => parse_url($a->instance_url, PHP_URL_HOST) === $host);
 
                         if ($authAccount === null) {
+                            Log::warning('Public Mastodon instance requires auth with no matching home account', [
+                                'account_id' => $account->id,
+                                'host' => $host,
+                            ]);
                             $account->update(['auth_failed_at' => now()]);
 
                             continue;
                         }
 
                         $statuses = $this->mastodon->getHomeTimeline($authAccount, $perAccountLimit, $accountCursor);
+
+                        if ($account->auth_failed_at !== null) {
+                            $account->update(['auth_failed_at' => null]);
+                        }
                     }
 
                     $parents = $authAccount !== null
@@ -124,6 +134,8 @@ class FeedAggregator
                 } elseif ($account->feed_type === 'bluesky_feed') {
                     $feedUri = $account->getPreference('feed_uri');
                     if (empty($feedUri)) {
+                        Log::warning('bluesky_feed account is missing feed_uri', ['account_id' => $account->id]);
+
                         continue;
                     }
 
@@ -134,6 +146,8 @@ class FeedAggregator
                         ->first();
 
                     if ($homeAccount === null) {
+                        Log::warning('bluesky_feed account has no associated home account', ['account_id' => $account->id]);
+
                         continue;
                     }
 
@@ -147,11 +161,21 @@ class FeedAggregator
 
                     $nextCursor = $result['cursor'] ?: null;
                 }
-            } catch (\Throwable $e) {
-                Log::warning('Failed to fetch feed for account', [
+            } catch (ConnectionException|RequestException $e) {
+                Log::warning('Provider request failed for account', [
                     'account_id' => $account->id,
                     'provider' => $account->provider,
                     'error' => $e->getMessage(),
+                ]);
+
+                continue;
+            } catch (\Throwable $e) {
+                Log::error('Unexpected error fetching feed for account', [
+                    'account_id' => $account->id,
+                    'provider' => $account->provider,
+                    'exception' => $e::class,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
 
                 continue;

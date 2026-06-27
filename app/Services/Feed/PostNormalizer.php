@@ -39,6 +39,7 @@ class PostNormalizer
             'id' => "mastodon_{$status['id']}",
             'source' => 'mastodon',
             'source_handle' => $sourceHandle,
+            'source_instance' => $host,
             'author_name' => $source['account']['display_name'] ?: $source['account']['acct'],
             'author_handle' => str_contains($source['account']['acct'], '@')
                 ? "@{$source['account']['acct']}"
@@ -107,6 +108,7 @@ class PostNormalizer
             'id' => "bluesky_{$post['uri']}",
             'source' => 'bluesky',
             'source_handle' => $sourceHandle,
+            'source_instance' => null,
             'author_name' => $author['displayName'] ?: $author['handle'],
             'author_handle' => '@'.$author['handle'],
             'author_avatar' => $this->safeUrl($author['avatar'] ?? ''),

@@ -2075,3 +2075,34 @@ it('strips a trailing mention from a bluesky reply_to body to a chip', function 
         ->and($post['reply_to']['chip_mentions'])->toHaveCount(1)
         ->and($post['reply_to']['chip_mentions'][0]['profile_url'])->toBe('did:plc:bob');
 });
+
+it('includes source_instance from the mastodon host', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Hello</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://social.example/@alice/1',
+        'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => '', 'header' => '', 'emojis' => []],
+        'media_attachments' => [], 'tags' => [], 'mentions' => [], 'emojis' => [],
+        'sensitive' => false, 'spoiler_text' => '', 'card' => null, 'reblog' => null,
+    ];
+
+    $result = (new PostNormalizer)->fromMastodon($status, 'social.example');
+
+    expect($result['source_instance'])->toBe('social.example');
+});
+
+it('sets source_instance to null for bluesky posts', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:1/app.bsky.feed.post/abc',
+            'record' => ['$type' => 'app.bsky.feed.post', 'text' => 'Hello', 'createdAt' => '2024-01-15T10:00:00.000Z'],
+            'author' => ['did' => 'did:plc:1', 'handle' => 'alice.test', 'displayName' => 'Alice', 'avatar' => ''],
+            'indexedAt' => '2024-01-15T10:00:00.000Z',
+        ],
+    ];
+
+    $result = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($result['source_instance'])->toBeNull();
+});

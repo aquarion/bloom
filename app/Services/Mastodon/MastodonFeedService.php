@@ -82,6 +82,55 @@ class MastodonFeedService
     }
 
     /**
+     * Fetch the public timeline for a Mastodon instance without authentication.
+     * Returns null if the instance requires auth (401). Cached app-wide (not per-user).
+     */
+    public function getPublicTimeline(string $instanceUrl, int $limit = 20): ?array
+    {
+        $host = parse_url($instanceUrl, PHP_URL_HOST) ?? $instanceUrl;
+        $dataKey = "mastodon:public:{$host}:head:data";
+        $freshKey = "mastodon:public:{$host}:head:fresh";
+
+        if (Cache::has($freshKey)) {
+            return Cache::get($dataKey) ?? [];
+        }
+
+        $existing = Cache::get($dataKey);
+        $params = ['limit' => $limit];
+
+        if (! empty($existing)) {
+            $params['since_id'] = $existing[0]['id'];
+        }
+
+        try {
+            $response = Http::timeout(15)
+                ->get("{$instanceUrl}/api/v1/timelines/public", $params);
+
+            if ($response->status() === 401) {
+                return null;
+            }
+
+            $response->throw();
+        } catch (\Throwable $e) {
+            if (isset($response) && $response->status() === 401) {
+                return null;
+            }
+            throw $e;
+        }
+
+        $fetched = $response->json();
+
+        $merged = ! empty($existing)
+            ? array_slice(array_merge($fetched, $existing), 0, $limit)
+            : $fetched;
+
+        Cache::put($dataKey, $merged, self::TIMELINE_DATA_TTL);
+        Cache::put($freshKey, true, self::TIMELINE_TTL);
+
+        return $merged;
+    }
+
+    /**
      * @param  array<int, array<string, mixed>>  $normalisedPosts  Posts already shaped by PostNormalizer::fromMastodon, each with a 'chip_mentions' key.
      */
     public function resolveMentionProfiles(array $normalisedPosts, SocialAccount $account): array

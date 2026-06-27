@@ -256,3 +256,49 @@ it('does not crash when mastodon reply_to and quoted_post are null', function ()
         ->and($resolved[0]['reply_to'])->toBeNull()
         ->and($resolved[0]['quoted_post'])->toBeNull();
 });
+
+it('returns public timeline statuses without a token', function () {
+    Http::fake([
+        'social.example/api/v1/timelines/public*' => Http::response([
+            ['id' => '1', 'content' => '<p>Hello</p>', 'created_at' => now()->toIso8601String()],
+        ], 200),
+    ]);
+
+    $service = new MastodonFeedService;
+    $result = $service->getPublicTimeline('https://social.example', 20);
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]['id'])->toBe('1');
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/api/v1/timelines/public')
+        && ! $request->hasHeader('Authorization')
+    );
+});
+
+it('returns null when public timeline returns 401', function () {
+    Http::fake([
+        'social.example/api/v1/timelines/public*' => Http::response(
+            ['error' => 'This API requires an authenticated user'], 401
+        ),
+    ]);
+
+    $service = new MastodonFeedService;
+    $result = $service->getPublicTimeline('https://social.example', 20);
+
+    expect($result)->toBeNull();
+});
+
+it('caches public timeline without user tag', function () {
+    Http::fake([
+        'social.example/api/v1/timelines/public*' => Http::sequence()
+            ->push([['id' => '1', 'content' => '<p>Hi</p>']], 200)
+            ->push([['id' => '2', 'content' => '<p>Cached</p>']], 200),
+    ]);
+
+    $service = new MastodonFeedService;
+    $service->getPublicTimeline('https://social.example', 20);
+    $second = $service->getPublicTimeline('https://social.example', 20);
+
+    expect($second[0]['id'])->toBe('1');
+    Http::assertSentCount(1);
+});

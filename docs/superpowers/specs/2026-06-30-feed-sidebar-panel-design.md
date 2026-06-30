@@ -37,6 +37,12 @@ The fix is **not** to wrap the feed page in `AppSidebarLayout` (that component a
 - `feed.tsx` holds local `const [panelOpen, setPanelOpen] = useState(false)` and changes the Home button from a `<Link>` to a `<button onClick={() => setPanelOpen((o) => !o)}>`, rendering `<FeedSidebarPanel open={panelOpen} onOpenChange={setPanelOpen} />` alongside the existing chrome.
 - No changes to `useAutoAdvance`, `useKeyboardShortcuts`, or any state on the feed page beyond adding `panelOpen` — per the design decisions above, both keep running unmodified while the drawer is open.
 
+## Accessibility
+
+- **Toggle button:** The Home icon button gets `aria-expanded={panelOpen}` and `aria-haspopup="dialog"` so screen readers announce that it controls a panel. The existing `aria-label="Home"` is retained but updated to something more descriptive like `aria-label="Open navigation"` since the icon no longer navigates — it opens a panel.
+- **Sheet title:** Radix Dialog (the underlying primitive for `Sheet`) requires an accessible title or it will warn. A `<SheetHeader>` with a `sr-only` `<SheetTitle>Navigation</SheetTitle>` is included inside `FeedSidebarPanel` — identical to how `Sidebar` already handles this for its mobile Sheet rendering in `resources/js/components/ui/sidebar.tsx`.
+- **Focus management:** Radix Dialog handles this automatically — focus moves into the `SheetContent` when it opens, and returns to the trigger button when it closes.
+
 ## Testing
 
 - Component test for `FeedSidebarPanel`: renders nothing visible when `open=false`; renders `AppSidebarContents` content when `open=true`; calls `onOpenChange(false)` when triggered (mirroring the existing `MatomoInit`/page-component test patterns: `vi.mock('@inertiajs/react')`, `render`, `screen`).

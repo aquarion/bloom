@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { trackEvent } from '@/lib/matomo';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
 
@@ -16,6 +17,7 @@ export default function Register() {
                 {...store.form()}
                 disableWhileProcessing
                 className="flex flex-col gap-6"
+                onSuccess={() => trackEvent('registration', 'form-submit')}
             >
                 {({ processing, errors }) => (
                     <>

@@ -75,7 +75,7 @@ class MatomoService
                     'idSite' => $siteId,
                     'name' => $name,
                     'matchAttribute' => 'manually',
-                    'pattern' => '',
+                    'pattern' => $name,
                     'patternType' => 'contains',
                     'caseSensitive' => false,
                     'revenue' => 0,

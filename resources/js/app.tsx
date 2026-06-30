@@ -1,4 +1,5 @@
 import { createInertiaApp } from '@inertiajs/react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { MatomoInit } from '@/components/MatomoInit';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -24,11 +25,13 @@ createInertiaApp({
     strictMode: true,
     withApp(app, { page }) {
         return (
-            <TooltipProvider delayDuration={0}>
-                <MatomoInit matomo={page.props.matomo} />
-                {app}
-                <Toaster />
-            </TooltipProvider>
+            <ErrorBoundary>
+                <TooltipProvider delayDuration={0}>
+                    <MatomoInit matomo={page.props.matomo} />
+                    {app}
+                    <Toaster />
+                </TooltipProvider>
+            </ErrorBoundary>
         );
     },
     progress: {

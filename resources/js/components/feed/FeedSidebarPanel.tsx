@@ -3,6 +3,7 @@ import { AppSidebarContents } from '@/components/app-sidebar-contents';
 import {
     Sheet,
     SheetContent,
+    SheetDescription,
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
@@ -23,6 +24,7 @@ export function FeedSidebarPanel({ open, onOpenChange }: Props) {
             >
                 <SheetHeader className="sr-only">
                     <SheetTitle>Navigation</SheetTitle>
+                    <SheetDescription>App navigation</SheetDescription>
                 </SheetHeader>
                 <SidebarProvider>
                     <AppSidebarContents />

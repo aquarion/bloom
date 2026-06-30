@@ -70,6 +70,16 @@ describe('matomo wrapper', () => {
                 'https://stat.istic.net/matomo.php',
             ]);
             expect(window._paq).toContainEqual(['setSiteId', '3']);
+            expect(window._paq).toContainEqual(['enableLinkTracking']);
+        });
+
+        it('tracks the initial page view', () => {
+            initMatomo({
+                tracker_url: 'https://stat.istic.net',
+                site_id: 3,
+                goals: { registration: 1 },
+            });
+            expect(window._paq).toContainEqual(['trackPageView']);
         });
 
         it('injects a script tag pointing to matomo.js', () => {

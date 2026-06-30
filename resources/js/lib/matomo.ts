@@ -7,13 +7,17 @@ declare global {
 export interface MatomoConfig {
     tracker_url: string;
     site_id: number;
-    goals: Record<string, number>;
+    goals: {
+        registration: number;
+    };
 }
 
 export function initMatomo(config: MatomoConfig): void {
     window._paq = window._paq ?? [];
     window._paq.push(['setTrackerUrl', `${config.tracker_url}/matomo.php`]);
     window._paq.push(['setSiteId', String(config.site_id)]);
+    window._paq.push(['enableLinkTracking']);
+    window._paq.push(['trackPageView']);
     const script = document.createElement('script');
     script.async = true;
     script.src = `${config.tracker_url}/matomo.js`;

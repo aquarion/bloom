@@ -90,7 +90,7 @@ class MatomoService
 
     private function api(string $method, array $params = []): array
     {
-        $response = Http::get(config('services.matomo.url').'/index.php', array_merge([
+        $response = Http::asForm()->post(config('services.matomo.url').'/index.php', array_merge([
             'module' => 'API',
             'method' => $method,
             'format' => 'json',

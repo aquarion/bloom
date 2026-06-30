@@ -1,14 +1,14 @@
-import { createInertiaApp, router, usePage } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
 import { useEffect, useRef } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
+import type { MatomoConfig } from '@/lib/matomo';
 import { initMatomo, trackPageView } from '@/lib/matomo';
 
-function MatomoInit() {
-    const { matomo } = usePage().props;
+function MatomoInit({ matomo }: { matomo: MatomoConfig | null }) {
     const initializedRef = useRef(false);
 
     useEffect(() => {
@@ -43,10 +43,10 @@ createInertiaApp({
         }
     },
     strictMode: true,
-    withApp(app) {
+    withApp(app, { page }) {
         return (
             <TooltipProvider delayDuration={0}>
-                <MatomoInit />
+                <MatomoInit matomo={page.props.matomo} />
                 {app}
                 <Toaster />
             </TooltipProvider>

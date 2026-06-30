@@ -20,7 +20,7 @@ export default function PasskeySetup({ status }: Props) {
         const ok = await register('My passkey');
 
         if (ok) {
-            if (matomo) {
+            if (matomo && !isRecovery) {
                 trackGoal(matomo.goals.registration);
             }
 

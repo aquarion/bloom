@@ -27,13 +27,49 @@ it('returns null when matomo auth token is not configured', function () {
     expect((new MatomoService)->getConfig())->toBeNull();
 });
 
-it('returns null and logs a warning when the matomo api is unreachable', function () {
+it('returns null and logs a warning with diagnostic context when the matomo api is unreachable', function () {
     Http::fake([
         'stat.istic.net/*' => Http::response(null, 500),
     ]);
-    Log::shouldReceive('warning')->once();
+    Log::shouldReceive('warning')
+        ->once()
+        ->with('Matomo config lookup failed', Mockery::on(function (array $context) {
+            return $context['app_url'] === 'https://bloom.example.com'
+                && $context['matomo_url'] === 'https://stat.istic.net'
+                && $context['exception'] instanceof Throwable
+                && is_string($context['message']);
+        }));
 
     expect((new MatomoService)->getConfig())->toBeNull();
+});
+
+it('matches an existing matomo site ignoring a trailing slash difference', function () {
+    Http::fake([
+        'stat.istic.net/*' => function ($request) {
+            $method = $request->data()['method'] ?? '';
+
+            if ($method === 'SitesManager.getAllSites') {
+                return Http::response([[
+                    'idsite' => '3',
+                    'main_url' => 'https://bloom.example.com/',
+                    'name' => 'Bloom',
+                ]]);
+            }
+
+            if ($method === 'Goals.getGoals') {
+                return Http::response([
+                    ['idgoal' => '1', 'name' => 'Registration complete'],
+                ]);
+            }
+
+            return Http::response([], 200);
+        },
+    ]);
+
+    $config = (new MatomoService)->getConfig();
+
+    expect($config['site_id'])->toBe(3);
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), 'SitesManager.addSite'));
 });
 
 it('uses an existing matomo site when app url matches', function () {

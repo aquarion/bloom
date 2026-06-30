@@ -34,7 +34,10 @@ class MatomoService
                 ];
             } catch (\Throwable $e) {
                 Log::warning('Matomo config lookup failed', [
-                    'error' => $e->getMessage(),
+                    'message' => $e->getMessage(),
+                    'exception' => $e,
+                    'app_url' => config('app.url'),
+                    'matomo_url' => config('services.matomo.url'),
                 ]);
 
                 return null;
@@ -44,11 +47,11 @@ class MatomoService
 
     private function ensureSite(): int
     {
-        $appUrl = config('app.url');
+        $appUrl = rtrim(config('app.url'), '/');
         $sites = $this->api('SitesManager.getAllSites');
 
         foreach ($sites as $site) {
-            if ($site['main_url'] === $appUrl) {
+            if (rtrim($site['main_url'], '/') === $appUrl) {
                 return (int) $site['idsite'];
             }
         }

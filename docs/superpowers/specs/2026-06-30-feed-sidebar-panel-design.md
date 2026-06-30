@@ -37,6 +37,12 @@ The fix is **not** to wrap the feed page in `AppSidebarLayout` (that component a
 - `feed.tsx` holds local `const [panelOpen, setPanelOpen] = useState(false)` and changes the Home button from a `<Link>` to a `<button onClick={() => setPanelOpen((o) => !o)}>`, rendering `<FeedSidebarPanel open={panelOpen} onOpenChange={setPanelOpen} />` alongside the existing chrome.
 - No changes to `useAutoAdvance`, `useKeyboardShortcuts`, or any state on the feed page beyond adding `panelOpen` — per the design decisions above, both keep running unmodified while the drawer is open.
 
+## Keyboard shortcuts
+
+- **`h`** — toggle the sidebar panel open/closed (mnemonic: Home). Added to `useKeyboardShortcuts` in `feed.tsx` alongside the existing `j`/`k`/`space`/`o`/`l`/`?`/`Escape` bindings.
+- **`Escape`** — already bound to `closeHelp`. When the panel is open, Radix Sheet also captures `Escape` natively via its own handler to close itself. Both fire independently with no conflict (closing the help overlay when it's already closed is a no-op).
+- **`KeyboardShortcutsOverlay`** (`resources/js/components/feed/KeyboardShortcutsOverlay.tsx`) gets a new entry: `{ key: 'h', description: 'Open / close navigation' }`.
+
 ## Accessibility
 
 - **Toggle button:** The Home icon button gets `aria-expanded={panelOpen}` and `aria-haspopup="dialog"` so screen readers announce that it controls a panel. The existing `aria-label="Home"` is retained but updated to something more descriptive like `aria-label="Open navigation"` since the icon no longer navigates — it opens a panel.

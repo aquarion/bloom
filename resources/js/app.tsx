@@ -1,4 +1,5 @@
 import { createInertiaApp } from '@inertiajs/react';
+import { MatomoInit } from '@/components/MatomoInit';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -21,9 +22,10 @@ createInertiaApp({
         }
     },
     strictMode: true,
-    withApp(app) {
+    withApp(app, { page }) {
         return (
             <TooltipProvider delayDuration={0}>
+                <MatomoInit matomo={page.props.matomo} />
                 {app}
                 <Toaster />
             </TooltipProvider>

@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Services\Bluesky\BlueskyFeedService;
 use App\Services\Mastodon\MastodonFeedService;
 use Carbon\Carbon;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 
 class FeedAggregator
@@ -17,7 +19,7 @@ class FeedAggregator
         private PostNormalizer $normalizer,
     ) {}
 
-    public function fetch(User $user, int $limit = 20, ?string $cursor = null): array
+    public function fetch(User $user, int $limit = 20, ?string $cursor = null, bool $mentionsEnabled = false): array
     {
         $user->loadMissing('socialAccounts');
 
@@ -32,7 +34,7 @@ class FeedAggregator
             $nextCursor = null;
 
             try {
-                if ($account->provider === 'mastodon') {
+                if ($account->feed_type === 'home' && $account->provider === 'mastodon') {
                     $host = parse_url($account->instance_url, PHP_URL_HOST);
                     $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
                     $statuses = $this->mastodon->getHomeTimeline($account, $perAccountLimit, $accountCursor);
@@ -42,7 +44,7 @@ class FeedAggregator
                     // so the batch short-circuit inside fetchMastodonStatuses is always bypassed here.
                     $quotes = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['quote_id'] ?? null);
 
-                    $normalised = array_map(function ($s) use ($host, $parents, $quotes, $account) {
+                    $normalised = array_map(function ($s) use ($host, $parents, $quotes, $account, $mentionsEnabled) {
                         $source = $s['reblog'] ?? $s;
                         // $quoteId matches the key used by the extractor above, so $quotes[$quoteId] resolves
                         // the pre-fetched status (or null if unavailable) to pass into the normalizer.
@@ -54,23 +56,126 @@ class FeedAggregator
                             $parents[$source['in_reply_to_id'] ?? ''] ?? null,
                             $account->handle,
                             $quoteId ? ($quotes[$quoteId] ?? null) : null,
+                            $mentionsEnabled,
                         );
                     }, $statuses);
 
-                    $nextCursor = ! empty($statuses) ? end($statuses)['id'] : null;
-                }
+                    if ($mentionsEnabled) {
+                        $normalised = $this->mastodon->resolveMentionProfiles($normalised, $account);
+                    }
 
-                if ($account->provider === 'bluesky') {
+                    $nextCursor = ! empty($statuses) ? end($statuses)['id'] : null;
+                } elseif ($account->feed_type === 'public_mastodon') {
+                    $host = parse_url($account->instance_url, PHP_URL_HOST);
+                    $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
+                    $statuses = $this->mastodon->getPublicTimeline($account->instance_url, $perAccountLimit);
+                    $authAccount = null;
+
+                    if ($statuses === null) {
+                        // Instance requires auth — fall back to a home account on the same instance
+                        $authAccount = $user->socialAccounts
+                            ->where('provider', 'mastodon')
+                            ->where('feed_type', 'home')
+                            ->first(fn ($a) => parse_url($a->instance_url, PHP_URL_HOST) === $host);
+
+                        if ($authAccount === null) {
+                            Log::warning('Public Mastodon instance requires auth with no matching home account', [
+                                'account_id' => $account->id,
+                                'host' => $host,
+                            ]);
+                            $account->update(['auth_failed_at' => now()]);
+
+                            continue;
+                        }
+
+                        $statuses = $this->mastodon->getHomeTimeline($authAccount, $perAccountLimit, $accountCursor);
+
+                        if ($account->auth_failed_at !== null) {
+                            $account->update(['auth_failed_at' => null]);
+                        }
+                    }
+
+                    $parents = $authAccount !== null
+                        ? $this->fetchMastodonStatuses($authAccount, $statuses, fn ($s) => ($s['reblog'] ?? $s)['in_reply_to_id'] ?? null)
+                        : [];
+                    $quotes = $authAccount !== null
+                        ? $this->fetchMastodonStatuses($authAccount, $statuses, fn ($s) => ($s['reblog'] ?? $s)['quote_id'] ?? null)
+                        : [];
+
+                    $normalised = array_map(function ($s) use ($host, $parents, $quotes, $mentionsEnabled) {
+                        $source = $s['reblog'] ?? $s;
+                        $quoteId = $source['quote_id'] ?? null;
+
+                        return $this->normalizer->fromMastodon(
+                            $s,
+                            $host,
+                            $parents[$source['in_reply_to_id'] ?? ''] ?? null,
+                            null,
+                            $quoteId ? ($quotes[$quoteId] ?? null) : null,
+                            $mentionsEnabled,
+                        );
+                    }, $statuses);
+
+                    if ($mentionsEnabled && $authAccount !== null) {
+                        $normalised = $this->mastodon->resolveMentionProfiles($normalised, $authAccount);
+                    }
+
+                    $nextCursor = null;
+                } elseif ($account->feed_type === 'home') {
                     $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
                     $result = $this->bluesky->getHomeTimeline($account, $perAccountLimit, $accountCursor);
-                    $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle), $result['posts']);
+                    $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle, $mentionsEnabled), $result['posts']);
+
+                    if ($mentionsEnabled) {
+                        $normalised = $this->bluesky->resolveMentionProfiles($normalised, $account);
+                    }
+
+                    $nextCursor = $result['cursor'] ?: null;
+                } elseif ($account->feed_type === 'bluesky_feed') {
+                    $feedUri = $account->getPreference('feed_uri');
+                    if (empty($feedUri)) {
+                        Log::warning('bluesky_feed account is missing feed_uri', ['account_id' => $account->id]);
+
+                        continue;
+                    }
+
+                    $homeAccount = $user->socialAccounts
+                        ->where('provider', 'bluesky')
+                        ->where('feed_type', 'home')
+                        ->sortBy('id')
+                        ->first();
+
+                    if ($homeAccount === null) {
+                        Log::warning('bluesky_feed account has no associated home account', ['account_id' => $account->id]);
+
+                        continue;
+                    }
+
+                    $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
+                    $result = $this->bluesky->getFeed($homeAccount, $feedUri, $perAccountLimit, $accountCursor);
+                    $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $homeAccount->handle, $mentionsEnabled), $result['posts']);
+
+                    if ($mentionsEnabled) {
+                        $normalised = $this->bluesky->resolveMentionProfiles($normalised, $homeAccount);
+                    }
+
                     $nextCursor = $result['cursor'] ?: null;
                 }
-            } catch (\Throwable $e) {
-                Log::warning('Failed to fetch feed for account', [
+            } catch (ConnectionException|RequestException $e) {
+                Log::warning('Provider request failed for account', [
                     'account_id' => $account->id,
                     'provider' => $account->provider,
                     'error' => $e->getMessage(),
+                ]);
+
+                continue;
+            } catch (\Throwable $e) {
+                Log::error('Unexpected error fetching feed for account', [
+                    'account_id' => $account->id,
+                    'provider' => $account->provider,
+                    'exception' => $e::class,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
                 ]);
 
                 continue;

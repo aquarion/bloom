@@ -152,6 +152,23 @@ it('falls back to hardcoded posts when cache is empty and fetch fails', function
     expect(Cache::get('welcome.posts.data'))->toBeNull();
 });
 
+it('never applies mention classification for anonymous welcome page visitors', function () {
+    $status = array_merge(mastodonStatus('1', 'Hello @alice check this out'), [
+        'mentions' => [
+            ['id' => '1', 'username' => 'alice', 'acct' => 'alice', 'url' => 'https://mastodon.social/@alice'],
+        ],
+    ]);
+
+    Http::fake([
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([$status]),
+    ]);
+
+    $this->withoutVite()->get('/')->assertInertia(
+        fn ($page) => $page->where('initialPosts.0.body', 'Hello @alice check this out')
+            ->where('initialPosts.0.chip_mentions', [])
+    );
+});
+
 it('falls back to hardcoded posts when all fetched posts are filtered out and cache is empty', function () {
     Http::fake([
         config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([

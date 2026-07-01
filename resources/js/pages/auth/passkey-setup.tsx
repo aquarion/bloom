@@ -1,8 +1,9 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { usePasskey } from '@/hooks/use-passkey';
+import { trackGoal } from '@/lib/matomo';
 import { dashboard } from '@/routes';
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export default function PasskeySetup({ status }: Props) {
+    const { matomo } = usePage().props;
     const { isSupported, loading, error, register } = usePasskey();
 
     const isRecovery = status === 'recovery';
@@ -18,6 +20,10 @@ export default function PasskeySetup({ status }: Props) {
         const ok = await register('My passkey');
 
         if (ok) {
+            if (matomo && !isRecovery) {
+                trackGoal(matomo.goals.registration);
+            }
+
             router.visit(dashboard.url());
         }
     };

@@ -8,6 +8,7 @@ function makePost(id: string): Post {
         id,
         source: 'mastodon',
         source_handle: '',
+        source_instance: null,
         author_name: 'Test',
         author_handle: '@test@example.com',
         author_avatar: '',
@@ -27,6 +28,9 @@ function makePost(id: string): Post {
         boosted_by_created_at: null,
         emojis: {},
         hashtags: [],
+        chip_mentions: [],
+        cw_text: null,
+        sensitive_media: false,
     };
 }
 

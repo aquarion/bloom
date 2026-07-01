@@ -1,4 +1,6 @@
 import { createInertiaApp } from '@inertiajs/react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { MatomoInit } from '@/components/MatomoInit';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -8,7 +10,7 @@ import AuthLayout from '@/layouts/auth-layout';
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    title: (title) => (title ? `${title} — ${appName}` : appName),
     layout: (name) => {
         switch (true) {
             case name === 'welcome':
@@ -21,12 +23,15 @@ createInertiaApp({
         }
     },
     strictMode: true,
-    withApp(app) {
+    withApp(app, { page }) {
         return (
-            <TooltipProvider delayDuration={0}>
-                {app}
-                <Toaster />
-            </TooltipProvider>
+            <ErrorBoundary>
+                <TooltipProvider delayDuration={0}>
+                    <MatomoInit matomo={page.props.matomo} />
+                    {app}
+                    <Toaster />
+                </TooltipProvider>
+            </ErrorBoundary>
         );
     },
     progress: {

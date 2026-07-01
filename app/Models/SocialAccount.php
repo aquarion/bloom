@@ -12,7 +12,7 @@ class SocialAccount extends Model
     use HasFactory, HasJsonPreferences;
 
     protected $fillable = [
-        'user_id', 'provider', 'instance_url',
+        'user_id', 'provider', 'feed_type', 'instance_url',
         'access_token', 'token_secret', 'handle',
         'auth_failed_at', 'feed_settings',
     ];

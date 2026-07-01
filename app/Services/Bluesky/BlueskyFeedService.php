@@ -45,6 +45,165 @@ class BlueskyFeedService
         return $result;
     }
 
+    public function getFeed(SocialAccount $account, string $feedUri, int $limit = 20, ?string $cursor = null): array
+    {
+        $params = ['feed' => $feedUri, 'limit' => $limit];
+        if ($cursor !== null) {
+            $params['cursor'] = $cursor;
+        }
+
+        $cacheKey = 'bluesky:feed:'.$account->id.':'.md5($feedUri).':'.($cursor ?? 'head');
+
+        $result = Cache::tags(["user:{$account->user_id}"])->remember($cacheKey, self::TIMELINE_TTL, function () use ($account, $params) {
+            $response = $this->request($account, fn (string $token) => Http::withToken($token)
+                ->get(self::BASE.'/app.bsky.feed.getFeed', $params)
+                ->throw()
+                ->json()
+            );
+
+            return [
+                'posts' => $response['feed'] ?? [],
+                'cursor' => $response['cursor'] ?? null,
+            ];
+        });
+
+        $result['posts'] = $this->enrichWithBanners($result['posts'], $account);
+
+        return $result;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $normalisedPosts  Posts already shaped by PostNormalizer::fromBluesky, each with a 'chip_mentions' key.
+     */
+    public function resolveMentionProfiles(array $normalisedPosts, SocialAccount $account): array
+    {
+        $cache = Cache::tags(["user:{$account->user_id}"]);
+        $sentinel = '__uncached__';
+
+        $didsToCheck = [];
+        foreach ($normalisedPosts as $post) {
+            foreach ($this->collectChipMentions($post) as $mention) {
+                if (str_starts_with($mention['profile_url'] ?? '', 'did:')) {
+                    $didsToCheck[$mention['profile_url']] = true;
+                }
+            }
+        }
+
+        if (empty($didsToCheck)) {
+            return $normalisedPosts;
+        }
+
+        $profiles = [];
+        $didsToFetch = [];
+
+        foreach (array_keys($didsToCheck) as $did) {
+            $cached = $cache->get("bluesky:profile:{$did}:mention", $sentinel);
+            if ($cached !== $sentinel) {
+                $profiles[$did] = $cached ?: null;
+            } else {
+                $didsToFetch[] = $did;
+            }
+        }
+
+        foreach (array_chunk($didsToFetch, 25) as $batch) {
+            try {
+                $actorQuery = implode('&', array_map(fn ($d) => 'actors='.rawurlencode($d), $batch));
+
+                $response = $this->request($account, fn (string $token) => Http::withToken($token)
+                    ->get(self::BASE.'/app.bsky.actor.getProfiles?'.$actorQuery)
+                    ->throw()
+                    ->json()
+                );
+
+                $fetched = [];
+                foreach ($response['profiles'] ?? [] as $profile) {
+                    $did = $profile['did'];
+                    $resolved = [
+                        'handle' => $profile['handle'] ?? null,
+                        'displayName' => $profile['displayName'] ?? null,
+                        'avatar' => $this->safeUrl($profile['avatar'] ?? null) ?: null,
+                    ];
+                    $profiles[$did] = $resolved;
+                    $fetched[$did] = true;
+                    $cache->put("bluesky:profile:{$did}:mention", $resolved, self::PROFILE_TTL);
+                }
+
+                foreach ($batch as $did) {
+                    if (! isset($fetched[$did])) {
+                        $profiles[$did] = null;
+                        $cache->put("bluesky:profile:{$did}:mention", '', self::PROFILE_TTL);
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to fetch Bluesky profiles for mention resolution', [
+                    'error' => $e->getMessage(),
+                ]);
+                foreach ($batch as $did) {
+                    $cache->put("bluesky:profile:{$did}:mention", '', 300);
+                }
+            }
+        }
+
+        $mapMention = function (array $mention) use ($profiles): array {
+            $did = $mention['profile_url'] ?? '';
+            $profile = $profiles[$did] ?? null;
+
+            if (! is_array($profile) || empty($profile['handle'])) {
+                // Unresolved — still give the frontend a navigable, non-blank chip
+                // rather than a raw `did:` URI with an empty name.
+                return [
+                    'handle' => $mention['handle'] ?: $did,
+                    'display_name' => $mention['display_name'] ?: $did,
+                    'avatar' => $mention['avatar'] ?? '',
+                    'profile_url' => str_starts_with($did, 'did:') ? "https://bsky.app/profile/{$did}" : $did,
+                ];
+            }
+
+            return [
+                'handle' => '@'.$profile['handle'],
+                'display_name' => $profile['displayName'] ?: $profile['handle'],
+                'avatar' => $profile['avatar'] ?? '',
+                'profile_url' => "https://bsky.app/profile/{$profile['handle']}",
+            ];
+        };
+
+        return array_map(function (array $post) use ($mapMention) {
+            $post['chip_mentions'] = array_map($mapMention, $post['chip_mentions'] ?? []);
+
+            if (isset($post['reply_to']) && is_array($post['reply_to'])) {
+                $post['reply_to']['chip_mentions'] = array_map($mapMention, $post['reply_to']['chip_mentions'] ?? []);
+            }
+
+            if (isset($post['quoted_post']) && is_array($post['quoted_post'])) {
+                $post['quoted_post']['chip_mentions'] = array_map($mapMention, $post['quoted_post']['chip_mentions'] ?? []);
+            }
+
+            return $post;
+        }, $normalisedPosts);
+    }
+
+    /**
+     * Collect chip_mentions from a post's top-level body plus its nested reply_to/quoted_post
+     * bodies (which receive the same mention-classification treatment as the main body).
+     *
+     * @param  array<string, mixed>  $post
+     * @return array<int, array<string, mixed>>
+     */
+    private function collectChipMentions(array $post): array
+    {
+        $mentions = $post['chip_mentions'] ?? [];
+
+        if (isset($post['reply_to']) && is_array($post['reply_to'])) {
+            $mentions = array_merge($mentions, $post['reply_to']['chip_mentions'] ?? []);
+        }
+
+        if (isset($post['quoted_post']) && is_array($post['quoted_post'])) {
+            $mentions = array_merge($mentions, $post['quoted_post']['chip_mentions'] ?? []);
+        }
+
+        return $mentions;
+    }
+
     private function enrichWithBanners(array $feedPosts, SocialAccount $account): array
     {
         $cache = Cache::tags(["user:{$account->user_id}"]);
@@ -158,5 +317,16 @@ class BlueskyFeedService
 
             return $call($tokens['access_token']);
         }
+    }
+
+    private function safeUrl(?string $url): string
+    {
+        if (! $url) {
+            return '';
+        }
+
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+
+        return in_array($scheme, ['https', 'http'], true) ? $url : '';
     }
 }

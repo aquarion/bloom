@@ -11,17 +11,21 @@ import { Label } from '@/components/ui/label';
 import SettingsPageLayout from '@/layouts/settings-page-layout';
 import bluesky from '@/routes/bluesky';
 import { destroy as disconnectAccount, edit } from '@/routes/connections';
+import blueskyFeed from '@/routes/connections/bluesky-feed';
+import publicMastodon from '@/routes/connections/public-mastodon';
 import mastodon from '@/routes/mastodon';
 
 interface SocialConnection {
     id: number;
     provider: 'mastodon' | 'bluesky';
-    handle: string;
+    feed_type: 'home' | 'public_mastodon' | 'bluesky_feed';
+    handle: string | null;
     instance_url: string | null;
     auth_failed_at: string | null;
     feed_settings: {
         max_posts?: number;
         max_age_days?: number | null;
+        feed_uri?: string;
     } | null;
 }
 
@@ -202,6 +206,23 @@ function MastodonReauthForm({ connection }: { connection: SocialConnection }) {
     );
 }
 
+function DisconnectButton({ connection }: { connection: SocialConnection }) {
+    return (
+        <Form {...disconnectAccount.form({ account: connection.id })}>
+            {({ processing }) => (
+                <Button
+                    type="submit"
+                    variant="destructive"
+                    size="sm"
+                    disabled={processing}
+                >
+                    Remove
+                </Button>
+            )}
+        </Form>
+    );
+}
+
 export default function Connections({
     connections,
     status,
@@ -209,12 +230,20 @@ export default function Connections({
     connections: SocialConnection[];
     status?: string;
 }) {
-    const mastodonConnections = connections.filter(
-        (c) => c.provider === 'mastodon',
+    const mastodonHome = connections.filter(
+        (c) => c.provider === 'mastodon' && c.feed_type === 'home',
     );
-    const blueskyConnections = connections.filter(
-        (c) => c.provider === 'bluesky',
+    const mastodonPublic = connections.filter(
+        (c) => c.provider === 'mastodon' && c.feed_type === 'public_mastodon',
     );
+    const blueskyHome = connections.filter(
+        (c) => c.provider === 'bluesky' && c.feed_type === 'home',
+    );
+    const blueskyFeeds = connections.filter(
+        (c) => c.provider === 'bluesky' && c.feed_type === 'bluesky_feed',
+    );
+
+    const hasBlueskyHomeAccount = blueskyHome.length > 0;
 
     return (
         <SettingsPageLayout>
@@ -249,6 +278,16 @@ export default function Connections({
                         That Mastodon account is already connected.
                     </div>
                 )}
+                {status === 'public-mastodon-added' && (
+                    <div className="font-medium text-green-600 text-sm">
+                        Public Mastodon timeline added.
+                    </div>
+                )}
+                {status === 'public-mastodon-already-added' && (
+                    <div className="font-medium text-amber-600 text-sm">
+                        That public timeline is already added.
+                    </div>
+                )}
                 {status === 'bluesky-connected' && (
                     <div className="font-medium text-green-600 text-sm">
                         Bluesky account connected.
@@ -269,6 +308,16 @@ export default function Connections({
                         That Bluesky account is already connected.
                     </div>
                 )}
+                {status === 'bluesky-feed-added' && (
+                    <div className="font-medium text-green-600 text-sm">
+                        Bluesky algorithmic feed added.
+                    </div>
+                )}
+                {status === 'bluesky-feed-already-added' && (
+                    <div className="font-medium text-amber-600 text-sm">
+                        That Bluesky feed is already added.
+                    </div>
+                )}
 
                 {/* Mastodon */}
                 <div className="rounded-lg border p-6">
@@ -276,13 +325,13 @@ export default function Connections({
                         <SiMastodon className="size-4" /> Mastodon
                     </h3>
 
-                    {mastodonConnections.length > 0 && (
+                    {mastodonHome.length > 0 && (
                         <div className="mb-4">
                             <p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
-                                Connected
+                                Connected accounts
                             </p>
                             <ul className="space-y-2">
-                                {mastodonConnections.map((c) => (
+                                {mastodonHome.map((c) => (
                                     <li
                                         key={c.id}
                                         data-testid={`account-${c.id}`}
@@ -339,35 +388,106 @@ export default function Connections({
                         </div>
                     )}
 
-                    <div className="rounded-md border bg-muted/50 p-4">
-                        <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
-                            Add account
-                        </p>
-                        <Form
-                            {...mastodon.redirect.form()}
-                            className="space-y-3"
-                        >
-                            {({ processing, errors }) => (
-                                <>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="instance_url">
-                                            Instance URL
-                                        </Label>
-                                        <InstanceCombobox
-                                            id="instance_url"
-                                            name="instance_url"
-                                            placeholder="https://mastodon.social"
-                                        />
-                                        <InputError
-                                            message={errors.instance_url}
-                                        />
-                                    </div>
-                                    <Button type="submit" disabled={processing}>
-                                        Connect Mastodon
-                                    </Button>
-                                </>
-                            )}
-                        </Form>
+                    {mastodonPublic.length > 0 && (
+                        <div className="mb-4">
+                            <p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                                Public timelines
+                            </p>
+                            <ul className="space-y-2">
+                                {mastodonPublic.map((c) => (
+                                    <li
+                                        key={c.id}
+                                        data-testid={`account-${c.id}`}
+                                        className="flex items-center justify-between rounded-md border px-3 py-2"
+                                    >
+                                        <p className="text-muted-foreground text-sm">
+                                            {c.instance_url}
+                                            {c.auth_failed_at && (
+                                                <span className="ml-2 text-amber-600 text-xs">
+                                                    (requires auth — add account
+                                                    above)
+                                                </span>
+                                            )}
+                                        </p>
+                                        <DisconnectButton connection={c} />
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    <div className="space-y-3">
+                        <div className="rounded-md border bg-muted/50 p-4">
+                            <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                                Add account
+                            </p>
+                            <Form
+                                {...mastodon.redirect.form()}
+                                className="space-y-3"
+                            >
+                                {({ processing, errors }) => (
+                                    <>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="instance_url">
+                                                Instance URL
+                                            </Label>
+                                            <InstanceCombobox
+                                                id="instance_url"
+                                                name="instance_url"
+                                                placeholder="https://mastodon.social"
+                                            />
+                                            <InputError
+                                                message={errors.instance_url}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            Connect Mastodon
+                                        </Button>
+                                    </>
+                                )}
+                            </Form>
+                        </div>
+
+                        <div className="rounded-md border bg-muted/50 p-4">
+                            <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                                Add public timeline
+                            </p>
+                            <p className="mb-3 text-muted-foreground text-xs">
+                                Follow any instance's public timeline without an
+                                account.
+                            </p>
+                            <Form
+                                {...publicMastodon.store.form()}
+                                className="space-y-3"
+                            >
+                                {({ processing, errors }) => (
+                                    <>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="public_instance_url">
+                                                Instance URL
+                                            </Label>
+                                            <Input
+                                                id="public_instance_url"
+                                                name="instance_url"
+                                                placeholder="https://mastodon.social"
+                                            />
+                                            <InputError
+                                                message={errors.instance_url}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            Add timeline
+                                        </Button>
+                                    </>
+                                )}
+                            </Form>
+                        </div>
                     </div>
                 </div>
 
@@ -377,13 +497,13 @@ export default function Connections({
                         <SiBluesky className="size-4" /> Bluesky
                     </h3>
 
-                    {blueskyConnections.length > 0 && (
+                    {blueskyHome.length > 0 && (
                         <div className="mb-4">
                             <p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
-                                Connected
+                                Connected accounts
                             </p>
                             <ul className="space-y-2">
-                                {blueskyConnections.map((c) => (
+                                {blueskyHome.map((c) => (
                                     <li
                                         key={c.id}
                                         data-testid={`account-${c.id}`}
@@ -431,64 +551,138 @@ export default function Connections({
                         </div>
                     )}
 
-                    <div className="rounded-md border bg-muted/50 p-4">
-                        <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
-                            Add account
-                        </p>
-                        <Form {...bluesky.store.form()} className="space-y-3">
-                            {({ processing, errors }) => (
-                                <>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="bsky_handle">
-                                            Handle
-                                        </Label>
-                                        <Input
-                                            id="bsky_handle"
-                                            name="handle"
-                                            placeholder="alice.bsky.social"
-                                        />
-                                        <InputError message={errors.handle} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="app_password">
-                                            App Password
-                                        </Label>
-                                        <Input
-                                            id="app_password"
-                                            name="app_password"
-                                            type="password"
-                                            placeholder="xxxx-xxxx-xxxx-xxxx"
-                                        />
-                                        <InputError
-                                            message={errors.app_password}
-                                        />
-                                        <p className="text-muted-foreground text-xs">
-                                            Generate one at Settings &rarr;
-                                            Privacy and Security &rarr; App
-                                            Passwords in Bluesky.
+                    {blueskyFeeds.length > 0 && (
+                        <div className="mb-4">
+                            <p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                                Algorithmic feeds
+                            </p>
+                            <ul className="space-y-2">
+                                {blueskyFeeds.map((c) => (
+                                    <li
+                                        key={c.id}
+                                        data-testid={`account-${c.id}`}
+                                        className="flex items-center justify-between rounded-md border px-3 py-2"
+                                    >
+                                        <p className="font-mono text-muted-foreground text-xs">
+                                            {c.feed_settings?.feed_uri}
                                         </p>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="pds_url">
-                                            PDS URL{' '}
-                                            <span className="font-normal text-muted-foreground text-xs">
-                                                (optional — leave blank for
-                                                bsky.social)
-                                            </span>
-                                        </Label>
-                                        <Input
-                                            id="pds_url"
-                                            name="pds_url"
-                                            placeholder="https://bsky.social"
-                                        />
-                                        <InputError message={errors.pds_url} />
-                                    </div>
-                                    <Button type="submit" disabled={processing}>
-                                        Connect Bluesky
-                                    </Button>
-                                </>
-                            )}
-                        </Form>
+                                        <DisconnectButton connection={c} />
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    <div className="space-y-3">
+                        <div className="rounded-md border bg-muted/50 p-4">
+                            <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                                Add account
+                            </p>
+                            <Form
+                                {...bluesky.store.form()}
+                                className="space-y-3"
+                            >
+                                {({ processing, errors }) => (
+                                    <>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="bsky_handle">
+                                                Handle
+                                            </Label>
+                                            <Input
+                                                id="bsky_handle"
+                                                name="handle"
+                                                placeholder="alice.bsky.social"
+                                            />
+                                            <InputError
+                                                message={errors.handle}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="app_password">
+                                                App Password
+                                            </Label>
+                                            <Input
+                                                id="app_password"
+                                                name="app_password"
+                                                type="password"
+                                                placeholder="xxxx-xxxx-xxxx-xxxx"
+                                            />
+                                            <InputError
+                                                message={errors.app_password}
+                                            />
+                                            <p className="text-muted-foreground text-xs">
+                                                Generate one at Settings &rarr;
+                                                Privacy and Security &rarr; App
+                                                Passwords in Bluesky.
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="pds_url">
+                                                PDS URL{' '}
+                                                <span className="font-normal text-muted-foreground text-xs">
+                                                    (optional — leave blank for
+                                                    bsky.social)
+                                                </span>
+                                            </Label>
+                                            <Input
+                                                id="pds_url"
+                                                name="pds_url"
+                                                placeholder="https://bsky.social"
+                                            />
+                                            <InputError
+                                                message={errors.pds_url}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
+                                            Connect Bluesky
+                                        </Button>
+                                    </>
+                                )}
+                            </Form>
+                        </div>
+
+                        {hasBlueskyHomeAccount && (
+                            <div className="rounded-md border bg-muted/50 p-4">
+                                <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                                    Add algorithmic feed
+                                </p>
+                                <p className="mb-3 text-muted-foreground text-xs">
+                                    Subscribe to a Bluesky curated feed. Paste
+                                    the feed URL from bsky.app.
+                                </p>
+                                <Form
+                                    {...blueskyFeed.store.form()}
+                                    className="space-y-3"
+                                >
+                                    {({ processing, errors }) => (
+                                        <>
+                                            <div className="space-y-1">
+                                                <Label htmlFor="feed_url">
+                                                    Feed URL
+                                                </Label>
+                                                <Input
+                                                    id="feed_url"
+                                                    name="feed_url"
+                                                    placeholder="https://bsky.app/profile/did:plc:.../feed/..."
+                                                />
+                                                <InputError
+                                                    message={errors.feed_url}
+                                                />
+                                            </div>
+                                            <Button
+                                                type="submit"
+                                                disabled={processing}
+                                            >
+                                                Add feed
+                                            </Button>
+                                        </>
+                                    )}
+                                </Form>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

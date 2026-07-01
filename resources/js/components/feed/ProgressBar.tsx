@@ -15,11 +15,11 @@ export function ProgressBar({
                             style={{
                                 width:
                                     i < segments.activeIndex
-                                        ? '100%'
+                                        ? '0%'
                                         : i === segments.activeIndex
-                                          ? `${segments.filled * 100}%`
-                                          : '0%',
-                                transition: 'none',
+                                          ? `${(1 - segments.filled) * 100}%`
+                                          : '100%',
+                                transition: 'width 0.1s linear',
                             }}
                         />
                     </div>

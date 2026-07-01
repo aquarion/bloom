@@ -27,7 +27,9 @@ export function FeedSidebarPanel({ open, onOpenChange }: Props) {
                     <SheetDescription>App navigation</SheetDescription>
                 </SheetHeader>
                 <SidebarProvider>
-                    <AppSidebarContents />
+                    <div className="flex h-full flex-col">
+                        <AppSidebarContents />
+                    </div>
                 </SidebarProvider>
             </SheetContent>
         </Sheet>

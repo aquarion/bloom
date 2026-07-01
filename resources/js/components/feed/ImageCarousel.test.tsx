@@ -230,3 +230,96 @@ describe('ImageCarousel — multiple images', () => {
         expect(screen.getByAltText('first')).toBeInTheDocument();
     });
 });
+
+describe('ImageCarousel — pause and sensitive media', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.clearAllMocks();
+    });
+
+    it('does not advance when paused is true', () => {
+        const onComplete = vi.fn();
+        render(
+            <ImageCarousel
+                {...defaultProps}
+                media={[makeImage('photo.jpg')]}
+                paused={true}
+                onComplete={onComplete}
+            />,
+        );
+
+        act(() => {
+            vi.advanceTimersByTime(DURATION * 3);
+        });
+
+        expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    it('does not advance when blurMedia is true', () => {
+        const onComplete = vi.fn();
+        render(
+            <ImageCarousel
+                {...defaultProps}
+                media={[makeImage('photo.jpg')]}
+                blurMedia={true}
+                onComplete={onComplete}
+            />,
+        );
+
+        act(() => {
+            vi.advanceTimersByTime(DURATION * 3);
+        });
+
+        expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    it('shows "Show sensitive media" button when blurMedia is true', () => {
+        render(
+            <ImageCarousel
+                {...defaultProps}
+                media={[makeImage('photo.jpg', 'private photo')]}
+                blurMedia={true}
+            />,
+        );
+
+        expect(
+            screen.getByRole('button', { name: /show sensitive media/i }),
+        ).toBeInTheDocument();
+    });
+
+    it('does not show the reveal button when blurMedia is false', () => {
+        render(
+            <ImageCarousel
+                {...defaultProps}
+                media={[makeImage('photo.jpg')]}
+                blurMedia={false}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: /show sensitive media/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('calls onRevealMedia when the reveal button is clicked', () => {
+        const onRevealMedia = vi.fn();
+        render(
+            <ImageCarousel
+                {...defaultProps}
+                media={[makeImage('photo.jpg')]}
+                blurMedia={true}
+                onRevealMedia={onRevealMedia}
+            />,
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: /show sensitive media/i }),
+        );
+
+        expect(onRevealMedia).toHaveBeenCalledOnce();
+    });
+});

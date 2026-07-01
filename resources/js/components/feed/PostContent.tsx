@@ -28,12 +28,14 @@ function CwOverlay({
 export function PostContent({
     post,
     onReady,
+    onAdvance,
     cwBehavior = 'show',
     sensitiveMediaBehavior = 'show',
     paused = false,
 }: {
     post: Post;
     onReady?: () => void;
+    onAdvance?: () => void;
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
     paused?: boolean;
@@ -56,6 +58,7 @@ export function PostContent({
                 post={post}
                 colors={colors}
                 onReady={onReady}
+                onAdvance={onAdvance}
                 blurMedia={blurMedia}
                 onRevealMedia={() => setMediaRevealed(true)}
                 paused={paused}

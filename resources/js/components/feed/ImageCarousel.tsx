@@ -43,7 +43,7 @@ export function ImageCarousel({
             return;
         }
 
-        const interval = setInterval(() => {
+        const intervalId = setInterval(() => {
             elapsedRef.current += TICK_MS;
             setFilled(Math.min(1, elapsedRef.current / duration));
 
@@ -53,12 +53,13 @@ export function ImageCarousel({
                 if (activeIndex < media.length - 1) {
                     setActiveIndex((i) => i + 1);
                 } else {
+                    clearInterval(intervalId);
                     onCompleteRef.current();
                 }
             }
         }, TICK_MS);
 
-        return () => clearInterval(interval);
+        return () => clearInterval(intervalId);
     }, [isPaused, duration, activeIndex, media.length]);
 
     const handleNext = () => {
@@ -89,6 +90,7 @@ export function ImageCarousel({
                     <div
                         key={idx}
                         role="progressbar"
+                        aria-label={`Image ${idx + 1} of ${media.length}`}
                         aria-valuenow={
                             idx < activeIndex
                                 ? 100

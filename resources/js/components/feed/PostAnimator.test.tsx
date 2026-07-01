@@ -119,7 +119,25 @@ describe('PostAnimator — image branch', () => {
         expect(screen.getByText('Look at this photo')).toBeInTheDocument();
     });
 
-    it('calls onReady when ImageCarousel calls onComplete', () => {
+    it('calls onAdvance (not onReady) when ImageCarousel calls onComplete', () => {
+        const onAdvance = vi.fn();
+        const onReady = vi.fn();
+        render(
+            <PostAnimator
+                post={makePost({ media: [makeImage('a.jpg')] })}
+                colors={null}
+                onReady={onReady}
+                onAdvance={onAdvance}
+            />,
+        );
+
+        fireEvent.click(screen.getByText('carousel-done'));
+
+        expect(onAdvance).toHaveBeenCalledOnce();
+        expect(onReady).not.toHaveBeenCalled();
+    });
+
+    it('falls back to onReady when onAdvance is not provided', () => {
         const onReady = vi.fn();
         render(
             <PostAnimator

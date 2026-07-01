@@ -150,6 +150,7 @@ export function PostAnimator({
     post,
     colors,
     onReady,
+    onAdvance,
     blurMedia = false,
     onRevealMedia,
     paused = false,
@@ -157,6 +158,7 @@ export function PostAnimator({
     post: Post;
     colors: PostColors | null;
     onReady?: () => void;
+    onAdvance?: () => void;
     blurMedia?: boolean;
     onRevealMedia?: () => void;
     paused?: boolean;
@@ -165,6 +167,7 @@ export function PostAnimator({
     const textRef = useRef<HTMLDivElement>(null);
     const panelsRef = useRef<HTMLDivElement>(null);
     const onReadyRef = useRef(onReady);
+    const onAdvanceRef = useRef(onAdvance);
     // eslint-disable-next-line @eslint-react/naming-convention-ref-name
     const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
     // Tracks which body the font sizes were computed for so they naturally
@@ -176,6 +179,7 @@ export function PostAnimator({
 
     useLayoutEffect(() => {
         onReadyRef.current = onReady;
+        onAdvanceRef.current = onAdvance;
     });
 
     const paragraphs = useMemo(
@@ -393,7 +397,9 @@ export function PostAnimator({
                         paused={paused}
                         blurMedia={blurMedia}
                         onRevealMedia={onRevealMedia ?? (() => {})}
-                        onComplete={() => onReadyRef.current?.()}
+                        onComplete={() =>
+                            (onAdvanceRef.current ?? onReadyRef.current)?.()
+                        }
                     />
                 </div>
                 {post.body && (

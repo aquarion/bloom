@@ -229,6 +229,7 @@ export default function Feed({
                         key={current.id}
                         post={current}
                         onReady={() => setReadyForPostId(current.id)}
+                        onAdvance={handleAdvance}
                         cwBehavior={cwBehavior}
                         sensitiveMediaBehavior={sensitiveMediaBehavior}
                         paused={paused}

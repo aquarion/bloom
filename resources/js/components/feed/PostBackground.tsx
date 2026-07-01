@@ -9,7 +9,7 @@ export function PostBackground({ post }: { post: Post }) {
             className="absolute inset-0 overflow-hidden"
             style={colors ? { backgroundColor: colors.background } : undefined}
         >
-            {!post.media.length && post.author_banner && (
+            {post.author_banner && (
                 <div className="pointer-events-none absolute inset-0 z-0">
                     <img
                         src={post.author_banner}

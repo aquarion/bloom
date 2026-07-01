@@ -21,6 +21,7 @@ export function ImageCarousel({
     const [activeIndex, setActiveIndex] = useState(0);
     const [filled, setFilled] = useState(0);
     const elapsedRef = useRef(0);
+    const lastIndexRef = useRef(0);
     const onCompleteRef = useRef(onComplete);
 
     // Keep the ref in sync without triggering re-renders
@@ -30,9 +31,13 @@ export function ImageCarousel({
 
     const isPaused = paused || blurMedia;
 
-    // Run the per-image timer; reset elapsed + filled whenever activeIndex changes
+    // Run the per-image timer; reset elapsed only when activeIndex changes, not on pause/unpause
     useEffect(() => {
-        elapsedRef.current = 0;
+        if (lastIndexRef.current !== activeIndex) {
+            lastIndexRef.current = activeIndex;
+            elapsedRef.current = 0;
+            setFilled(0);
+        }
 
         if (isPaused) {
             return;

@@ -142,14 +142,14 @@ export function ImageCarousel({
             <button
                 type="button"
                 data-testid="carousel-prev"
-                className="absolute top-0 left-0 h-full w-1/2 cursor-default"
+                className={`absolute top-0 left-0 h-full w-1/2 cursor-default ${blurMedia ? 'pointer-events-none' : ''}`}
                 aria-label="Previous image"
                 onClick={handlePrev}
             />
             <button
                 type="button"
                 data-testid="carousel-next"
-                className="absolute top-0 right-0 h-full w-1/2 cursor-default"
+                className={`absolute top-0 right-0 h-full w-1/2 cursor-default ${blurMedia ? 'pointer-events-none' : ''}`}
                 aria-label="Next image"
                 onClick={handleNext}
             />

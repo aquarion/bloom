@@ -353,7 +353,11 @@ export function PostAnimator({
 
     // Fade panels in for no-body posts that have context panels (Phase 3 doesn't run for these).
     useGSAP(() => {
-        if (body || !(post.reply_to || post.quoted_post)) {
+        if (
+            body ||
+            !(post.reply_to || post.quoted_post) ||
+            post.media.length > 0
+        ) {
             return;
         }
 
@@ -376,7 +380,7 @@ export function PostAnimator({
         );
 
         return () => tween.kill();
-    }, [post.id, body]);
+    }, [post.id, body, post.media.length]);
 
     // Image posts: carousel fills the upper area, text panel below
     if (post.media.length > 0) {

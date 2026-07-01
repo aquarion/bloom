@@ -151,12 +151,15 @@ export function PostAnimator({
     onReady,
     blurMedia = false,
     onRevealMedia,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    paused = false,
 }: {
     post: Post;
     colors: PostColors | null;
     onReady?: () => void;
     blurMedia?: boolean;
     onRevealMedia?: () => void;
+    paused?: boolean;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const textRef = useRef<HTMLDivElement>(null);

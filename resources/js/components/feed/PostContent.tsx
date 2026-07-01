@@ -30,11 +30,13 @@ export function PostContent({
     onReady,
     cwBehavior = 'show',
     sensitiveMediaBehavior = 'show',
+    paused = false,
 }: {
     post: Post;
     onReady?: () => void;
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
+    paused?: boolean;
 }) {
     const colors = postDisplayColors(post);
     const [cwRevealed, setCwRevealed] = useState(false);
@@ -56,6 +58,7 @@ export function PostContent({
                 onReady={onReady}
                 blurMedia={blurMedia}
                 onRevealMedia={() => setMediaRevealed(true)}
+                paused={paused}
             />
             {showCwOverlay && cwText !== null && (
                 <CwOverlay

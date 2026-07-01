@@ -41,14 +41,19 @@ describe('ImageCarousel — single image', () => {
         expect(screen.getByAltText('a sunset')).toBeInTheDocument();
     });
 
-    it('renders one progress bar for a single image', () => {
+    it('reports progress via onProgress callback on each tick', () => {
+        const onProgress = vi.fn();
         render(
             <ImageCarousel
                 {...defaultProps}
                 media={[makeImage('photo.jpg')]}
+                onProgress={onProgress}
             />,
         );
-        expect(screen.getAllByRole('progressbar')).toHaveLength(1);
+
+        act(() => vi.advanceTimersByTime(TICK_MS));
+
+        expect(onProgress).toHaveBeenCalledWith(0, TICK_MS / DURATION);
     });
 
     it('calls onComplete after the full duration elapses', () => {
@@ -96,7 +101,8 @@ describe('ImageCarousel — multiple images', () => {
         vi.clearAllMocks();
     });
 
-    it('renders one progress bar per image', () => {
+    it('reports updated index in onProgress after auto-advance', () => {
+        const onProgress = vi.fn();
         render(
             <ImageCarousel
                 {...defaultProps}
@@ -105,9 +111,14 @@ describe('ImageCarousel — multiple images', () => {
                     makeImage('b.jpg'),
                     makeImage('c.jpg'),
                 ]}
+                onProgress={onProgress}
             />,
         );
-        expect(screen.getAllByRole('progressbar')).toHaveLength(3);
+
+        act(() => vi.advanceTimersByTime(DURATION + TICK_MS));
+
+        const latestCall = onProgress.mock.calls.at(-1);
+        expect(latestCall?.[0]).toBe(1);
     });
 
     it('shows the first image initially', () => {

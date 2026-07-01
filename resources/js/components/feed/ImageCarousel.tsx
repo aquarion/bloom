@@ -10,6 +10,7 @@ export function ImageCarousel({
     blurMedia,
     onRevealMedia,
     onComplete,
+    onProgress,
 }: {
     media: MediaAttachment[];
     duration: number;
@@ -17,17 +18,18 @@ export function ImageCarousel({
     blurMedia: boolean;
     onRevealMedia: () => void;
     onComplete: () => void;
+    onProgress?: (index: number, filled: number) => void;
 }) {
     const [activeIndex, setActiveIndex] = useState(0);
-    const [filled, setFilled] = useState(0);
     const elapsedRef = useRef(0);
     const lastIndexRef = useRef(0);
     const onCompleteRef = useRef(onComplete);
+    const onProgressRef = useRef(onProgress);
 
-    // Keep the ref in sync without triggering re-renders
     useEffect(() => {
         onCompleteRef.current = onComplete;
-    }, [onComplete]);
+        onProgressRef.current = onProgress;
+    }, [onComplete, onProgress]);
 
     const isPaused = paused || blurMedia;
 
@@ -36,7 +38,7 @@ export function ImageCarousel({
         if (lastIndexRef.current !== activeIndex) {
             lastIndexRef.current = activeIndex;
             elapsedRef.current = 0;
-            setFilled(0);
+            onProgressRef.current?.(activeIndex, 0);
         }
 
         if (isPaused) {
@@ -45,7 +47,8 @@ export function ImageCarousel({
 
         const intervalId = setInterval(() => {
             elapsedRef.current += TICK_MS;
-            setFilled(Math.min(1, elapsedRef.current / duration));
+            const filled = Math.min(1, elapsedRef.current / duration);
+            onProgressRef.current?.(activeIndex, filled);
 
             if (elapsedRef.current >= duration) {
                 elapsedRef.current = 0;
@@ -84,40 +87,6 @@ export function ImageCarousel({
 
     return (
         <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-            {/* Progress bars */}
-            <div className="absolute top-0 right-0 left-0 z-10 flex gap-1 p-2">
-                {media.map((_, idx) => (
-                    <div
-                        key={idx}
-                        role="progressbar"
-                        aria-label={`Image ${idx + 1} of ${media.length}`}
-                        aria-valuenow={
-                            idx < activeIndex
-                                ? 100
-                                : idx === activeIndex
-                                  ? Math.round(filled * 100)
-                                  : 0
-                        }
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/30"
-                    >
-                        <div
-                            className="h-full bg-white"
-                            style={{
-                                width:
-                                    idx < activeIndex
-                                        ? '100%'
-                                        : idx === activeIndex
-                                          ? `${filled * 100}%`
-                                          : '0%',
-                                transition: 'none',
-                            }}
-                        />
-                    </div>
-                ))}
-            </div>
-
             {/* Image */}
             {src && (
                 <img

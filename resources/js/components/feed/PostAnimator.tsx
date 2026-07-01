@@ -151,6 +151,7 @@ export function PostAnimator({
     colors,
     onReady,
     onAdvance,
+    onProgress,
     blurMedia = false,
     onRevealMedia,
     paused = false,
@@ -159,6 +160,7 @@ export function PostAnimator({
     colors: PostColors | null;
     onReady?: () => void;
     onAdvance?: () => void;
+    onProgress?: (index: number, filled: number) => void;
     blurMedia?: boolean;
     onRevealMedia?: () => void;
     paused?: boolean;
@@ -400,6 +402,7 @@ export function PostAnimator({
                         onComplete={() =>
                             (onAdvanceRef.current ?? onReadyRef.current)?.()
                         }
+                        onProgress={onProgress}
                     />
                 </div>
                 {post.body && (

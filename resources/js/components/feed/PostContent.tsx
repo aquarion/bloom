@@ -29,6 +29,7 @@ export function PostContent({
     post,
     onReady,
     onAdvance,
+    onProgress,
     cwBehavior = 'show',
     sensitiveMediaBehavior = 'show',
     paused = false,
@@ -36,6 +37,7 @@ export function PostContent({
     post: Post;
     onReady?: () => void;
     onAdvance?: () => void;
+    onProgress?: (index: number, filled: number) => void;
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
     paused?: boolean;
@@ -59,6 +61,7 @@ export function PostContent({
                 colors={colors}
                 onReady={onReady}
                 onAdvance={onAdvance}
+                onProgress={onProgress}
                 blurMedia={blurMedia}
                 onRevealMedia={() => setMediaRevealed(true)}
                 paused={paused}

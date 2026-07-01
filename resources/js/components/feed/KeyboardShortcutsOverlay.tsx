@@ -5,6 +5,7 @@ const SHORTCUTS = [
     { key: 'o', description: 'Open post' },
     { key: 'l', description: 'Open link in post' },
     { key: '?', description: 'Show / hide this overlay' },
+    { key: 'h', description: 'Open / close navigation' },
     { key: 'Esc', description: 'Close overlay' },
 ];
 

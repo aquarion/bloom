@@ -34,8 +34,9 @@ export function postColors(authorHandle: string): PostColors {
 }
 
 export function postDisplayColors(post: Post): PostColors | null {
-    const hasMedia = post.media.length > 0;
-    const hasBanner = !hasMedia && !!post.author_banner;
+    if (post.author_banner) {
+        return null;
+    }
 
-    return hasMedia || hasBanner ? null : postColors(post.author_handle);
+    return postColors(post.author_handle);
 }

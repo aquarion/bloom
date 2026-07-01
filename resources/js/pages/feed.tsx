@@ -62,6 +62,10 @@ export default function Feed({
         toggle: toggleWakeLock,
     } = useWakeLock();
     const [readyForPostId, setReadyForPostId] = useState<string | null>(null);
+    const [carouselProgress, setCarouselProgress] = useState<{
+        activeIndex: number;
+        filled: number;
+    } | null>(null);
     const animationReady = readyForPostId === current?.id;
     const bgRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -90,6 +94,12 @@ export default function Feed({
         });
     }, [current, queue, initialCursor]);
 
+    const handleCarouselProgress = useCallback(
+        (activeIndex: number, filled: number) =>
+            setCarouselProgress({ activeIndex, filled }),
+        [],
+    );
+
     const handleAdvance = useCallback(() => {
         const bg = bgRef.current;
         const content = contentRef.current;
@@ -97,6 +107,8 @@ export default function Feed({
         if (!bg || !content || Date.now() < transitionEndRef.current) {
             return;
         }
+
+        setCarouselProgress(null);
 
         // advance() shifts queue[0] → current, so queue[1] becomes the new queue[0].
         // Capture now (before the queue changes) to update the bottom layer in onComplete.
@@ -229,8 +241,15 @@ export default function Feed({
                         key={current.id}
                         post={current}
                         onReady={() => setReadyForPostId(current.id)}
+                        onAdvance={handleAdvance}
+                        onProgress={
+                            current.media.length > 0
+                                ? handleCarouselProgress
+                                : undefined
+                        }
                         cwBehavior={cwBehavior}
                         sensitiveMediaBehavior={sensitiveMediaBehavior}
+                        paused={paused}
                     />
                 </div>
 
@@ -324,7 +343,17 @@ export default function Feed({
                         </button>
                     </div>
 
-                    <ProgressBar progress={progress} />
+                    {current.media.length > 0 ? (
+                        <ProgressBar
+                            segments={{
+                                count: current.media.length,
+                                activeIndex: carouselProgress?.activeIndex ?? 0,
+                                filled: carouselProgress?.filled ?? 0,
+                            }}
+                        />
+                    ) : (
+                        <ProgressBar progress={progress} />
+                    )}
                     <KeyboardShortcutsOverlay open={showHelp} />
                     <FeedSidebarPanel
                         open={panelOpen}

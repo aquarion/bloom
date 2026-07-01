@@ -178,6 +178,11 @@ export default function Feed({
 
     const toggleHelp = useCallback(() => setShowHelp((s) => !s), []);
     const closeHelp = useCallback(() => setShowHelp(false), []);
+    const closePanel = useCallback(() => setPanelOpen(false), []);
+    const handleEscape = useCallback(() => {
+        closePanel();
+        closeHelp();
+    }, [closePanel, closeHelp]);
 
     const { progress } = useAutoAdvance({
         duration: 8000,
@@ -193,7 +198,7 @@ export default function Feed({
         l: openLink,
         '?': toggleHelp,
         h: () => setPanelOpen((o) => !o),
-        Escape: closeHelp,
+        Escape: handleEscape,
     });
 
     if (!current) {
@@ -235,7 +240,7 @@ export default function Feed({
                         <button
                             type="button"
                             onClick={() => setPanelOpen((o) => !o)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
+                            className={`flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white${panelOpen ? 'relative z-[51]' : ''}`}
                             aria-label="Open navigation"
                             aria-expanded={panelOpen}
                             aria-haspopup="dialog"

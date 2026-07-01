@@ -92,7 +92,7 @@ export function ImageCarousel({
                 <img
                     src={src}
                     alt={current?.alt_text ?? ''}
-                    className={`h-full w-full object-contain p-4 transition-all duration-300 ${blurMedia ? 'blur-xl' : ''}`}
+                    className={`max-h-full max-w-full object-contain p-4 transition-all duration-300 ${blurMedia ? 'blur-xl' : ''}`}
                 />
             )}
 

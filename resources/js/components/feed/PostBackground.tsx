@@ -1,6 +1,5 @@
 import { postDisplayColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
-import { MediaBackground } from './MediaBackground';
 
 export function PostBackground({ post }: { post: Post }) {
     const colors = postDisplayColors(post);
@@ -10,7 +9,6 @@ export function PostBackground({ post }: { post: Post }) {
             className="absolute inset-0 overflow-hidden"
             style={colors ? { backgroundColor: colors.background } : undefined}
         >
-            {post.media.length > 0 && <MediaBackground media={post.media} />}
             {!post.media.length && post.author_banner && (
                 <div className="pointer-events-none absolute inset-0 z-0">
                     <img

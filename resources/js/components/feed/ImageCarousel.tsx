@@ -1,0 +1,153 @@
+import { useEffect, useRef, useState } from 'react';
+import type { MediaAttachment } from '@/types/post';
+
+const TICK_MS = 100;
+
+export function ImageCarousel({
+    media,
+    duration,
+    paused,
+    blurMedia,
+    onRevealMedia,
+    onComplete,
+}: {
+    media: MediaAttachment[];
+    duration: number;
+    paused: boolean;
+    blurMedia: boolean;
+    onRevealMedia: () => void;
+    onComplete: () => void;
+}) {
+    const [activeIndex, setActiveIndex] = useState(0);
+    const [filled, setFilled] = useState(0);
+    const elapsedRef = useRef(0);
+    const onCompleteRef = useRef(onComplete);
+
+    // Keep the ref in sync without triggering re-renders
+    useEffect(() => {
+        onCompleteRef.current = onComplete;
+    }, [onComplete]);
+
+    const isPaused = paused || blurMedia;
+
+    // Run the per-image timer; reset elapsed + filled whenever activeIndex changes
+    useEffect(() => {
+        elapsedRef.current = 0;
+
+        if (isPaused) {
+            return;
+        }
+
+        const interval = setInterval(() => {
+            elapsedRef.current += TICK_MS;
+            setFilled(Math.min(1, elapsedRef.current / duration));
+
+            if (elapsedRef.current >= duration) {
+                elapsedRef.current = 0;
+
+                if (activeIndex < media.length - 1) {
+                    setActiveIndex((i) => i + 1);
+                } else {
+                    onCompleteRef.current();
+                }
+            }
+        }, TICK_MS);
+
+        return () => clearInterval(interval);
+    }, [isPaused, duration, activeIndex, media.length]);
+
+    const handleNext = () => {
+        if (activeIndex < media.length - 1) {
+            setActiveIndex((i) => i + 1);
+        } else {
+            onCompleteRef.current();
+        }
+    };
+
+    const handlePrev = () => {
+        if (activeIndex > 0) {
+            setActiveIndex((i) => i - 1);
+        }
+    };
+
+    const current = media[activeIndex];
+    const src =
+        current?.type === 'video'
+            ? (current.preview_url ?? undefined)
+            : current?.url;
+
+    return (
+        <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+            {/* Progress bars */}
+            <div className="absolute top-0 right-0 left-0 z-10 flex gap-1 p-2">
+                {media.map((_, idx) => (
+                    <div
+                        key={idx}
+                        role="progressbar"
+                        aria-valuenow={
+                            idx < activeIndex
+                                ? 100
+                                : idx === activeIndex
+                                  ? Math.round(filled * 100)
+                                  : 0
+                        }
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/30"
+                    >
+                        <div
+                            className="h-full bg-white"
+                            style={{
+                                width:
+                                    idx < activeIndex
+                                        ? '100%'
+                                        : idx === activeIndex
+                                          ? `${filled * 100}%`
+                                          : '0%',
+                                transition: 'none',
+                            }}
+                        />
+                    </div>
+                ))}
+            </div>
+
+            {/* Image */}
+            {src && (
+                <img
+                    src={src}
+                    alt={current?.alt_text ?? ''}
+                    className={`max-h-full max-w-full object-contain p-4 transition-all duration-300 ${blurMedia ? 'blur-xl' : ''}`}
+                />
+            )}
+
+            {/* Sensitive media overlay */}
+            {blurMedia && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <button
+                        type="button"
+                        onClick={onRevealMedia}
+                        className="rounded-full bg-black/60 px-4 py-1.5 text-sm text-white hover:bg-black/80"
+                    >
+                        Show sensitive media
+                    </button>
+                </div>
+            )}
+
+            {/* Tap zones */}
+            <button
+                type="button"
+                data-testid="carousel-prev"
+                className="absolute top-0 left-0 h-full w-1/2 cursor-default"
+                aria-label="Previous image"
+                onClick={handlePrev}
+            />
+            <button
+                type="button"
+                data-testid="carousel-next"
+                className="absolute top-0 right-0 h-full w-1/2 cursor-default"
+                aria-label="Next image"
+                onClick={handleNext}
+            />
+        </div>
+    );
+}

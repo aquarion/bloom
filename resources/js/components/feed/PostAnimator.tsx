@@ -11,6 +11,7 @@ import type { PostColors } from '@/lib/post-colors';
 import { postColors } from '@/lib/post-colors';
 import type { Mention, Post } from '@/types/post';
 import { AuthorChip } from './AuthorChip';
+import { ImageCarousel } from './ImageCarousel';
 import { MentionChips } from './MentionChips';
 
 gsap.registerPlugin(SplitText);
@@ -151,7 +152,6 @@ export function PostAnimator({
     onReady,
     blurMedia = false,
     onRevealMedia,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     paused = false,
 }: {
     post: Post;
@@ -215,12 +215,17 @@ export function PostAnimator({
     // Font sizes are only valid for the current body; treat as null when body changes.
     const fontSizes = fontSizeState?.body === body ? fontSizeState.sizes : null;
 
-    // Fire onReady immediately only when there is no body AND no panels to animate.
+    // Fire onReady immediately only when there is no body AND no panels to animate,
+    // and not an image post (which fires onReady via ImageCarousel's onComplete).
     useLayoutEffect(() => {
-        if (!body && !(post.reply_to || post.quoted_post)) {
+        if (
+            !body &&
+            !(post.reply_to || post.quoted_post) &&
+            post.media.length === 0
+        ) {
             onReadyRef.current?.();
         }
-    }, [body, post.reply_to, post.quoted_post]);
+    }, [body, post.reply_to, post.quoted_post, post.media.length]);
 
     // Phase 2: measure rendered line widths and compute font sizes
     useLayoutEffect(() => {
@@ -372,6 +377,64 @@ export function PostAnimator({
 
         return () => tween.kill();
     }, [post.id, body]);
+
+    // Image posts: carousel fills the upper area, text panel below
+    if (post.media.length > 0) {
+        return (
+            <div className="flex h-full w-full flex-col">
+                <div className="relative min-h-0 flex-1">
+                    <ImageCarousel
+                        media={post.media}
+                        duration={8000}
+                        paused={paused}
+                        blurMedia={blurMedia}
+                        onRevealMedia={onRevealMedia ?? (() => {})}
+                        onComplete={() => onReadyRef.current?.()}
+                    />
+                </div>
+                {post.body && (
+                    <div className="shrink-0 border-white/10 border-t bg-black/50 px-4 py-3 text-sm text-white/80 leading-snug backdrop-blur-sm">
+                        <EmojiText text={post.body} emojis={post.emojis} />
+                    </div>
+                )}
+                {(post.reply_to || post.quoted_post || post.link_url) && (
+                    <div className="flex shrink-0 flex-col gap-2 border-white/10 border-t bg-black/50 px-4 py-3 backdrop-blur-sm">
+                        {post.reply_to && (
+                            <ContextPanel
+                                icon={<Reply className="size-3.5" />}
+                                author_name={post.reply_to.author_name}
+                                author_avatar={post.reply_to.author_avatar}
+                                author_handle={post.reply_to.author_handle}
+                                emojis={post.emojis}
+                                body={post.reply_to.body}
+                                original_url={post.reply_to.original_url}
+                                chip_mentions={post.reply_to.chip_mentions}
+                            />
+                        )}
+                        {post.quoted_post && (
+                            <ContextPanel
+                                icon={<Quote className="size-3.5" />}
+                                author_name={post.quoted_post.author_name}
+                                author_avatar={post.quoted_post.author_avatar}
+                                author_handle={post.quoted_post.author_handle}
+                                emojis={post.emojis}
+                                body={post.quoted_post.body}
+                                original_url={post.quoted_post.original_url}
+                                chip_mentions={post.quoted_post.chip_mentions}
+                            />
+                        )}
+                        {post.link_url && (
+                            <LinkCard
+                                url={post.link_url}
+                                title={post.link_title}
+                                favicon={post.link_favicon}
+                            />
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     if (!body) {
         const firstMedia = post.media[0];

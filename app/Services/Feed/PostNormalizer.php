@@ -338,6 +338,10 @@ class PostNormalizer
             ]];
         }
 
+        if (($embed['$type'] ?? '') === 'app.bsky.embed.recordWithMedia#view') {
+            return $this->normaliseBlueskyMedia($embed['media'] ?? null);
+        }
+
         return [];
     }
 

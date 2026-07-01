@@ -86,13 +86,13 @@ export function ImageCarousel({
             : current?.url;
 
     return (
-        <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+        <div className="relative flex w-full items-center justify-center overflow-hidden">
             {/* Image */}
             {src && (
                 <img
                     src={src}
                     alt={current?.alt_text ?? ''}
-                    className={`max-h-full max-w-full object-contain p-4 transition-all duration-300 ${blurMedia ? 'blur-xl' : ''}`}
+                    className={`max-h-[60vh] max-w-full object-contain p-4 transition-all duration-300 ${blurMedia ? 'blur-xl' : ''}`}
                 />
             )}
 
@@ -113,14 +113,14 @@ export function ImageCarousel({
             <button
                 type="button"
                 data-testid="carousel-prev"
-                className={`absolute top-0 left-0 h-full w-1/2 cursor-default ${blurMedia ? 'pointer-events-none' : ''}`}
+                className={`absolute inset-y-0 left-0 w-1/2 cursor-default ${blurMedia ? 'pointer-events-none' : ''}`}
                 aria-label="Previous image"
                 onClick={handlePrev}
             />
             <button
                 type="button"
                 data-testid="carousel-next"
-                className={`absolute top-0 right-0 h-full w-1/2 cursor-default ${blurMedia ? 'pointer-events-none' : ''}`}
+                className={`absolute inset-y-0 right-0 w-1/2 cursor-default ${blurMedia ? 'pointer-events-none' : ''}`}
                 aria-label="Next image"
                 onClick={handleNext}
             />

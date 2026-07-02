@@ -479,7 +479,7 @@ export function PostAnimator({
                                     onClick={onRevealMedia}
                                     className="rounded-full bg-black/60 px-4 py-1.5 text-sm text-white hover:bg-black/80"
                                 >
-                                    Show sensitive media
+                                    {post.cw_text ?? 'Show sensitive media'}
                                 </button>
                             </div>
                         )}

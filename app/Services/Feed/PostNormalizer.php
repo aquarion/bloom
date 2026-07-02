@@ -483,12 +483,9 @@ class PostNormalizer
         $removed = 0;
 
         foreach ($classified as $mention) {
-            if ($mention['role'] !== MentionClassifier::ROLE_CHIP) {
-                continue;
-            }
-
-            // Intentionally blank — resolveMentionProfiles() fills these via a batched getProfiles call.
-            // profile_url holds the DID so the batch lookup can key on it.
+            // Bluesky body text has no hyperlinks, so every mention — leading, trailing, or
+            // mid-text — needs a chip to be actionable. Intentionally blank: resolveMentionProfiles()
+            // fills handle/display_name/avatar via a batched getProfiles call keyed on the DID.
             $chipMentions[] = [
                 'handle' => '',
                 'display_name' => '',
@@ -496,7 +493,7 @@ class PostNormalizer
                 'profile_url' => $mention['id'],
             ];
 
-            if ($mention['strip']) {
+            if ($mention['role'] === MentionClassifier::ROLE_CHIP && $mention['strip']) {
                 $start = $mention['start'] - $removed;
                 $length = $mention['end'] - $mention['start'];
                 $body = substr($body, 0, $start).substr($body, $start + $length);

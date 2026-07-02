@@ -2083,6 +2083,30 @@ it('chips a single leading bluesky mention without stripping it from the body', 
         ->and($post['chip_mentions'])->toHaveCount(1);
 });
 
+it('chips a mid-text bluesky mention without stripping it from the body', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => [
+                'text' => 'thanks @alice.bsky.social for the boost',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+                'facets' => [
+                    [
+                        'index' => ['byteStart' => 7, 'byteEnd' => 25],
+                        'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:alice']],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toBe('thanks @alice.bsky.social for the boost')
+        ->and($post['chip_mentions'])->toHaveCount(1);
+});
+
 it('strips a trailing bluesky mention to a chip', function () {
     $feedPost = [
         'post' => [

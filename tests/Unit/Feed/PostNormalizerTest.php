@@ -1833,13 +1833,13 @@ it('maps bluesky gore label to Graphic media', function () {
         ->and($post['sensitive_media'])->toBeTrue();
 });
 
-it('maps unknown bluesky label to Content warning generic fallback', function () {
+it('maps unknown bluesky content label to Content warning generic fallback', function () {
     $feedPost = [
         'post' => [
             'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
             'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
             'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
-            'labels' => [['val' => '!hide']],
+            'labels' => [['val' => 'custom-warning']],
             'embed' => null,
         ],
     ];
@@ -1847,6 +1847,28 @@ it('maps unknown bluesky label to Content warning generic fallback', function ()
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
     expect($post['cw_text'])->toBe('Content warning')
+        ->and($post['sensitive_media'])->toBeFalse();
+});
+
+it('ignores AT Protocol system labels prefixed with ! and does not show a CW overlay', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [['val' => '!no-unauthenticated']],
+            ],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBeNull()
         ->and($post['sensitive_media'])->toBeFalse();
 });
 

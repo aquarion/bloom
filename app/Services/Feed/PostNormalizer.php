@@ -606,9 +606,12 @@ class PostNormalizer
     {
         // Filter each label set separately so we can detect author-level CWs.
         // Authors of adult-content accounts label their profile rather than each post.
+        // AT Protocol labels prefixed with '!' are behavioural/system labels (e.g.
+        // '!no-unauthenticated', '!hide') — they control platform access, not content type.
+        // Exclude them so they don't trigger a spurious "Content warning" overlay.
         $filter = fn (array $raw): array => array_values(array_filter(
             array_map(fn ($l) => $l['val'] ?? '', $raw),
-            fn ($v) => $v !== '',
+            fn ($v) => $v !== '' && ! str_starts_with($v, '!'),
         ));
 
         $postLabels = $filter($post['labels'] ?? []);

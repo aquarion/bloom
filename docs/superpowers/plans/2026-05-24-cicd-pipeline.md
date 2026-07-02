@@ -84,7 +84,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: "22"
+          node-version: "26"
 
       - name: Install Node dependencies
         run: npm ci

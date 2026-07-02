@@ -412,10 +412,12 @@ class PostNormalizer
                 'profile_url' => $this->safeUrl($apiMention['url']),
             ];
 
-            $start = $mention['start'] - $removed;
-            $length = $mention['end'] - $mention['start'];
-            $body = substr($body, 0, $start).substr($body, $start + $length);
-            $removed += $length;
+            if ($mention['strip']) {
+                $start = $mention['start'] - $removed;
+                $length = $mention['end'] - $mention['start'];
+                $body = substr($body, 0, $start).substr($body, $start + $length);
+                $removed += $length;
+            }
         }
 
         $body = trim(preg_replace('/[ \t]{2,}/', ' ', $body) ?? $body);
@@ -494,10 +496,12 @@ class PostNormalizer
                 'profile_url' => $mention['id'],
             ];
 
-            $start = $mention['start'] - $removed;
-            $length = $mention['end'] - $mention['start'];
-            $body = substr($body, 0, $start).substr($body, $start + $length);
-            $removed += $length;
+            if ($mention['strip']) {
+                $start = $mention['start'] - $removed;
+                $length = $mention['end'] - $mention['start'];
+                $body = substr($body, 0, $start).substr($body, $start + $length);
+                $removed += $length;
+            }
         }
 
         $body = trim(preg_replace('/[ \t]{2,}/', ' ', $body) ?? $body);

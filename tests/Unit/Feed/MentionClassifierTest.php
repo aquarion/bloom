@@ -14,18 +14,20 @@ it('classifies a single mid-text mention as inline', function () {
     expect($result[0]['role'])->toBe('inline');
 });
 
-it('classifies a single leading mention as inline by default', function () {
+it('classifies a single leading mention as chip without stripping when it has no origin match', function () {
     $text = '@alice thanks for the help';
     $mentions = [['id' => 'alice', 'start' => 0, 'end' => 6]];
     $result = (new MentionClassifier)->classify($text, $mentions, null);
-    expect($result[0]['role'])->toBe('inline');
+    expect($result[0]['role'])->toBe('chip')
+        ->and($result[0]['strip'])->toBeFalse();
 });
 
-it('classifies a single leading mention as chip when it matches the origin', function () {
+it('classifies a single leading mention that matches the origin as chip with stripping', function () {
     $text = '@alice thanks for the help';
     $mentions = [['id' => 'alice', 'start' => 0, 'end' => 6]];
     $result = (new MentionClassifier)->classify($text, $mentions, 'alice');
-    expect($result[0]['role'])->toBe('chip');
+    expect($result[0]['role'])->toBe('chip')
+        ->and($result[0]['strip'])->toBeTrue();
 });
 
 it('classifies a trailing run of any size as chip, regardless of origin', function () {
@@ -86,9 +88,9 @@ it('treats a leading run as broken by intervening non-whitespace text', function
         ['id' => 'bob', 'start' => 10, 'end' => 14],
     ];
     $result = (new MentionClassifier)->classify($text, $mentions, 'bob');
-    // Only @alice is in the leading run (size 1, no origin match) -> inline.
-    // @bob is mid-text (not leading, not trailing) -> inline by default.
-    expect($result[0]['role'])->toBe('inline')
+    // @alice is in the leading run (size 1) -> chip.
+    // @bob is mid-text (not leading, not trailing) -> inline.
+    expect($result[0]['role'])->toBe('chip')
         ->and($result[1]['role'])->toBe('inline');
 });
 

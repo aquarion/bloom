@@ -54,10 +54,8 @@ export function PostContent({
     const cwText = post.cw_text;
     const showCwOverlay =
         cwText !== null && cwBehavior === 'blur' && !cwRevealed;
-    // Blur images while the CW overlay is up (content visible through bg-black/80)
-    // and also when sensitive_media is flagged independently of any CW text.
     const blurMedia =
-        (showCwOverlay || post.sensitive_media) &&
+        post.sensitive_media &&
         sensitiveMediaBehavior === 'blur' &&
         !mediaRevealed;
 
@@ -88,16 +86,18 @@ export function PostContent({
 
     return (
         <div className="relative flex h-full w-full items-center justify-center">
-            <PostAnimator
-                post={post}
-                colors={colors}
-                onReady={handleReady}
-                onAdvance={onAdvance}
-                onProgress={onProgress}
-                blurMedia={blurMedia}
-                onRevealMedia={() => setMediaRevealed(true)}
-                paused={paused || showCwOverlay}
-            />
+            <div className={`h-full w-full ${showCwOverlay ? 'blur-xl' : ''}`}>
+                <PostAnimator
+                    post={post}
+                    colors={colors}
+                    onReady={handleReady}
+                    onAdvance={onAdvance}
+                    onProgress={onProgress}
+                    blurMedia={blurMedia}
+                    onRevealMedia={() => setMediaRevealed(true)}
+                    paused={paused || showCwOverlay}
+                />
+            </div>
             {showCwOverlay && cwText !== null && (
                 <CwOverlay cwText={cwText} onReveal={revealCw} />
             )}

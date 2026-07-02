@@ -18,7 +18,7 @@ export function ImageCarousel({
     blurMedia: boolean;
     onRevealMedia: () => void;
     onComplete: () => void;
-    onProgress?: (index: number, filled: number) => void;
+    onProgress?: (index: number, elapsed: number) => void;
 }) {
     const [activeIndex, setActiveIndex] = useState(0);
     const elapsedRef = useRef(0);
@@ -87,7 +87,6 @@ export function ImageCarousel({
 
     return (
         <div className="relative flex w-full items-center justify-center overflow-hidden">
-            {/* Image */}
             {src && (
                 <img
                     src={src}
@@ -96,7 +95,6 @@ export function ImageCarousel({
                 />
             )}
 
-            {/* Sensitive media overlay */}
             {blurMedia && (
                 <div className="absolute inset-0 flex items-center justify-center">
                     <button
@@ -109,7 +107,6 @@ export function ImageCarousel({
                 </div>
             )}
 
-            {/* Tap zones */}
             <button
                 type="button"
                 data-testid="carousel-prev"

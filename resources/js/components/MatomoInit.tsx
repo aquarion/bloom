@@ -16,8 +16,12 @@ export function MatomoInit({ matomo }: { matomo: MatomoConfig | null }) {
     }, [matomo]);
 
     useEffect(() => {
+        if (!matomo) {
+            return;
+        }
+
         return router.on('navigate', () => trackPageView());
-    }, []);
+    }, [matomo]);
 
     return null;
 }

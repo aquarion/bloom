@@ -483,8 +483,8 @@ class PostNormalizer
                 continue;
             }
 
-            // Placeholder values — a later task resolves the real handle/display_name/avatar
-            // via a batched getProfiles lookup keyed on this did (stashed in profile_url).
+            // Intentionally blank — resolveMentionProfiles() fills these via a batched getProfiles call.
+            // profile_url holds the DID so the batch lookup can key on it.
             $chipMentions[] = [
                 'handle' => '',
                 'display_name' => '',

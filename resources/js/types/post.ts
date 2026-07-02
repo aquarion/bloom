@@ -35,7 +35,7 @@ export interface QuotedPost {
 export interface Post {
     id: string;
     source: 'mastodon' | 'bluesky';
-    source_handle: string;
+    source_handle: string | null;
     source_instance: string | null;
     author_name: string;
     author_handle: string;

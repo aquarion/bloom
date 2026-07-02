@@ -1,10 +1,11 @@
-export function ProgressBar({
-    progress,
-    segments,
-}: {
-    progress?: number;
-    segments?: { count: number; activeIndex: number; filled: number };
-}) {
+type ProgressBarProps =
+    | { progress: number; segments?: never }
+    | {
+          segments: { count: number; activeIndex: number; elapsed: number };
+          progress?: never;
+      };
+
+export function ProgressBar({ progress, segments }: ProgressBarProps) {
     if (segments) {
         return (
             <div className="absolute right-0 bottom-0 left-0 flex h-0.5 gap-px">
@@ -17,7 +18,7 @@ export function ProgressBar({
                                     i < segments.activeIndex
                                         ? '0%'
                                         : i === segments.activeIndex
-                                          ? `${(1 - segments.filled) * 100}%`
+                                          ? `${(1 - segments.elapsed) * 100}%`
                                           : '100%',
                                 transition: 'width 0.1s linear',
                             }}

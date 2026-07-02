@@ -22,27 +22,34 @@ class MatomoService
             return null;
         }
 
-        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function () {
-            try {
-                $siteId = $this->ensureSite();
-                $goals = $this->ensureGoals($siteId);
+        $cached = Cache::get(self::CACHE_KEY);
+        if ($cached !== null) {
+            return $cached;
+        }
 
-                return [
-                    'tracker_url' => config('services.matomo.url'),
-                    'site_id' => $siteId,
-                    'goals' => $goals,
-                ];
-            } catch (\Throwable $e) {
-                Log::warning('Matomo config lookup failed', [
-                    'message' => $e->getMessage(),
-                    'exception' => $e,
-                    'app_url' => config('app.url'),
-                    'matomo_url' => config('services.matomo.url'),
-                ]);
+        try {
+            $siteId = $this->ensureSite();
+            $goals = $this->ensureGoals($siteId);
 
-                return null;
-            }
-        });
+            $config = [
+                'tracker_url' => config('services.matomo.url'),
+                'site_id' => $siteId,
+                'goals' => $goals,
+            ];
+
+            Cache::put(self::CACHE_KEY, $config, self::CACHE_TTL);
+
+            return $config;
+        } catch (\Throwable $e) {
+            Log::warning('Matomo config lookup failed', [
+                'message' => $e->getMessage(),
+                'exception' => $e,
+                'app_url' => config('app.url'),
+                'matomo_url' => config('services.matomo.url'),
+            ]);
+
+            return null;
+        }
     }
 
     private function ensureSite(): int
@@ -102,6 +109,12 @@ class MatomoService
 
         $response->throw();
 
-        return $response->json();
+        $data = $response->json();
+
+        if (($data['result'] ?? null) === 'error') {
+            throw new \RuntimeException('Matomo API error for '.$method.': '.($data['message'] ?? 'unknown error'));
+        }
+
+        return $data;
     }
 }

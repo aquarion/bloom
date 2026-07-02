@@ -64,7 +64,7 @@ export default function Feed({
     const [readyForPostId, setReadyForPostId] = useState<string | null>(null);
     const [carouselProgress, setCarouselProgress] = useState<{
         activeIndex: number;
-        filled: number;
+        elapsed: number;
     } | null>(null);
     const animationReady = readyForPostId === current?.id;
     const bgRef = useRef<HTMLDivElement>(null);
@@ -95,8 +95,8 @@ export default function Feed({
     }, [current, queue, initialCursor]);
 
     const handleCarouselProgress = useCallback(
-        (activeIndex: number, filled: number) =>
-            setCarouselProgress({ activeIndex, filled }),
+        (activeIndex: number, elapsed: number) =>
+            setCarouselProgress({ activeIndex, elapsed }),
         [],
     );
 
@@ -167,6 +167,7 @@ export default function Feed({
 
     const handleGoBack = useCallback(() => {
         goBack();
+        setCarouselProgress(null);
         setPaused(true);
     }, [goBack]);
 
@@ -259,7 +260,7 @@ export default function Feed({
                         <button
                             type="button"
                             onClick={() => setPanelOpen((o) => !o)}
-                            className={`flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white${panelOpen ? 'relative z-[51]' : ''}`}
+                            className={`flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white ${panelOpen ? 'relative z-[51]' : ''}`}
                             aria-label="Open navigation"
                             aria-expanded={panelOpen}
                             aria-haspopup="dialog"
@@ -348,7 +349,7 @@ export default function Feed({
                             segments={{
                                 count: current.media.length,
                                 activeIndex: carouselProgress?.activeIndex ?? 0,
-                                filled: carouselProgress?.filled ?? 0,
+                                elapsed: carouselProgress?.elapsed ?? 0,
                             }}
                         />
                     ) : (

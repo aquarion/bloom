@@ -160,7 +160,7 @@ export function PostAnimator({
     colors: PostColors | null;
     onReady?: () => void;
     onAdvance?: () => void;
-    onProgress?: (index: number, filled: number) => void;
+    onProgress?: (index: number, elapsed: number) => void;
     blurMedia?: boolean;
     onRevealMedia?: () => void;
     paused?: boolean;
@@ -233,7 +233,7 @@ export function PostAnimator({
         }
     }, [body, post.reply_to, post.quoted_post, post.media.length]);
 
-    // Phase 2: measure rendered line widths and compute font sizes
+    // Measure rendered line widths after DOM settle to compute per-line font sizes
     useLayoutEffect(() => {
         if (lines.length === 0 || !containerRef.current) {
             return;
@@ -293,7 +293,7 @@ export function PostAnimator({
         setFontSizeState({ body, sizes });
     }, [lines, body, paragraphStarts]);
 
-    // Phase 3: run GSAP animation once font sizes are applied
+    // Animate once per-line font sizes are committed to the DOM
     useGSAP(() => {
         if (!fontSizes) {
             return;
@@ -610,16 +610,13 @@ export function PostAnimator({
                     />
                 )}
                 {post.hashtags.length > 0 && (
-                    <div
-                        aria-hidden="true"
-                        className="absolute top-0 left-full flex h-full flex-col items-center justify-center gap-1 overflow-hidden pl-3"
-                    >
+                    <div className="absolute top-0 left-full flex h-full flex-col items-center justify-center gap-1 overflow-hidden pl-3">
                         {[...new Set(post.hashtags)].map((tag) => {
                             const href =
                                 post.source === 'mastodon' &&
                                 post.source_instance
-                                    ? `https://${post.source_instance}/tags/${tag}`
-                                    : `https://bsky.app/search?q=%23${tag}`;
+                                    ? `https://${post.source_instance}/tags/${encodeURIComponent(tag)}`
+                                    : `https://bsky.app/search?q=%23${encodeURIComponent(tag)}`;
 
                             return (
                                 <a

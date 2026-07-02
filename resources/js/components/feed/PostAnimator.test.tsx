@@ -30,11 +30,17 @@ vi.mock('@/components/feed/ImageCarousel', () => ({
     ImageCarousel: ({
         onComplete,
         media,
+        blurMedia,
     }: {
         onComplete: () => void;
         media: MediaAttachment[];
+        blurMedia?: boolean;
     }) => (
-        <div data-testid="image-carousel" data-count={media.length}>
+        <div
+            data-testid="image-carousel"
+            data-count={media.length}
+            data-blur={String(blurMedia ?? false)}
+        >
             <button type="button" onClick={onComplete}>
                 carousel-done
             </button>
@@ -150,5 +156,74 @@ describe('PostAnimator — image branch', () => {
         fireEvent.click(screen.getByText('carousel-done'));
 
         expect(onReady).toHaveBeenCalledOnce();
+    });
+
+    it('shows reply_to context panel when image post has a reply', () => {
+        render(
+            <PostAnimator
+                post={makePost({
+                    media: [makeImage('a.jpg')],
+                    reply_to: {
+                        author_name: 'Jane',
+                        author_handle: '@jane',
+                        author_avatar: '',
+                        original_url: 'https://example.com/status/1',
+                        body: 'Original post',
+                        created_at: null,
+                        chip_mentions: [],
+                    },
+                })}
+                colors={null}
+            />,
+        );
+        expect(screen.getByText('Original post')).toBeInTheDocument();
+    });
+
+    it('shows quoted_post context panel when image post has a quote', () => {
+        render(
+            <PostAnimator
+                post={makePost({
+                    media: [makeImage('a.jpg')],
+                    quoted_post: {
+                        author_name: 'Bob',
+                        author_handle: '@bob',
+                        author_avatar: '',
+                        original_url: 'https://example.com/status/2',
+                        body: 'Quoted post body',
+                        created_at: null,
+                        chip_mentions: [],
+                    },
+                })}
+                colors={null}
+            />,
+        );
+        expect(screen.getByText('Quoted post body')).toBeInTheDocument();
+    });
+
+    it('forwards blurMedia to ImageCarousel', () => {
+        render(
+            <PostAnimator
+                post={makePost({ media: [makeImage('a.jpg')] })}
+                colors={null}
+                blurMedia={true}
+            />,
+        );
+        expect(screen.getByTestId('image-carousel')).toHaveAttribute(
+            'data-blur',
+            'true',
+        );
+    });
+
+    it('passes blurMedia=false by default', () => {
+        render(
+            <PostAnimator
+                post={makePost({ media: [makeImage('a.jpg')] })}
+                colors={null}
+            />,
+        );
+        expect(screen.getByTestId('image-carousel')).toHaveAttribute(
+            'data-blur',
+            'false',
+        );
     });
 });

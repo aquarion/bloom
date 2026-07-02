@@ -240,6 +240,28 @@ describe('ImageCarousel — multiple images', () => {
 
         expect(screen.getByAltText('first')).toBeInTheDocument();
     });
+
+    it('resets the timer after manual navigation so the new image gets a full duration', () => {
+        const onComplete = vi.fn();
+        render(
+            <ImageCarousel
+                {...defaultProps}
+                media={[makeImage('a.jpg'), makeImage('b.jpg')]}
+                onComplete={onComplete}
+            />,
+        );
+
+        // Advance partway through the first image then manually skip
+        act(() => vi.advanceTimersByTime(DURATION / 2));
+        fireEvent.click(screen.getByTestId('carousel-next'));
+
+        // The second image should not complete before a full duration elapses
+        act(() => vi.advanceTimersByTime(DURATION / 2));
+        expect(onComplete).not.toHaveBeenCalled();
+
+        act(() => vi.advanceTimersByTime(DURATION / 2 + TICK_MS));
+        expect(onComplete).toHaveBeenCalledOnce();
+    });
 });
 
 describe('ImageCarousel — pause and sensitive media', () => {

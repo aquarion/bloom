@@ -128,6 +128,13 @@ class MastodonFeedService
             return null;
         }
 
+        if ($response->failed()) {
+            Log::warning('Failed to fetch Mastodon public timeline', [
+                'instance_url' => $instanceUrl,
+                'http_status' => $response->status(),
+            ]);
+        }
+
         $response->throw();
 
         $fetched = $response->json();
@@ -190,7 +197,9 @@ class MastodonFeedService
                 $cache->put($key, $profile, self::MENTION_PROFILE_TTL);
             } catch (\Throwable $e) {
                 Log::warning('Failed to fetch Mastodon profile for mention resolution', [
+                    'account_id' => $account->id,
                     'acct' => $acct,
+                    'exception' => $e::class,
                     'error' => $e->getMessage(),
                 ]);
                 $resolved[$acct] = null;
@@ -231,9 +240,6 @@ class MastodonFeedService
     }
 
     /**
-     * Collect chip_mentions from a post's top-level body plus its nested reply_to/quoted_post
-     * bodies (which receive the same mention-classification treatment as the main body).
-     *
      * @param  array<string, mixed>  $post
      * @return array<int, array<string, mixed>>
      */

@@ -23,7 +23,16 @@ class FeedAggregator
     {
         $user->loadMissing('socialAccounts');
 
-        $cursors = $cursor ? json_decode(base64_decode($cursor), true) : [];
+        $cursors = [];
+        if ($cursor) {
+            $decoded = base64_decode($cursor, true);
+            if ($decoded !== false) {
+                $parsed = json_decode($decoded, true);
+                if (is_array($parsed)) {
+                    $cursors = $parsed;
+                }
+            }
+        }
         $posts = collect();
 
         $defaultLimit = config('feed.per_provider_limit', 20);
@@ -32,6 +41,7 @@ class FeedAggregator
             $accountCursor = $cursors[$account->id] ?? null;
             $normalised = [];
             $nextCursor = null;
+            $authAccount = null;
 
             try {
                 if ($account->feed_type === 'home' && $account->provider === 'mastodon') {
@@ -69,7 +79,6 @@ class FeedAggregator
                     $host = parse_url($account->instance_url, PHP_URL_HOST);
                     $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
                     $statuses = $this->mastodon->getPublicTimeline($account->instance_url, $perAccountLimit);
-                    $authAccount = null;
 
                     if ($statuses === null) {
                         // Instance requires auth — fall back to a home account on the same instance
@@ -164,6 +173,7 @@ class FeedAggregator
             } catch (ConnectionException|RequestException $e) {
                 Log::warning('Provider request failed for account', [
                     'account_id' => $account->id,
+                    'auth_account_id' => $authAccount?->id,
                     'provider' => $account->provider,
                     'error' => $e->getMessage(),
                 ]);
@@ -172,6 +182,7 @@ class FeedAggregator
             } catch (\Throwable $e) {
                 Log::error('Unexpected error fetching feed for account', [
                     'account_id' => $account->id,
+                    'auth_account_id' => $authAccount?->id,
                     'provider' => $account->provider,
                     'exception' => $e::class,
                     'error' => $e->getMessage(),
@@ -181,7 +192,6 @@ class FeedAggregator
                 continue;
             }
 
-            // Local filtering — let bugs surface here rather than being swallowed as network errors
             $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
             $posts = $posts->concat($normalised);
             if ($nextCursor) {
@@ -196,7 +206,6 @@ class FeedAggregator
         $seenBodies = [];
 
         $deduped = $sorted->filter(function ($post) use (&$seen, &$seenBodies) {
-            // URL-based dedup (existing)
             $key = $post['original_url'] ?: $post['id'];
             if (isset($seen[$key])) {
                 return false;

@@ -73,7 +73,7 @@ class BlueskyFeedService
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $normalisedPosts  Posts already shaped by PostNormalizer::fromBluesky, each with a 'chip_mentions' key.
+     * @param  array<int, array<string, mixed>>  $normalisedPosts
      */
     public function resolveMentionProfiles(array $normalisedPosts, SocialAccount $account): array
     {
@@ -136,6 +136,9 @@ class BlueskyFeedService
                 }
             } catch (\Throwable $e) {
                 Log::warning('Failed to fetch Bluesky profiles for mention resolution', [
+                    'account_id' => $account->id,
+                    'batch_size' => count($batch),
+                    'exception' => $e::class,
                     'error' => $e->getMessage(),
                 ]);
                 foreach ($batch as $did) {
@@ -183,9 +186,6 @@ class BlueskyFeedService
     }
 
     /**
-     * Collect chip_mentions from a post's top-level body plus its nested reply_to/quoted_post
-     * bodies (which receive the same mention-classification treatment as the main body).
-     *
      * @param  array<string, mixed>  $post
      * @return array<int, array<string, mixed>>
      */
@@ -260,6 +260,9 @@ class BlueskyFeedService
                 }
             } catch (\Throwable $e) {
                 Log::warning('Failed to fetch Bluesky profiles for banner enrichment', [
+                    'account_id' => $account->id,
+                    'batch_size' => count($batch),
+                    'exception' => $e::class,
                     'error' => $e->getMessage(),
                 ]);
                 // Cache a short-TTL negative result so repeated failures don't

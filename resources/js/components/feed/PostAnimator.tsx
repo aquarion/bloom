@@ -11,6 +11,7 @@ import type { PostColors } from '@/lib/post-colors';
 import { postColors } from '@/lib/post-colors';
 import type { Mention, Post } from '@/types/post';
 import { AuthorChip } from './AuthorChip';
+import { ImageCarousel } from './ImageCarousel';
 import { MentionChips } from './MentionChips';
 
 gsap.registerPlugin(SplitText);
@@ -149,19 +150,26 @@ export function PostAnimator({
     post,
     colors,
     onReady,
+    onAdvance,
+    onProgress,
     blurMedia = false,
     onRevealMedia,
+    paused = false,
 }: {
     post: Post;
     colors: PostColors | null;
     onReady?: () => void;
+    onAdvance?: () => void;
+    onProgress?: (index: number, filled: number) => void;
     blurMedia?: boolean;
     onRevealMedia?: () => void;
+    paused?: boolean;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const textRef = useRef<HTMLDivElement>(null);
     const panelsRef = useRef<HTMLDivElement>(null);
     const onReadyRef = useRef(onReady);
+    const onAdvanceRef = useRef(onAdvance);
     // eslint-disable-next-line @eslint-react/naming-convention-ref-name
     const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
     // Tracks which body the font sizes were computed for so they naturally
@@ -173,6 +181,7 @@ export function PostAnimator({
 
     useLayoutEffect(() => {
         onReadyRef.current = onReady;
+        onAdvanceRef.current = onAdvance;
     });
 
     const paragraphs = useMemo(
@@ -212,12 +221,17 @@ export function PostAnimator({
     // Font sizes are only valid for the current body; treat as null when body changes.
     const fontSizes = fontSizeState?.body === body ? fontSizeState.sizes : null;
 
-    // Fire onReady immediately only when there is no body AND no panels to animate.
+    // Fire onReady immediately only when there is no body AND no panels to animate,
+    // and not an image post (which fires onReady via ImageCarousel's onComplete).
     useLayoutEffect(() => {
-        if (!body && !(post.reply_to || post.quoted_post)) {
+        if (
+            !body &&
+            !(post.reply_to || post.quoted_post) &&
+            post.media.length === 0
+        ) {
             onReadyRef.current?.();
         }
-    }, [body, post.reply_to, post.quoted_post]);
+    }, [body, post.reply_to, post.quoted_post, post.media.length]);
 
     // Phase 2: measure rendered line widths and compute font sizes
     useLayoutEffect(() => {
@@ -345,7 +359,11 @@ export function PostAnimator({
 
     // Fade panels in for no-body posts that have context panels (Phase 3 doesn't run for these).
     useGSAP(() => {
-        if (body || !(post.reply_to || post.quoted_post)) {
+        if (
+            body ||
+            !(post.reply_to || post.quoted_post) ||
+            post.media.length > 0
+        ) {
             return;
         }
 
@@ -368,7 +386,74 @@ export function PostAnimator({
         );
 
         return () => tween.kill();
-    }, [post.id, body]);
+    }, [post.id, body, post.media.length]);
+
+    // Image posts: centered card matching text post layout
+    if (post.media.length > 0) {
+        return (
+            <div className="flex h-full w-full items-center justify-center p-6">
+                <div className="flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/50 backdrop-blur-sm">
+                    <ImageCarousel
+                        media={post.media}
+                        duration={8000}
+                        paused={paused}
+                        blurMedia={blurMedia}
+                        onRevealMedia={onRevealMedia ?? (() => {})}
+                        onComplete={() =>
+                            (onAdvanceRef.current ?? onReadyRef.current)?.()
+                        }
+                        onProgress={onProgress}
+                    />
+                    {post.body && (
+                        <div className="shrink-0 border-white/10 border-t px-4 py-3 text-sm text-white/80 leading-snug">
+                            <EmojiText text={post.body} emojis={post.emojis} />
+                        </div>
+                    )}
+                    {(post.reply_to || post.quoted_post || post.link_url) && (
+                        <div className="flex shrink-0 flex-col gap-2 border-white/10 border-t px-4 py-3">
+                            {post.reply_to && (
+                                <ContextPanel
+                                    icon={<Reply className="size-3.5" />}
+                                    author_name={post.reply_to.author_name}
+                                    author_avatar={post.reply_to.author_avatar}
+                                    author_handle={post.reply_to.author_handle}
+                                    emojis={post.emojis}
+                                    body={post.reply_to.body}
+                                    original_url={post.reply_to.original_url}
+                                    chip_mentions={post.reply_to.chip_mentions}
+                                />
+                            )}
+                            {post.quoted_post && (
+                                <ContextPanel
+                                    icon={<Quote className="size-3.5" />}
+                                    author_name={post.quoted_post.author_name}
+                                    author_avatar={
+                                        post.quoted_post.author_avatar
+                                    }
+                                    author_handle={
+                                        post.quoted_post.author_handle
+                                    }
+                                    emojis={post.emojis}
+                                    body={post.quoted_post.body}
+                                    original_url={post.quoted_post.original_url}
+                                    chip_mentions={
+                                        post.quoted_post.chip_mentions
+                                    }
+                                />
+                            )}
+                            {post.link_url && (
+                                <LinkCard
+                                    url={post.link_url}
+                                    title={post.link_title}
+                                    favicon={post.link_favicon}
+                                />
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     if (!body) {
         const firstMedia = post.media[0];

@@ -357,6 +357,48 @@ it('sets quoted_post for bluesky recordWithMedia embeds', function () {
     ]);
 });
 
+it('extracts media from bluesky recordWithMedia embeds', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'post with image and quote', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Author', 'handle' => 'author.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.recordWithMedia#view',
+                'media' => [
+                    '$type' => 'app.bsky.embed.images#view',
+                    'images' => [
+                        [
+                            'fullsize' => 'https://cdn.bsky.app/img/full.jpg',
+                            'thumb' => 'https://cdn.bsky.app/img/thumb.jpg',
+                            'alt' => 'a photo',
+                        ],
+                    ],
+                ],
+                'record' => [
+                    'record' => [
+                        '$type' => 'app.bsky.embed.record#viewRecord',
+                        'uri' => 'at://did:plc:xyz/app.bsky.feed.post/quoted',
+                        'author' => ['displayName' => 'Quoted', 'handle' => 'quoted.bsky.social', 'avatar' => ''],
+                        'value' => ['text' => 'quoted body'],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['media'])->toBe([
+        [
+            'type' => 'image',
+            'url' => 'https://cdn.bsky.app/img/full.jpg',
+            'preview_url' => 'https://cdn.bsky.app/img/thumb.jpg',
+            'alt_text' => 'a photo',
+        ],
+    ]);
+});
+
 it('falls back to handle when bluesky quoted post author has no displayName', function () {
     $feedPost = [
         'post' => [

@@ -55,6 +55,9 @@ export default function Feed({
     const [paused, setPaused] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [panelOpen, setPanelOpen] = useState(false);
+    const [revealedAuthors, setRevealedAuthors] = useState(
+        () => new Set<string>(),
+    );
 
     const {
         isSupported: wakeLockSupported,
@@ -171,6 +174,10 @@ export default function Feed({
         setPaused(true);
     }, [goBack]);
 
+    const handleRevealAuthor = useCallback((handle: string) => {
+        setRevealedAuthors((prev) => new Set(prev).add(handle));
+    }, []);
+
     const openPost = useCallback(() => {
         if (current) {
             window.open(current.original_url, '_blank', 'noopener,noreferrer');
@@ -251,6 +258,12 @@ export default function Feed({
                         cwBehavior={cwBehavior}
                         sensitiveMediaBehavior={sensitiveMediaBehavior}
                         paused={paused}
+                        authorCwRevealed={revealedAuthors.has(
+                            current.author_handle,
+                        )}
+                        onRevealAuthor={() =>
+                            handleRevealAuthor(current.author_handle)
+                        }
                     />
                 </div>
 

@@ -65,6 +65,7 @@ class PostNormalizer
                 $source['tags'] ?? []
             ))),
             'cw_text' => isset($source['spoiler_text']) && $source['spoiler_text'] !== '' ? $source['spoiler_text'] : null,
+            'cw_is_author_level' => false,
             'sensitive_media' => (bool) ($source['sensitive'] ?? false),
         ];
     }
@@ -129,6 +130,7 @@ class PostNormalizer
             'emojis' => [],
             'hashtags' => $hashtags,
             'cw_text' => $labelData['cw_text'],
+            'cw_is_author_level' => $labelData['cw_is_author_level'],
             'sensitive_media' => $labelData['sensitive_media'],
             'chip_mentions' => $mentionResult['chip_mentions'],
         ];
@@ -601,30 +603,40 @@ class PostNormalizer
 
     private function blueskyLabels(array $post): array
     {
-        // Collect labels from both the post and the author's profile.
+        // Filter each label set separately so we can detect author-level CWs.
         // Authors of adult-content accounts label their profile rather than each post.
-        $postLabels = array_map(fn ($l) => $l['val'] ?? '', $post['labels'] ?? []);
-        $authorLabels = array_map(fn ($l) => $l['val'] ?? '', $post['author']['labels'] ?? []);
-        $labels = array_values(array_filter(
-            array_unique(array_merge($postLabels, $authorLabels)),
+        $filter = fn (array $raw): array => array_values(array_filter(
+            array_map(fn ($l) => $l['val'] ?? '', $raw),
             fn ($v) => $v !== '',
         ));
+
+        $postLabels = $filter($post['labels'] ?? []);
+        $authorLabels = $filter($post['author']['labels'] ?? []);
+        $labels = array_values(array_unique(array_merge($postLabels, $authorLabels)));
 
         $adultLabels = ['sexual', 'nudity', 'porn'];
         $graphicLabels = ['graphic-media', 'gore'];
         $mediaLabels = array_merge($adultLabels, $graphicLabels);
 
-        $cwText = null;
-        if (array_intersect($labels, $adultLabels)) {
-            $cwText = 'Adult content';
-        } elseif (array_intersect($labels, $graphicLabels)) {
-            $cwText = 'Graphic media';
-        } elseif (! empty($labels)) {
-            $cwText = 'Content warning';
-        }
+        $resolveCwText = function (array $l) use ($adultLabels, $graphicLabels): ?string {
+            if (array_intersect($l, $adultLabels)) {
+                return 'Adult content';
+            }
+            if (array_intersect($l, $graphicLabels)) {
+                return 'Graphic media';
+            }
+
+            return ! empty($l) ? 'Content warning' : null;
+        };
+
+        $cwText = $resolveCwText($labels);
+        // Author-level when the post itself carries no cw-worthy labels —
+        // the CW exists only because the author's profile is labelled.
+        $cwIsAuthorLevel = $cwText !== null && $resolveCwText($postLabels) === null;
 
         return [
             'cw_text' => $cwText,
+            'cw_is_author_level' => $cwIsAuthorLevel,
             'sensitive_media' => ! empty(array_intersect($labels, $mediaLabels)),
         ];
     }

@@ -60,6 +60,7 @@ export interface Post {
     /** Mentions classified as incidental — stripped from `body`, shown as chips. Empty if none, or if disabled for this viewer. */
     chip_mentions: Mention[];
     cw_text: string | null;
+    cw_is_author_level: boolean;
     sensitive_media: boolean;
 }
 

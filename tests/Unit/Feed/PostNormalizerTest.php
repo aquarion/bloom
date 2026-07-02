@@ -1869,6 +1869,7 @@ it('sets cw_text from bluesky author profile label when post has no labels', fun
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
     expect($post['cw_text'])->toBe('Adult content')
+        ->and($post['cw_is_author_level'])->toBeTrue()
         ->and($post['sensitive_media'])->toBeTrue();
 });
 
@@ -1891,7 +1892,30 @@ it('merges bluesky post-level and author-level labels for combined classificatio
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
     expect($post['cw_text'])->toBe('Adult content')
+        ->and($post['cw_is_author_level'])->toBeFalse()
         ->and($post['sensitive_media'])->toBeTrue();
+});
+
+it('sets cw_is_author_level false when only post-level labels trigger the cw', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [],
+            ],
+            'labels' => [['val' => 'gore']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('Graphic media')
+        ->and($post['cw_is_author_level'])->toBeFalse();
 });
 
 it('classifies a single leading mastodon mention as inline by default', function () {

@@ -30,6 +30,7 @@ function makePost(id: string): Post {
         hashtags: [],
         chip_mentions: [],
         cw_text: null,
+        cw_is_author_level: false,
         sensitive_media: false,
     };
 }

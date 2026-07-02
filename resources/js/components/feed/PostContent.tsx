@@ -54,8 +54,10 @@ export function PostContent({
     const cwText = post.cw_text;
     const showCwOverlay =
         cwText !== null && cwBehavior === 'blur' && !cwRevealed;
+    // Blur images while the CW overlay is up (content visible through bg-black/80)
+    // and also when sensitive_media is flagged independently of any CW text.
     const blurMedia =
-        post.sensitive_media &&
+        (showCwOverlay || post.sensitive_media) &&
         sensitiveMediaBehavior === 'blur' &&
         !mediaRevealed;
 
@@ -74,11 +76,9 @@ export function PostContent({
         }
     }, []);
 
-    // Revealing the CW also reveals sensitive media (single dismiss for both)
-    // and fires any onReady that was suppressed while the overlay was up.
+    // Fires any onReady suppressed while the overlay was up.
     const revealCw = useCallback(() => {
         setCwRevealed(true);
-        setMediaRevealed(true);
 
         if (pendingReadyRef.current) {
             pendingReadyRef.current = false;

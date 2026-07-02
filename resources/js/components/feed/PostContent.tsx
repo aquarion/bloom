@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { postDisplayColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
@@ -37,7 +37,7 @@ export function PostContent({
     post: Post;
     onReady?: () => void;
     onAdvance?: () => void;
-    onProgress?: (index: number, filled: number) => void;
+    onProgress?: (index: number, elapsed: number) => void;
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
     paused?: boolean;
@@ -45,6 +45,11 @@ export function PostContent({
     const colors = postDisplayColors(post);
     const [cwRevealed, setCwRevealed] = useState(false);
     const [mediaRevealed, setMediaRevealed] = useState(false);
+    // Tracks whether PostAnimator fired onReady while the CW overlay was blocking it,
+    // so we can forward it immediately when the user dismisses the overlay.
+    const pendingReadyRef = useRef(false);
+    const onReadyRef = useRef(onReady);
+    const showCwOverlayRef = useRef(false);
 
     const cwText = post.cw_text;
     const showCwOverlay =
@@ -54,23 +59,47 @@ export function PostContent({
         sensitiveMediaBehavior === 'blur' &&
         !mediaRevealed;
 
+    useLayoutEffect(() => {
+        onReadyRef.current = onReady;
+        showCwOverlayRef.current = showCwOverlay;
+    });
+
+    // Suppress readiness signals while the CW overlay is up — otherwise the
+    // auto-advance timer would start and scroll past unacknowledged CW content.
+    const handleReady = useCallback(() => {
+        if (showCwOverlayRef.current) {
+            pendingReadyRef.current = true;
+        } else {
+            onReadyRef.current?.();
+        }
+    }, []);
+
+    // Revealing the CW also reveals sensitive media (single dismiss for both)
+    // and fires any onReady that was suppressed while the overlay was up.
+    const revealCw = useCallback(() => {
+        setCwRevealed(true);
+        setMediaRevealed(true);
+
+        if (pendingReadyRef.current) {
+            pendingReadyRef.current = false;
+            onReadyRef.current?.();
+        }
+    }, []);
+
     return (
         <div className="relative flex h-full w-full items-center justify-center">
             <PostAnimator
                 post={post}
                 colors={colors}
-                onReady={onReady}
+                onReady={handleReady}
                 onAdvance={onAdvance}
                 onProgress={onProgress}
                 blurMedia={blurMedia}
                 onRevealMedia={() => setMediaRevealed(true)}
-                paused={paused}
+                paused={paused || showCwOverlay}
             />
             {showCwOverlay && cwText !== null && (
-                <CwOverlay
-                    cwText={cwText}
-                    onReveal={() => setCwRevealed(true)}
-                />
+                <CwOverlay cwText={cwText} onReveal={revealCw} />
             )}
         </div>
     );

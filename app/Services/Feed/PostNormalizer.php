@@ -601,7 +601,12 @@ class PostNormalizer
 
     private function blueskyLabels(array $post): array
     {
-        $labels = array_map(fn ($l) => $l['val'] ?? '', $post['labels'] ?? []);
+        // Collect labels from both the post and the author's profile.
+        // Authors of adult-content accounts label their profile rather than each post.
+        $postLabels = array_map(fn ($l) => $l['val'] ?? '', $post['labels'] ?? []);
+        $authorLabels = array_map(fn ($l) => $l['val'] ?? '', $post['author']['labels'] ?? []);
+        $labels = array_unique(array_merge($postLabels, $authorLabels));
+
         $adultLabels = ['sexual', 'nudity', 'porn'];
         $graphicLabels = ['graphic-media', 'gore'];
         $mediaLabels = array_merge($adultLabels, $graphicLabels);

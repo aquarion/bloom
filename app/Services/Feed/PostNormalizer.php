@@ -605,7 +605,10 @@ class PostNormalizer
         // Authors of adult-content accounts label their profile rather than each post.
         $postLabels = array_map(fn ($l) => $l['val'] ?? '', $post['labels'] ?? []);
         $authorLabels = array_map(fn ($l) => $l['val'] ?? '', $post['author']['labels'] ?? []);
-        $labels = array_unique(array_merge($postLabels, $authorLabels));
+        $labels = array_values(array_filter(
+            array_unique(array_merge($postLabels, $authorLabels)),
+            fn ($v) => $v !== '',
+        ));
 
         $adultLabels = ['sexual', 'nudity', 'porn'];
         $graphicLabels = ['graphic-media', 'gore'];

@@ -49,11 +49,6 @@ export function PostContent({
     const colors = postDisplayColors(post);
     const [cwRevealed, setCwRevealed] = useState(false);
     const [mediaRevealed, setMediaRevealed] = useState(false);
-    // Tracks whether PostAnimator fired onReady while the CW overlay was blocking it,
-    // so we can forward it immediately when the user dismisses the overlay.
-    const pendingReadyRef = useRef(false);
-    const onReadyRef = useRef(onReady);
-    const showCwOverlayRef = useRef(false);
 
     const cwText = post.cw_text;
     const showCwOverlay =
@@ -61,6 +56,16 @@ export function PostContent({
         cwBehavior === 'blur' &&
         !cwRevealed &&
         !authorCwRevealed;
+
+    // Tracks whether PostAnimator fired onReady while the CW overlay was blocking it,
+    // so we can forward it immediately when the user dismisses the overlay.
+    const pendingReadyRef = useRef(false);
+    const onReadyRef = useRef(onReady);
+    // Initialized from the computed showCwOverlay so it's correct before the
+    // first useLayoutEffect sync — PostAnimator's layout effects (children) run
+    // before ours (parent), so handleReady can fire before our sync otherwise.
+    const showCwOverlayRef = useRef(showCwOverlay);
+    const revealInProgressRef = useRef(false);
     const blurMedia =
         post.sensitive_media &&
         sensitiveMediaBehavior === 'blur' &&
@@ -89,6 +94,12 @@ export function PostContent({
     // Fires any onReady suppressed while the overlay was up,
     // and records this author as revealed for the rest of the session.
     const revealCw = useCallback(() => {
+        if (revealInProgressRef.current) {
+            return;
+        }
+
+        revealInProgressRef.current = true;
+
         setCwRevealed(true);
         onRevealAuthorRef.current?.();
 

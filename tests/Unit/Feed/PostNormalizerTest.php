@@ -1872,7 +1872,7 @@ it('sets cw_text from bluesky author profile label when post has no labels', fun
         ->and($post['sensitive_media'])->toBeTrue();
 });
 
-it('merges bluesky post-level and author-level labels without duplicates', function () {
+it('merges bluesky post-level and author-level labels for combined classification', function () {
     $feedPost = [
         'post' => [
             'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',

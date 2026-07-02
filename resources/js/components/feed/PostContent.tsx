@@ -33,6 +33,8 @@ export function PostContent({
     cwBehavior = 'show',
     sensitiveMediaBehavior = 'show',
     paused = false,
+    authorCwRevealed = false,
+    onRevealAuthor,
 }: {
     post: Post;
     onReady?: () => void;
@@ -41,6 +43,8 @@ export function PostContent({
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
     paused?: boolean;
+    authorCwRevealed?: boolean;
+    onRevealAuthor?: () => void;
 }) {
     const colors = postDisplayColors(post);
     const [cwRevealed, setCwRevealed] = useState(false);
@@ -53,7 +57,10 @@ export function PostContent({
 
     const cwText = post.cw_text;
     const showCwOverlay =
-        cwText !== null && cwBehavior === 'blur' && !cwRevealed;
+        cwText !== null &&
+        cwBehavior === 'blur' &&
+        !cwRevealed &&
+        !authorCwRevealed;
     const blurMedia =
         post.sensitive_media &&
         sensitiveMediaBehavior === 'blur' &&
@@ -74,9 +81,16 @@ export function PostContent({
         }
     }, []);
 
-    // Fires any onReady suppressed while the overlay was up.
+    const onRevealAuthorRef = useRef(onRevealAuthor);
+    useLayoutEffect(() => {
+        onRevealAuthorRef.current = onRevealAuthor;
+    });
+
+    // Fires any onReady suppressed while the overlay was up,
+    // and records this author as revealed for the rest of the session.
     const revealCw = useCallback(() => {
         setCwRevealed(true);
+        onRevealAuthorRef.current?.();
 
         if (pendingReadyRef.current) {
             pendingReadyRef.current = false;

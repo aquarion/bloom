@@ -1,4 +1,4 @@
-FROM node:22.22-alpine AS node-deps
+FROM node:26-alpine AS node-deps
 WORKDIR /var/www/html
 COPY package.json package-lock.json ./
 RUN npm ci

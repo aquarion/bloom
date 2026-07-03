@@ -16,6 +16,7 @@ const makePost = (id: string, created_at?: string): Post => ({
     id,
     source: 'mastodon',
     source_handle: '',
+    source_instance: null,
     author_name: 'Test',
     author_handle: '@test@example.com',
     author_avatar: '',
@@ -35,7 +36,9 @@ const makePost = (id: string, created_at?: string): Post => ({
     boosted_by_created_at: null,
     emojis: {},
     hashtags: [],
+    chip_mentions: [],
     cw_text: null,
+    cw_is_author_level: false,
     sensitive_media: false,
 });
 
@@ -152,6 +155,25 @@ it('redirects to login when feed refill gets unauthenticated', async () => {
     expect(router.visit).toHaveBeenCalledWith('/login');
 });
 
+it('redirects to login when feed refill gets an expired session (419)', async () => {
+    const posts = Array.from({ length: 6 }, (_, i) => makePost(String(i)));
+
+    vi.mocked(axios.isAxiosError).mockReturnValue(true);
+    vi.mocked(axios.get).mockRejectedValue({
+        isAxiosError: true,
+        response: { status: 419 },
+    });
+    vi.mocked(router.visit).mockClear();
+
+    renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: 'cursor123' }),
+    );
+
+    await act(async () => Promise.resolve());
+
+    expect(router.visit).toHaveBeenCalledWith('/login');
+});
+
 it('skips posts with cw_text when cwBehavior is skip', () => {
     const cwPost = makePost('cw1');
     cwPost.cw_text = 'Content warning';
@@ -238,4 +260,94 @@ it('filters cw posts from fetchMore response when cwBehavior is skip', async () 
         expect(allIds).not.toContain('cw-fetch');
         expect(allIds).toContain('normal-fetch');
     });
+});
+
+it('goBack is a no-op when history is empty', () => {
+    const posts = [makePost('1'), makePost('2')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    act(() => result.current.goBack());
+    expect(result.current.current?.id).toBe('1');
+});
+
+it('goBack restores the previous post after one advance', () => {
+    const posts = [makePost('1'), makePost('2'), makePost('3')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    act(() => result.current.advance());
+    expect(result.current.current?.id).toBe('2');
+    act(() => result.current.goBack());
+    expect(result.current.current?.id).toBe('1');
+});
+
+it('goBack restores the departed post to the front of the queue', () => {
+    const posts = [makePost('1'), makePost('2'), makePost('3')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    act(() => result.current.advance());
+    act(() => result.current.goBack());
+    expect(result.current.queue.map((p) => p.id)).toEqual(['2', '3']);
+});
+
+it('canGoBack is false when history is empty', () => {
+    const posts = [makePost('1'), makePost('2')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    expect(result.current.canGoBack).toBe(false);
+});
+
+it('canGoBack is true after advancing at least once', () => {
+    const posts = [makePost('1'), makePost('2')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    act(() => result.current.advance());
+    expect(result.current.canGoBack).toBe(true);
+});
+
+it('goBack then advance again restores the original order without dropping posts', () => {
+    const posts = [makePost('1'), makePost('2'), makePost('3')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+
+    act(() => result.current.advance()); // current: 2, queue: [3]
+    act(() => result.current.goBack()); // current: 1, queue should become [2, 3]
+    act(() => result.current.advance()); // current: 2, queue: [3]
+
+    expect(result.current.current?.id).toBe('2');
+    expect(result.current.queue.map((p) => p.id)).toEqual(['3']);
+});
+
+it('canGoBack returns to false once history is exhausted by goBack', () => {
+    const posts = [makePost('1'), makePost('2')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+    act(() => result.current.advance());
+    act(() => result.current.goBack());
+    expect(result.current.canGoBack).toBe(false);
+});
+
+it('caps history at 50 posts', () => {
+    const posts = Array.from({ length: 60 }, (_, i) => makePost(String(i)));
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+
+    for (let i = 0; i < 55; i++) {
+        act(() => result.current.advance());
+    }
+
+    for (let i = 0; i < 50; i++) {
+        act(() => result.current.goBack());
+    }
+
+    const idBefore = result.current.current?.id;
+    act(() => result.current.goBack());
+    expect(result.current.current?.id).toBe(idBefore);
 });

@@ -10,6 +10,7 @@ import { ProgressBar } from '@/components/feed/ProgressBar';
 import { SourceBadge } from '@/components/feed/SourceBadge';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
 import { useWelcomeQueue } from '@/hooks/useWelcomeQueue';
+import { trackEvent } from '@/lib/matomo';
 import { login, register } from '@/routes';
 import type { Post } from '@/types/post';
 
@@ -111,7 +112,7 @@ export default function Welcome({
 
     return (
         <>
-            <Head title="Bloom — social media without the scroll" />
+            <Head title="Social media without the scroll" />
             <div className="relative h-screen w-screen overflow-hidden bg-black">
                 {/* Background layer */}
                 <div className="absolute inset-0 z-0">
@@ -157,6 +158,12 @@ export default function Welcome({
                                     <Link
                                         href={register()}
                                         className="flex-1 rounded-lg bg-white py-2.5 text-center font-semibold text-black text-sm hover:bg-white/90"
+                                        onClick={() =>
+                                            trackEvent(
+                                                'welcome',
+                                                'signup-click',
+                                            )
+                                        }
                                     >
                                         Sign up
                                     </Link>

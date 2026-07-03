@@ -131,7 +131,7 @@ jobs:
       - name: Deploy staging
         uses: appleboy/ssh-action@v1
         with:
-          host: firth.water.gkhs.net
+          host: firth.istic.systems
           username: ${{ env.APP_NAME }}
           key: ${{ secrets.FIRTH_SSH_KEY }}
           script: |

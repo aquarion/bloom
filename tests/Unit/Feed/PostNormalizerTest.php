@@ -319,6 +319,7 @@ it('sets quoted_post for bluesky record embeds', function () {
         'author_avatar' => 'https://cdn.bsky.app/quoted.jpg',
         'original_url' => 'https://bsky.app/profile/quoted.bsky.social/post/quoteid',
         'body' => 'quoted body',
+        'chip_mentions' => [],
         'created_at' => null,
     ]);
 });
@@ -351,7 +352,50 @@ it('sets quoted_post for bluesky recordWithMedia embeds', function () {
         'author_avatar' => 'https://cdn.bsky.app/quoted.jpg',
         'original_url' => 'https://bsky.app/profile/quoted.bsky.social/post/mediaquote',
         'body' => 'quoted body with media',
+        'chip_mentions' => [],
         'created_at' => null,
+    ]);
+});
+
+it('extracts media from bluesky recordWithMedia embeds', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'post with image and quote', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Author', 'handle' => 'author.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.recordWithMedia#view',
+                'media' => [
+                    '$type' => 'app.bsky.embed.images#view',
+                    'images' => [
+                        [
+                            'fullsize' => 'https://cdn.bsky.app/img/full.jpg',
+                            'thumb' => 'https://cdn.bsky.app/img/thumb.jpg',
+                            'alt' => 'a photo',
+                        ],
+                    ],
+                ],
+                'record' => [
+                    'record' => [
+                        '$type' => 'app.bsky.embed.record#viewRecord',
+                        'uri' => 'at://did:plc:xyz/app.bsky.feed.post/quoted',
+                        'author' => ['displayName' => 'Quoted', 'handle' => 'quoted.bsky.social', 'avatar' => ''],
+                        'value' => ['text' => 'quoted body'],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['media'])->toBe([
+        [
+            'type' => 'image',
+            'url' => 'https://cdn.bsky.app/img/full.jpg',
+            'preview_url' => 'https://cdn.bsky.app/img/thumb.jpg',
+            'alt_text' => 'a photo',
+        ],
     ]);
 });
 
@@ -761,6 +805,7 @@ it('includes author identity and url in mastodon reply_to', function () {
         'author_avatar' => 'https://mastodon.social/avatars/original.jpg',
         'original_url' => 'https://mastodon.social/@original/456',
         'body' => 'This is the parent post body',
+        'chip_mentions' => [],
         'created_at' => null,
     ]);
 });
@@ -872,6 +917,7 @@ it('includes author identity and url in bluesky reply_to', function () {
         'author_avatar' => 'https://cdn.bsky.app/bob.jpg',
         'original_url' => 'https://bsky.app/profile/bob.bsky.social/post/parent456',
         'body' => 'parent body text',
+        'chip_mentions' => [],
         'created_at' => null,
     ]);
 });
@@ -1214,6 +1260,7 @@ it('sets quoted_post from inline mastodon quote field', function () {
         'author_avatar' => 'https://mastodon.social/avatars/author.jpg',
         'original_url' => 'https://mastodon.social/@author/99',
         'body' => 'the quoted post',
+        'chip_mentions' => [],
         'created_at' => '2024-01-14T09:00:00.000Z',
     ]);
 });
@@ -1249,6 +1296,7 @@ it('sets quoted_post from pre-fetched quote status when no inline quote field', 
         'author_avatar' => 'https://mastodon.social/avatars/author.jpg',
         'original_url' => 'https://mastodon.social/@author/99',
         'body' => 'the quoted post',
+        'chip_mentions' => [],
         'created_at' => '2024-01-14T09:00:00.000Z',
     ]);
 });
@@ -1785,13 +1833,13 @@ it('maps bluesky gore label to Graphic media', function () {
         ->and($post['sensitive_media'])->toBeTrue();
 });
 
-it('maps unknown bluesky label to Content warning generic fallback', function () {
+it('maps unknown bluesky content label to Content warning generic fallback', function () {
     $feedPost = [
         'post' => [
             'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
             'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
             'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
-            'labels' => [['val' => '!hide']],
+            'labels' => [['val' => 'custom-warning']],
             'embed' => null,
         ],
     ];
@@ -1800,4 +1848,418 @@ it('maps unknown bluesky label to Content warning generic fallback', function ()
 
     expect($post['cw_text'])->toBe('Content warning')
         ->and($post['sensitive_media'])->toBeFalse();
+});
+
+it('ignores AT Protocol system labels prefixed with ! and does not show a CW overlay', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [['val' => '!no-unauthenticated']],
+            ],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBeNull()
+        ->and($post['sensitive_media'])->toBeFalse();
+});
+
+it('sets cw_text from bluesky author profile label when post has no labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [['val' => 'porn']],
+            ],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('Adult content')
+        ->and($post['cw_is_author_level'])->toBeTrue()
+        ->and($post['sensitive_media'])->toBeTrue();
+});
+
+it('merges bluesky post-level and author-level labels for combined classification', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [['val' => 'porn']],
+            ],
+            'labels' => [['val' => 'porn']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('Adult content')
+        ->and($post['cw_is_author_level'])->toBeFalse()
+        ->and($post['sensitive_media'])->toBeTrue();
+});
+
+it('sets cw_is_author_level false when only post-level labels trigger the cw', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [],
+            ],
+            'labels' => [['val' => 'gore']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('Graphic media')
+        ->and($post['cw_is_author_level'])->toBeFalse();
+});
+
+it('chips a single leading mastodon mention without stripping it from the body', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>@alice thanks for the boost</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [
+            ['id' => '2', 'username' => 'alice', 'url' => 'https://mastodon.example/@alice', 'acct' => 'alice'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['body'])->toBe('@alice thanks for the boost')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['handle'])->toBe('@alice');
+});
+
+it('detects cross-instance mastodon mentions rendered with bare username, not full acct', function () {
+    // Mastodon's HTML only ever shows the bare local username in the body
+    // ("@alice"), never the full acct ("@alice@remote.example") — only the
+    // anchor's href carries the host. A real-world multi-mention reply with
+    // entirely remote mentions, matching the structure of a genuine post that
+    // previously failed to classify any of its mentions.
+    $status = [
+        'id' => '1',
+        'content' => '<p><span class="h-card"><a href="https://remote.example/@alice" class="u-url mention">@<span>alice</span></a></span> <span class="h-card"><a href="https://other.example/@bob" class="u-url mention">@<span>bob</span></a></span> Sounds like you took a similar path to me.</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'in_reply_to_id' => '0',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [
+            ['id' => '2', 'username' => 'alice', 'acct' => 'alice@remote.example', 'url' => 'https://remote.example/@alice'],
+            ['id' => '3', 'username' => 'bob', 'acct' => 'bob@other.example', 'url' => 'https://other.example/@bob'],
+        ],
+    ];
+    $parentStatus = ['account' => ['acct' => 'alice@remote.example', 'avatar' => '', 'display_name' => 'Alice'], 'url' => 'x', 'content' => '<p>orig</p>', 'created_at' => null];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parentStatus);
+
+    expect($post['body'])->toBe('@alice Sounds like you took a similar path to me.')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['handle'])->toBe('@bob@other.example');
+});
+
+it('strips a trailing mastodon mention to a chip', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out @alice</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [
+            ['id' => '2', 'username' => 'alice', 'url' => 'https://mastodon.example/@alice', 'acct' => 'alice'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['body'])->toBe('check this out')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['handle'])->toBe('@alice')
+        ->and($post['chip_mentions'][0]['display_name'])->toBe('@alice')
+        ->and($post['chip_mentions'][0]['avatar'])->toBe('')
+        ->and($post['chip_mentions'][0]['profile_url'])->toBe('https://mastodon.example/@alice');
+});
+
+it('strips a leading mastodon mention that matches the reply origin to a chip', function () {
+    $parentStatus = [
+        'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => ''],
+        'url' => 'https://mastodon.example/@alice/0',
+        'content' => '<p>original</p>',
+        'created_at' => '2024-01-15T09:00:00.000Z',
+    ];
+    $status = [
+        'id' => '1',
+        'content' => '<p>@alice no thanks</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'in_reply_to_id' => '0',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [
+            ['id' => '2', 'username' => 'alice', 'url' => 'https://mastodon.example/@alice', 'acct' => 'alice'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parentStatus);
+
+    expect($post['body'])->toBe('no thanks')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['handle'])->toBe('@alice');
+});
+
+it('returns no chip_mentions when mentions are absent', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>hello world</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['chip_mentions'])->toBe([]);
+});
+
+it('strips a trailing mention from a mastodon reply_to body to a chip', function () {
+    $parentStatus = [
+        'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => ''],
+        'url' => 'https://mastodon.example/@alice/0',
+        'content' => '<p>hello @bob</p>',
+        'created_at' => '2024-01-15T09:00:00.000Z',
+        'mentions' => [
+            ['id' => '3', 'username' => 'bob', 'url' => 'https://mastodon.example/@bob', 'acct' => 'bob'],
+        ],
+    ];
+    $status = [
+        'id' => '1',
+        'content' => '<p>reply</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'in_reply_to_id' => '0',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parentStatus);
+
+    expect($post['reply_to']['body'])->toBe('hello')
+        ->and($post['reply_to']['chip_mentions'])->toHaveCount(1)
+        ->and($post['reply_to']['chip_mentions'][0]['handle'])->toBe('@bob');
+});
+
+it('chips a single leading bluesky mention without stripping it from the body', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => [
+                'text' => '@alice.bsky.social thanks for the boost',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+                'facets' => [
+                    [
+                        'index' => ['byteStart' => 0, 'byteEnd' => 18],
+                        'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:alice']],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toBe('@alice.bsky.social thanks for the boost')
+        ->and($post['chip_mentions'])->toHaveCount(1);
+});
+
+it('chips a mid-text bluesky mention without stripping it from the body', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => [
+                'text' => 'thanks @alice.bsky.social for the boost',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+                'facets' => [
+                    [
+                        'index' => ['byteStart' => 7, 'byteEnd' => 25],
+                        'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:alice']],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toBe('thanks @alice.bsky.social for the boost')
+        ->and($post['chip_mentions'])->toHaveCount(1);
+});
+
+it('strips a trailing bluesky mention to a chip', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => [
+                'text' => 'check this out @alice.bsky.social',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+                'facets' => [
+                    [
+                        'index' => ['byteStart' => 15, 'byteEnd' => 34],
+                        'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:alice']],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toBe('check this out')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['handle'])->toBe('')
+        ->and($post['chip_mentions'][0]['profile_url'])->toBe('did:plc:alice');
+});
+
+it('keeps bluesky mention byte offsets correct when a multibyte character precedes a stripped hashtag', function () {
+    // '🎉' is 4 bytes in UTF-8. If hashtag-stripping ran before mention classification,
+    // the #test hashtag's removal would shift byte offsets for anything after it,
+    // corrupting the mention's byteStart/byteEnd and stripping the wrong text.
+    $text = '🎉 #test check this out @alice.bsky.social';
+    $mentionByteStart = strlen('🎉 #test check this out ');
+    $mentionByteEnd = $mentionByteStart + strlen('@alice.bsky.social');
+
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => [
+                'text' => $text,
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+                'facets' => [
+                    [
+                        'index' => ['byteStart' => $mentionByteStart, 'byteEnd' => $mentionByteEnd],
+                        'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:alice']],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toBe('🎉 check this out')
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['profile_url'])->toBe('did:plc:alice');
+});
+
+it('returns no chip_mentions when bluesky facets are absent', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => ['text' => 'hello world', 'createdAt' => '2024-01-15T10:00:00.000Z'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['chip_mentions'])->toBe([]);
+});
+
+it('strips a trailing mention from a bluesky reply_to body to a chip', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => ['text' => 'reply', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+        ],
+        'reply' => [
+            'parent' => [
+                'uri' => 'at://did:plc:alice/app.bsky.feed.post/0',
+                'author' => ['handle' => 'alice.bsky.social', 'displayName' => 'Alice', 'did' => 'did:plc:alice'],
+                'record' => [
+                    'text' => 'hello @bob.bsky.social',
+                    'createdAt' => '2024-01-15T10:00:00.000Z',
+                    'facets' => [
+                        [
+                            'index' => ['byteStart' => 6, 'byteEnd' => 23],
+                            'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:bob']],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['reply_to']['body'])->toBe('hello')
+        ->and($post['reply_to']['chip_mentions'])->toHaveCount(1)
+        ->and($post['reply_to']['chip_mentions'][0]['profile_url'])->toBe('did:plc:bob');
+});
+
+it('includes source_instance from the mastodon host', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Hello</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://social.example/@alice/1',
+        'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => '', 'header' => '', 'emojis' => []],
+        'media_attachments' => [], 'tags' => [], 'mentions' => [], 'emojis' => [],
+        'sensitive' => false, 'spoiler_text' => '', 'card' => null, 'reblog' => null,
+    ];
+
+    $result = (new PostNormalizer)->fromMastodon($status, 'social.example');
+
+    expect($result['source_instance'])->toBe('social.example');
+});
+
+it('sets source_instance to null for bluesky posts', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:1/app.bsky.feed.post/abc',
+            'record' => ['$type' => 'app.bsky.feed.post', 'text' => 'Hello', 'createdAt' => '2024-01-15T10:00:00.000Z'],
+            'author' => ['did' => 'did:plc:1', 'handle' => 'alice.test', 'displayName' => 'Alice', 'avatar' => ''],
+            'indexedAt' => '2024-01-15T10:00:00.000Z',
+        ],
+    ];
+
+    $result = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($result['source_instance'])->toBeNull();
 });

@@ -74,7 +74,7 @@ class WelcomeController extends Controller
             ->json();
 
         $normalised = array_map(
-            fn (array $status) => $this->normalizer->fromMastodon($status, $instance),
+            fn (array $status) => $this->normalizer->fromMastodon($status, $instance, mentionsEnabled: false),
             $statuses,
         );
 

@@ -76,3 +76,81 @@ it('redirects guests away from disconnect', function () {
 
     $response->assertRedirect('/login');
 });
+
+it('adds a public mastodon instance', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $response = $this->actingAs($user)->post('/auth/connections/public-mastodon', [
+        'instance_url' => 'https://social.example',
+    ]);
+
+    $response->assertRedirect(route('connections.edit'));
+    $response->assertSessionHas('status', 'public-mastodon-added');
+    $this->assertDatabaseHas('social_accounts', [
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'feed_type' => 'public_mastodon',
+        'instance_url' => 'https://social.example',
+    ]);
+});
+
+it('rejects private/loopback instance URLs to prevent SSRF', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    foreach (['https://127.0.0.1', 'https://192.168.1.1', 'https://10.0.0.1', 'https://169.254.169.254'] as $url) {
+        $response = $this->actingAs($user)->post('/auth/connections/public-mastodon', [
+            'instance_url' => $url,
+        ]);
+        $response->assertSessionHasErrors('instance_url');
+    }
+
+    $this->assertDatabaseCount('social_accounts', 0);
+});
+
+it('rejects duplicate public mastodon instance', function () {
+    $user = User::factory()->withPasskey()->create();
+    SocialAccount::factory()->publicMastodon('https://social.example')->create(['user_id' => $user->id]);
+
+    $response = $this->actingAs($user)->post('/auth/connections/public-mastodon', [
+        'instance_url' => 'https://social.example',
+    ]);
+
+    $response->assertRedirect(route('connections.edit'));
+    $response->assertSessionHas('status', 'public-mastodon-already-added');
+    $this->assertDatabaseCount('social_accounts', 1);
+});
+
+it('adds a bluesky algorithmic feed', function () {
+    $user = User::factory()->withPasskey()->create();
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'tok',
+        'handle' => '@alice.bsky.social',
+    ]);
+
+    $response = $this->actingAs($user)->post('/auth/connections/bluesky-feed', [
+        'feed_url' => 'https://bsky.app/profile/did:plc:test/feed/whats-hot',
+    ]);
+
+    $response->assertRedirect(route('connections.edit'));
+    $response->assertSessionHas('status', 'bluesky-feed-added');
+    $this->assertDatabaseHas('social_accounts', [
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'bluesky_feed',
+    ]);
+});
+
+it('rejects bluesky feed without a home account', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $response = $this->actingAs($user)->post('/auth/connections/bluesky-feed', [
+        'feed_url' => 'https://bsky.app/profile/did:plc:test/feed/whats-hot',
+    ]);
+
+    $response->assertSessionHasErrors('feed_url');
+    $this->assertDatabaseCount('social_accounts', 0);
+});

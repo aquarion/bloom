@@ -279,3 +279,279 @@ it('clears auth_failed_at on successful token refresh', function () {
 
     expect($account->fresh()->auth_failed_at)->toBeNull();
 });
+
+it('resolves chip_mentions placeholder profile_url dids into real handle/avatar/profile_url', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        '*app.bsky.actor.getProfiles*' => Http::response([
+            'profiles' => [
+                ['did' => 'did:plc:alice', 'handle' => 'alice.bsky.social', 'displayName' => 'Alice', 'avatar' => 'https://example.com/alice.jpg'],
+            ],
+        ]),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '', 'display_name' => '', 'avatar' => '', 'profile_url' => 'did:plc:alice'],
+            ],
+        ],
+    ];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved[0]['chip_mentions'][0]['handle'])->toBe('@alice.bsky.social')
+        ->and($resolved[0]['chip_mentions'][0]['display_name'])->toBe('Alice')
+        ->and($resolved[0]['chip_mentions'][0]['avatar'])->toBe('https://example.com/alice.jpg')
+        ->and($resolved[0]['chip_mentions'][0]['profile_url'])->toBe('https://bsky.app/profile/alice.bsky.social');
+});
+
+it('falls back to a navigable bsky.app URL when chip_mentions resolution finds no profile', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        '*app.bsky.actor.getProfiles*' => Http::response(['profiles' => []]),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '', 'display_name' => '', 'avatar' => '', 'profile_url' => 'did:plc:ghost'],
+            ],
+        ],
+    ];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    $mention = $resolved[0]['chip_mentions'][0];
+
+    expect($mention['handle'])->toBe('did:plc:ghost')
+        ->and($mention['display_name'])->toBe('did:plc:ghost')
+        ->and($mention['avatar'])->toBe('')
+        ->and($mention['profile_url'])->toBe('https://bsky.app/profile/did:plc:ghost');
+});
+
+it('falls back to a navigable bsky.app URL when the getProfiles request throws', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        '*app.bsky.actor.getProfiles*' => Http::response(['error' => 'ServerError'], 500),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '', 'display_name' => '', 'avatar' => '', 'profile_url' => 'did:plc:ghost'],
+            ],
+        ],
+    ];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    $mention = $resolved[0]['chip_mentions'][0];
+
+    expect($mention['handle'])->toBe('did:plc:ghost')
+        ->and($mention['display_name'])->toBe('did:plc:ghost')
+        ->and($mention['profile_url'])->toBe('https://bsky.app/profile/did:plc:ghost');
+});
+
+it('strips unsafe avatar URL schemes when resolving chip_mentions', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        '*app.bsky.actor.getProfiles*' => Http::response([
+            'profiles' => [
+                ['did' => 'did:plc:mallory', 'handle' => 'mallory.bsky.social', 'displayName' => 'Mallory', 'avatar' => 'javascript:alert(1)'],
+            ],
+        ]),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '', 'display_name' => '', 'avatar' => '', 'profile_url' => 'did:plc:mallory'],
+            ],
+        ],
+    ];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved[0]['chip_mentions'][0]['avatar'])->toBe('');
+});
+
+it('leaves chip_mentions with no placeholder dids untouched', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake();
+
+    $posts = [['id' => 'p1', 'chip_mentions' => []]];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved)->toBe($posts);
+    Http::assertNothingSent();
+});
+
+it('resolves chip_mentions nested inside reply_to and quoted_post', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        '*app.bsky.actor.getProfiles*' => Http::response([
+            'profiles' => [
+                ['did' => 'did:plc:alice', 'handle' => 'alice.bsky.social', 'displayName' => 'Alice', 'avatar' => 'https://example.com/alice.jpg'],
+                ['did' => 'did:plc:bob', 'handle' => 'bob.bsky.social', 'displayName' => 'Bob', 'avatar' => 'https://example.com/bob.jpg'],
+            ],
+        ]),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [],
+            'reply_to' => [
+                'author_name' => 'Someone',
+                'chip_mentions' => [
+                    ['handle' => '', 'display_name' => '', 'avatar' => '', 'profile_url' => 'did:plc:alice'],
+                ],
+            ],
+            'quoted_post' => [
+                'author_name' => 'Someone Else',
+                'chip_mentions' => [
+                    ['handle' => '', 'display_name' => '', 'avatar' => '', 'profile_url' => 'did:plc:bob'],
+                ],
+            ],
+        ],
+    ];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved[0]['reply_to']['chip_mentions'][0]['handle'])->toBe('@alice.bsky.social')
+        ->and($resolved[0]['reply_to']['chip_mentions'][0]['display_name'])->toBe('Alice')
+        ->and($resolved[0]['reply_to']['chip_mentions'][0]['avatar'])->toBe('https://example.com/alice.jpg')
+        ->and($resolved[0]['reply_to']['chip_mentions'][0]['profile_url'])->toBe('https://bsky.app/profile/alice.bsky.social')
+        ->and($resolved[0]['quoted_post']['chip_mentions'][0]['handle'])->toBe('@bob.bsky.social')
+        ->and($resolved[0]['quoted_post']['chip_mentions'][0]['display_name'])->toBe('Bob')
+        ->and($resolved[0]['quoted_post']['chip_mentions'][0]['avatar'])->toBe('https://example.com/bob.jpg')
+        ->and($resolved[0]['quoted_post']['chip_mentions'][0]['profile_url'])->toBe('https://bsky.app/profile/bob.bsky.social');
+});
+
+it('does not crash when reply_to and quoted_post are null', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        '*app.bsky.actor.getProfiles*' => Http::response([
+            'profiles' => [
+                ['did' => 'did:plc:alice', 'handle' => 'alice.bsky.social', 'displayName' => 'Alice', 'avatar' => 'https://example.com/alice.jpg'],
+            ],
+        ]),
+    ]);
+
+    $posts = [
+        [
+            'id' => 'p1',
+            'chip_mentions' => [
+                ['handle' => '', 'display_name' => '', 'avatar' => '', 'profile_url' => 'did:plc:alice'],
+            ],
+            'reply_to' => null,
+            'quoted_post' => null,
+        ],
+    ];
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveMentionProfiles($posts, $account);
+
+    expect($resolved[0]['chip_mentions'][0]['handle'])->toBe('@alice.bsky.social')
+        ->and($resolved[0]['reply_to'])->toBeNull()
+        ->and($resolved[0]['quoted_post'])->toBeNull();
+});
+
+it('calls getFeed with the correct feed uri and returns posts and cursor', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'access_token' => 'test-token',
+    ]);
+
+    Http::fake([
+        '*/app.bsky.feed.getFeed*' => Http::response([
+            'feed' => [
+                ['post' => [
+                    'uri' => 'at://did/app.bsky.feed.post/abc',
+                    'record' => ['text' => 'Hello', '$type' => 'app.bsky.feed.post', 'createdAt' => now()->toIso8601String()],
+                    'author' => ['did' => 'did:plc:1', 'handle' => 'alice.test', 'displayName' => 'Alice'],
+                ]],
+            ],
+            'cursor' => 'cursor123',
+        ], 200),
+    ]);
+
+    $auth = Mockery::mock(BlueskyAuthService::class);
+    $auth->shouldReceive('getToken')
+        ->with($account)
+        ->andReturn('test-token');
+
+    $service = new BlueskyFeedService($auth);
+    $result = $service->getFeed($account, 'at://did:plc:test/app.bsky.feed.generator/whats-hot', 20);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['cursor'])->toBe('cursor123');
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), 'getFeed') &&
+        str_contains($request->url(), 'whats-hot')
+    );
+});

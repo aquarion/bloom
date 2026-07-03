@@ -4,7 +4,14 @@ namespace App\Services\Feed;
 
 class PostNormalizer
 {
-    public function fromMastodon(array $status, string $host, ?array $parentStatus = null, string $sourceHandle = '', ?array $quoteStatus = null): array
+    private MentionClassifier $mentionClassifier;
+
+    public function __construct()
+    {
+        $this->mentionClassifier = new MentionClassifier;
+    }
+
+    public function fromMastodon(array $status, string $host, ?array $parentStatus = null, ?string $sourceHandle = '', ?array $quoteStatus = null, bool $mentionsEnabled = true): array
     {
         $source = $status['reblog'] ?? $status;
         $sourceHost = isset($status['reblog'])
@@ -32,21 +39,22 @@ class PostNormalizer
             'id' => "mastodon_{$status['id']}",
             'source' => 'mastodon',
             'source_handle' => $sourceHandle,
+            'source_instance' => $host,
             'author_name' => $source['account']['display_name'] ?: $source['account']['acct'],
             'author_handle' => str_contains($source['account']['acct'], '@')
                 ? "@{$source['account']['acct']}"
                 : "@{$source['account']['acct']}@{$sourceHost}",
             'author_avatar' => $this->safeUrl($source['account']['avatar']),
             'author_banner' => $this->safeUrl($source['account']['header'] ?? '') ?: null,
-            'body' => $this->truncateBody($this->extractBody($source['content']), config('feed.body_limit', 1024)),
+            ...$this->buildMastodonBody($source['content'], $status['mentions'] ?? [], $parentStatus, $quoteStatus, $source, $mentionsEnabled),
             'media' => $this->normaliseMastodonMedia($source['media_attachments'] ?? []),
             'created_at' => $source['created_at'],
             'original_url' => $this->safeUrl($source['url']),
             'link_url' => $linkUrl,
             'link_title' => $card ? ($card['title'] ?? null) : null,
             'link_favicon' => $this->faviconUrl($linkUrl),
-            'reply_to' => $this->mastodonReplyTo($parentStatus, $host),
-            'quoted_post' => $this->mastodonQuotedPost($source, $host, $quoteStatus),
+            'reply_to' => $this->mastodonReplyTo($parentStatus, $host, $mentionsEnabled),
+            'quoted_post' => $this->mastodonQuotedPost($source, $host, $quoteStatus, $mentionsEnabled),
             'boosted_by' => $booster,
             'boosted_by_avatar' => $boosterAccount ? $this->safeUrl($boosterAccount['avatar'] ?? '') : null,
             'boosted_by_handle' => $boosterAccount ? '@'.$boosterAccount['acct'] : null,
@@ -57,11 +65,12 @@ class PostNormalizer
                 $source['tags'] ?? []
             ))),
             'cw_text' => isset($source['spoiler_text']) && $source['spoiler_text'] !== '' ? $source['spoiler_text'] : null,
+            'cw_is_author_level' => false,
             'sensitive_media' => (bool) ($source['sensitive'] ?? false),
         ];
     }
 
-    public function fromBluesky(array $feedPost, string $sourceHandle = ''): array
+    public function fromBluesky(array $feedPost, string $sourceHandle = '', bool $mentionsEnabled = true): array
     {
         $post = $feedPost['post'];
         $record = $post['record'];
@@ -87,23 +96,33 @@ class PostNormalizer
 
         $labelData = $this->blueskyLabels($post);
 
+        $originDid = ($feedPost['reply']['parent']['author']['did'] ?? null)
+            ?? ($this->blueskyQuotedAuthorDid($post['embed'] ?? null));
+        // Must classify on the raw $text — facet byteStart/byteEnd offsets index into the
+        // untransformed text, and stripping hashtags/URLs first would shift those positions.
+        $mentionResult = $mentionsEnabled
+            ? $this->classifyBlueskyMentions($text, $record['facets'] ?? [], $originDid)
+            : ['body' => $text, 'chip_mentions' => []];
+        $body = $this->truncateBody($this->stripHashtags($this->stripUrls($mentionResult['body'])), config('feed.body_limit', 1024));
+
         return [
             'id' => "bluesky_{$post['uri']}",
             'source' => 'bluesky',
             'source_handle' => $sourceHandle,
+            'source_instance' => null,
             'author_name' => $author['displayName'] ?: $author['handle'],
             'author_handle' => '@'.$author['handle'],
             'author_avatar' => $this->safeUrl($author['avatar'] ?? ''),
             'author_banner' => $this->safeUrl($author['banner'] ?? '') ?: null,
-            'body' => $this->truncateBody($this->stripHashtags($this->stripUrls($text)), config('feed.body_limit', 1024)),
+            'body' => $body,
             'media' => $this->normaliseBlueskyMedia($post['embed'] ?? null),
             'created_at' => $record['createdAt'],
             'original_url' => $this->blueskyPostUrl($author['handle'], $post['uri']),
             'link_url' => $linkUrl,
             'link_title' => $externalData['title'] ?? null,
             'link_favicon' => $this->faviconUrl($linkUrl),
-            'reply_to' => $this->blueskyReplyTo($feedPost['reply']['parent'] ?? null),
-            'quoted_post' => $this->blueskyQuotedPost($post['embed'] ?? null),
+            'reply_to' => $this->blueskyReplyTo($feedPost['reply']['parent'] ?? null, $mentionsEnabled),
+            'quoted_post' => $this->blueskyQuotedPost($post['embed'] ?? null, $mentionsEnabled),
             'boosted_by' => $booster,
             'boosted_by_avatar' => $repostBy ? $this->safeUrl($repostBy['avatar'] ?? '') : null,
             'boosted_by_handle' => $repostBy ? '@'.($repostBy['handle'] ?? '') : null,
@@ -111,11 +130,58 @@ class PostNormalizer
             'emojis' => [],
             'hashtags' => $hashtags,
             'cw_text' => $labelData['cw_text'],
+            'cw_is_author_level' => $labelData['cw_is_author_level'],
             'sensitive_media' => $labelData['sensitive_media'],
+            'chip_mentions' => $mentionResult['chip_mentions'],
         ];
     }
 
-    private function mastodonReplyTo(?array $parent, string $fallbackHost): ?array
+    /**
+     * @return array{body: string, chip_mentions: array}
+     */
+    private function buildMastodonBody(string $content, array $apiMentions, ?array $parentStatus, ?array $quoteStatus, array $source, bool $mentionsEnabled): array
+    {
+        if (! $mentionsEnabled) {
+            $extracted = $this->extractBody($content, [], null);
+
+            return [
+                'body' => $this->truncateBody($extracted['body'], config('feed.body_limit', 1024)),
+                'chip_mentions' => [],
+            ];
+        }
+
+        $originAcct = $parentStatus['account']['acct'] ?? ($source['quote']['quoted_status']['account']['acct'] ?? $quoteStatus['account']['acct'] ?? null);
+        $extracted = $this->extractBody($content, $apiMentions, $originAcct);
+
+        return [
+            'body' => $this->truncateBody($extracted['body'], config('feed.body_limit', 1024)),
+            'chip_mentions' => $extracted['chip_mentions'],
+        ];
+    }
+
+    /**
+     * @return array{body: string, chip_mentions: array}
+     */
+    private function buildNestedMastodonBody(string $content, array $mentions, bool $mentionsEnabled): array
+    {
+        if (! $mentionsEnabled) {
+            return [
+                'body' => $this->truncateBody($this->extractBody($content, [], null)['body']),
+                'chip_mentions' => [],
+            ];
+        }
+
+        // No grandparent post is fetched for replies/quotes, so there's no
+        // origin handle to compare a leading mention against here.
+        $extracted = $this->extractBody($content, $mentions, null);
+
+        return [
+            'body' => $this->truncateBody($extracted['body']),
+            'chip_mentions' => $extracted['chip_mentions'],
+        ];
+    }
+
+    private function mastodonReplyTo(?array $parent, string $fallbackHost, bool $mentionsEnabled): ?array
     {
         if ($parent === null) {
             return null;
@@ -130,14 +196,12 @@ class PostNormalizer
                 : "@{$parent['account']['acct']}@{$parentHost}",
             'author_avatar' => $this->safeUrl($parent['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($parent['url'] ?? ''),
-            'body' => $this->truncateBody(
-                $this->extractBody($parent['content'])
-            ),
+            ...$this->buildNestedMastodonBody($parent['content'], $parent['mentions'] ?? [], $mentionsEnabled),
             'created_at' => $parent['created_at'] ?? null,
         ];
     }
 
-    private function mastodonQuotedPost(array $source, string $host, ?array $quoteStatus): ?array
+    private function mastodonQuotedPost(array $source, string $host, ?array $quoteStatus, bool $mentionsEnabled): ?array
     {
         $inlineQuote = $source['quote'] ?? null;
         // Mastodon 4.3+ wraps the quote as { state, quoted_status }.
@@ -158,12 +222,12 @@ class PostNormalizer
             'author_handle' => str_contains($acct, '@') ? "@{$acct}" : "@{$acct}@{$quoteHost}",
             'author_avatar' => $this->safeUrl($raw['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($raw['url'] ?? ''),
-            'body' => $this->truncateBody($this->extractBody($raw['content'] ?? '')),
+            ...$this->buildNestedMastodonBody($raw['content'] ?? '', $raw['mentions'] ?? [], $mentionsEnabled),
             'created_at' => $raw['created_at'] ?? null,
         ];
     }
 
-    private function blueskyReplyTo(?array $parent): ?array
+    private function blueskyReplyTo(?array $parent, bool $mentionsEnabled): ?array
     {
         if ($parent === null || ! isset($parent['record']['text'])) {
             return null;
@@ -176,12 +240,12 @@ class PostNormalizer
             'author_handle' => '@'.$handle,
             'author_avatar' => $this->safeUrl($parent['author']['avatar'] ?? ''),
             'original_url' => $this->blueskyPostUrl($handle, $parent['uri'] ?? ''),
-            'body' => $this->truncateBody($parent['record']['text']),
+            ...$this->buildNestedBlueskyBody($parent['record']['text'], $parent['record']['facets'] ?? [], $mentionsEnabled),
             'created_at' => $parent['record']['createdAt'] ?? null,
         ];
     }
 
-    private function blueskyQuotedPost(?array $embed): ?array
+    private function blueskyQuotedPost(?array $embed, bool $mentionsEnabled): ?array
     {
         if ($embed === null) {
             return null;
@@ -213,9 +277,22 @@ class PostNormalizer
             'author_handle' => '@'.$handle,
             'author_avatar' => $this->safeUrl($record['author']['avatar'] ?? ''),
             'original_url' => $this->blueskyPostUrl($handle, $record['uri'] ?? ''),
-            'body' => $this->truncateBody($text),
+            ...$this->buildNestedBlueskyBody($text, $record['value']['facets'] ?? [], $mentionsEnabled),
             'created_at' => $record['value']['createdAt'] ?? null,
         ];
+    }
+
+    private function blueskyQuotedAuthorDid(?array $embed): ?string
+    {
+        if ($embed === null) {
+            return null;
+        }
+
+        $type = $embed['$type'] ?? '';
+        $record = $type === 'app.bsky.embed.record#view' ? ($embed['record'] ?? null)
+            : ($type === 'app.bsky.embed.recordWithMedia#view' ? ($embed['record']['record'] ?? null) : null);
+
+        return $record['author']['did'] ?? null;
     }
 
     private function normaliseMastodonMedia(array $attachments): array
@@ -263,16 +340,176 @@ class PostNormalizer
             ]];
         }
 
+        if (($embed['$type'] ?? '') === 'app.bsky.embed.recordWithMedia#view') {
+            return $this->normaliseBlueskyMedia($embed['media'] ?? null);
+        }
+
         return [];
     }
 
-    private function extractBody(string $html): string
+    private function extractBody(string $html, array $apiMentions = [], ?string $originAcct = null): array
     {
         $withBreaks = str_replace(['</p>', '<br>', '<br/>'], "\n", $html);
         $text = html_entity_decode(strip_tags($withBreaks), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        $text = preg_replace('/\n{3,}/', "\n\n", $text) ?? $text;
+        $text = $this->stripHashtags($this->stripUrls(trim($text)));
 
-        return $this->stripHashtags($this->stripUrls(trim($text)));
+        return $this->classifyMastodonMentions($text, $apiMentions, $originAcct);
+    }
+
+    /**
+     * @param  array<int, array{id?: string, username?: string, url?: string, acct?: string}>  $apiMentions  The status's top-level 'mentions' array.
+     * @return array{body: string, chip_mentions: array<int, array{handle: string, display_name: string, avatar: string, profile_url: string}>}
+     */
+    private function classifyMastodonMentions(string $plainText, array $apiMentions, ?string $originAcct): array
+    {
+        if (empty($apiMentions)) {
+            return ['body' => $plainText, 'chip_mentions' => []];
+        }
+
+        $byAcct = [];
+        $detected = [];
+
+        foreach ($apiMentions as $m) {
+            $acct = $m['acct'] ?? '';
+            $username = $m['username'] ?? '';
+            if ($acct === '' || $username === '') {
+                continue;
+            }
+            // Mastodon renders mentions in the body as the bare local username
+            // ("@fanf"), never the full acct ("@fanf@mendeddrum.org") — only the
+            // href carries the host. Matching against $acct here would silently
+            // fail to detect every remote mention.
+            $pattern = '/@'.preg_quote($username, '/').'\b/';
+            if (preg_match($pattern, $plainText, $match, PREG_OFFSET_CAPTURE)) {
+                $start = $match[0][1];
+                $end = $start + strlen($match[0][0]);
+                $detected[] = ['id' => $acct, 'start' => $start, 'end' => $end];
+                $byAcct[$acct] = $m;
+            }
+        }
+
+        if (empty($detected)) {
+            return ['body' => $plainText, 'chip_mentions' => []];
+        }
+
+        $classified = $this->mentionClassifier->classify($plainText, $detected, $originAcct);
+
+        $chipMentions = [];
+        $body = $plainText;
+        $removed = 0;
+
+        foreach ($classified as $mention) {
+            if ($mention['role'] !== MentionClassifier::ROLE_CHIP) {
+                continue;
+            }
+
+            $apiMention = $byAcct[$mention['id']];
+            $chipMentions[] = [
+                'handle' => '@'.$apiMention['acct'],
+                'display_name' => '@'.$apiMention['acct'],
+                'avatar' => '',
+                'profile_url' => $this->safeUrl($apiMention['url']),
+            ];
+
+            if ($mention['strip']) {
+                $start = $mention['start'] - $removed;
+                $length = $mention['end'] - $mention['start'];
+                if ($start >= 0 && $start <= strlen($body) && $length > 0) {
+                    $body = substr($body, 0, $start).substr($body, $start + $length);
+                    $removed += $length;
+                }
+            }
+        }
+
+        $body = trim(preg_replace('/[ \t]{2,}/', ' ', $body) ?? $body);
+
+        return ['body' => $body, 'chip_mentions' => $chipMentions];
+    }
+
+    /**
+     * @return array{body: string, chip_mentions: array}
+     */
+    private function buildNestedBlueskyBody(string $text, array $facets, bool $mentionsEnabled): array
+    {
+        if (! $mentionsEnabled) {
+            return ['body' => $this->truncateBody($text), 'chip_mentions' => []];
+        }
+
+        // No grandparent post is fetched for replies/quotes, so there's no
+        // origin did to compare a leading mention against here.
+        $result = $this->classifyBlueskyMentions($text, $facets, null);
+
+        return [
+            'body' => $this->truncateBody($result['body']),
+            'chip_mentions' => $result['chip_mentions'],
+        ];
+    }
+
+    /**
+     * @param  array<int, array{index?: array{byteStart?: int, byteEnd?: int}, features?: array<int, array{'$type'?: string, did?: string}>}>  $facets
+     * @return array{body: string, chip_mentions: array<int, array{handle: string, display_name: string, avatar: string, profile_url: string}>}
+     */
+    private function classifyBlueskyMentions(string $text, array $facets, ?string $originDid): array
+    {
+        $detected = [];
+
+        foreach ($facets as $facet) {
+            $did = null;
+            foreach ($facet['features'] ?? [] as $feature) {
+                if (($feature['$type'] ?? '') === 'app.bsky.richtext.facet#mention' && ! empty($feature['did'])) {
+                    $did = $feature['did'];
+                    break;
+                }
+            }
+
+            if ($did === null) {
+                continue;
+            }
+
+            $detected[] = [
+                'id' => $did,
+                'start' => $facet['index']['byteStart'] ?? 0,
+                'end' => $facet['index']['byteEnd'] ?? 0,
+            ];
+        }
+
+        if (empty($detected)) {
+            return ['body' => $text, 'chip_mentions' => []];
+        }
+
+        $classified = $this->mentionClassifier->classify($text, $detected, $originDid);
+
+        $chipMentions = [];
+        $body = $text;
+        $removed = 0;
+
+        foreach ($classified as $mention) {
+            // Bluesky body text has no hyperlinks, so every mention — leading, trailing, or
+            // mid-text — needs a chip to be actionable. Intentionally blank: resolveMentionProfiles()
+            // fills handle/display_name/avatar via a batched getProfiles call keyed on the DID.
+            $chipMentions[] = [
+                'handle' => '',
+                'display_name' => '',
+                'avatar' => '',
+                'profile_url' => $mention['id'],
+            ];
+
+            if ($mention['role'] === MentionClassifier::ROLE_CHIP && $mention['strip']) {
+                $start = $mention['start'] - $removed;
+                $length = $mention['end'] - $mention['start'];
+                // byteEnd is an exclusive offset and may equal strlen when the mention is
+                // at the very end of the string — PHP's substr handles that gracefully.
+                if ($start >= 0 && $start <= strlen($body) && $length > 0) {
+                    $body = substr($body, 0, $start).substr($body, $start + $length);
+                    $removed += $length;
+                }
+            }
+        }
+
+        $body = trim(preg_replace('/[ \t]{2,}/', ' ', $body) ?? $body);
+
+        return ['body' => $body, 'chip_mentions' => $chipMentions];
     }
 
     private function stripUrls(string $text): string
@@ -373,22 +610,43 @@ class PostNormalizer
 
     private function blueskyLabels(array $post): array
     {
-        $labels = array_map(fn ($l) => $l['val'] ?? '', $post['labels'] ?? []);
+        // Filter each label set separately so we can detect author-level CWs.
+        // Authors of adult-content accounts label their profile rather than each post.
+        // AT Protocol labels prefixed with '!' are behavioural/system labels (e.g.
+        // '!no-unauthenticated', '!hide') — they control platform access, not content type.
+        // Exclude them so they don't trigger a spurious "Content warning" overlay.
+        $filter = fn (array $raw): array => array_values(array_filter(
+            array_map(fn ($l) => $l['val'] ?? '', $raw),
+            fn ($v) => $v !== '' && ! str_starts_with($v, '!'),
+        ));
+
+        $postLabels = $filter($post['labels'] ?? []);
+        $authorLabels = $filter($post['author']['labels'] ?? []);
+        $labels = array_values(array_unique(array_merge($postLabels, $authorLabels)));
+
         $adultLabels = ['sexual', 'nudity', 'porn'];
         $graphicLabels = ['graphic-media', 'gore'];
         $mediaLabels = array_merge($adultLabels, $graphicLabels);
 
-        $cwText = null;
-        if (array_intersect($labels, $adultLabels)) {
-            $cwText = 'Adult content';
-        } elseif (array_intersect($labels, $graphicLabels)) {
-            $cwText = 'Graphic media';
-        } elseif (! empty($labels)) {
-            $cwText = 'Content warning';
-        }
+        $resolveCwText = function (array $l) use ($adultLabels, $graphicLabels): ?string {
+            if (array_intersect($l, $adultLabels)) {
+                return 'Adult content';
+            }
+            if (array_intersect($l, $graphicLabels)) {
+                return 'Graphic media';
+            }
+
+            return ! empty($l) ? 'Content warning' : null;
+        };
+
+        $cwText = $resolveCwText($labels);
+        // Author-level when the post itself carries no cw-worthy labels —
+        // the CW exists only because the author's profile is labelled.
+        $cwIsAuthorLevel = $cwText !== null && $resolveCwText($postLabels) === null;
 
         return [
             'cw_text' => $cwText,
+            'cw_is_author_level' => $cwIsAuthorLevel,
             'sensitive_media' => ! empty(array_intersect($labels, $mediaLabels)),
         ];
     }
@@ -399,7 +657,7 @@ class PostNormalizer
             '/https?:\/\/\S+/',
             fn ($m) => strlen($m[0]) > 39 ? substr($m[0], 0, 39).'…' : $m[0],
             $text
-        );
+        ) ?? $text;
     }
 
     private function truncateBody(string $text, ?int $limit = null): string

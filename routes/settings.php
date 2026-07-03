@@ -34,7 +34,7 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::get('settings/connections', function (Request $request) {
         return Inertia::render('settings/connections', [
             'connections' => $request->user()->socialAccounts()
-                ->select('id', 'provider', 'handle', 'instance_url', 'auth_failed_at', 'feed_settings')
+                ->select('id', 'provider', 'feed_type', 'handle', 'instance_url', 'auth_failed_at', 'feed_settings')
                 ->get(),
             'status' => $request->session()->get('status'),
         ]);
@@ -51,6 +51,12 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
 
     // Mastodon re-auth (OAuth for an existing account)
     Route::post('auth/connections/{account}/mastodon', [MastodonController::class, 'redirectReauth'])->name('mastodon.reauth');
+
+    // Add public Mastodon timeline
+    Route::post('auth/connections/public-mastodon', [ConnectionsController::class, 'storePublicMastodon'])->name('connections.public-mastodon.store');
+
+    // Add Bluesky algorithmic feed
+    Route::post('auth/connections/bluesky-feed', [ConnectionsController::class, 'storeBlueskyFeed'])->name('connections.bluesky-feed.store');
 
     // Disconnect any social account
     Route::delete('auth/connections/{account}', [ConnectionsController::class, 'destroy'])->name('connections.destroy');

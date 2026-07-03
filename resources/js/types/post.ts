@@ -5,6 +5,13 @@ export interface MediaAttachment {
     alt_text: string | null;
 }
 
+export interface Mention {
+    handle: string;
+    display_name: string;
+    avatar: string;
+    profile_url: string;
+}
+
 export interface ReplyTo {
     author_name: string;
     author_handle: string;
@@ -12,6 +19,7 @@ export interface ReplyTo {
     original_url: string;
     body: string;
     created_at: string | null;
+    chip_mentions: Mention[];
 }
 
 export interface QuotedPost {
@@ -21,12 +29,14 @@ export interface QuotedPost {
     original_url: string;
     body: string;
     created_at: string | null;
+    chip_mentions: Mention[];
 }
 
 export interface Post {
     id: string;
     source: 'mastodon' | 'bluesky';
-    source_handle: string;
+    source_handle: string | null;
+    source_instance: string | null;
     author_name: string;
     author_handle: string;
     author_avatar: string;
@@ -47,7 +57,10 @@ export interface Post {
     emojis: Record<string, string>;
     /** Normalised hashtags: lowercase, no leading '#', deduplicated. e.g. ["rust", "programming"] */
     hashtags: string[];
+    /** Mentions classified as incidental — stripped from `body`, shown as chips. Empty if none, or if disabled for this viewer. */
+    chip_mentions: Mention[];
     cw_text: string | null;
+    cw_is_author_level: boolean;
     sensitive_media: boolean;
 }
 

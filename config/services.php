@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'matomo' => [
+        'url' => env('MATOMO_URL'),
+        'auth_token' => env('MATOMO_AUTH_TOKEN'),
+    ],
+
 ];

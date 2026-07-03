@@ -1,6 +1,6 @@
 import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
-import { Quote, Reply } from 'lucide-react';
+import { AtSign, Quote, Reply } from 'lucide-react';
 import type React from 'react';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { pickTemplate, SplitText } from '@/lib/animations';
@@ -9,8 +9,10 @@ import { splitIntoLinesWithBoundaries } from '@/lib/block-text';
 import { EmojiText } from '@/lib/emoji-text';
 import type { PostColors } from '@/lib/post-colors';
 import { postColors } from '@/lib/post-colors';
-import type { Post } from '@/types/post';
+import type { Mention, Post } from '@/types/post';
 import { AuthorChip } from './AuthorChip';
+import { ImageCarousel } from './ImageCarousel';
+import { MentionChips } from './MentionChips';
 
 gsap.registerPlugin(SplitText);
 
@@ -28,6 +30,7 @@ function ContextPanel({
     emojis,
     body,
     original_url,
+    chip_mentions,
 }: {
     icon: React.ReactNode;
     author_name: string;
@@ -36,6 +39,7 @@ function ContextPanel({
     emojis: Record<string, string>;
     body: string;
     original_url: string;
+    chip_mentions: Mention[];
 }) {
     const content = (
         <>
@@ -49,6 +53,12 @@ function ContextPanel({
                 />
             </div>
             <p className="whitespace-pre-wrap">{body}</p>
+            {chip_mentions.length > 0 && (
+                <div className="mt-2 flex items-center gap-2">
+                    <AtSign className="size-4 flex-shrink-0 text-white/30" />
+                    <MentionChips mentions={chip_mentions} />
+                </div>
+            )}
         </>
     );
 
@@ -140,19 +150,26 @@ export function PostAnimator({
     post,
     colors,
     onReady,
+    onAdvance,
+    onProgress,
     blurMedia = false,
     onRevealMedia,
+    paused = false,
 }: {
     post: Post;
     colors: PostColors | null;
     onReady?: () => void;
+    onAdvance?: () => void;
+    onProgress?: (index: number, elapsed: number) => void;
     blurMedia?: boolean;
     onRevealMedia?: () => void;
+    paused?: boolean;
 }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const textRef = useRef<HTMLDivElement>(null);
     const panelsRef = useRef<HTMLDivElement>(null);
     const onReadyRef = useRef(onReady);
+    const onAdvanceRef = useRef(onAdvance);
     // eslint-disable-next-line @eslint-react/naming-convention-ref-name
     const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
     // Tracks which body the font sizes were computed for so they naturally
@@ -164,6 +181,7 @@ export function PostAnimator({
 
     useLayoutEffect(() => {
         onReadyRef.current = onReady;
+        onAdvanceRef.current = onAdvance;
     });
 
     const paragraphs = useMemo(
@@ -203,14 +221,19 @@ export function PostAnimator({
     // Font sizes are only valid for the current body; treat as null when body changes.
     const fontSizes = fontSizeState?.body === body ? fontSizeState.sizes : null;
 
-    // Fire onReady immediately only when there is no body AND no panels to animate.
+    // Fire onReady immediately only when there is no body AND no panels to animate,
+    // and not an image post (which fires onReady via ImageCarousel's onComplete).
     useLayoutEffect(() => {
-        if (!body && !(post.reply_to || post.quoted_post)) {
+        if (
+            !body &&
+            !(post.reply_to || post.quoted_post) &&
+            post.media.length === 0
+        ) {
             onReadyRef.current?.();
         }
-    }, [body, post.reply_to, post.quoted_post]);
+    }, [body, post.reply_to, post.quoted_post, post.media.length]);
 
-    // Phase 2: measure rendered line widths and compute font sizes
+    // Measure rendered line widths after DOM settle to compute per-line font sizes
     useLayoutEffect(() => {
         if (lines.length === 0 || !containerRef.current) {
             return;
@@ -270,7 +293,7 @@ export function PostAnimator({
         setFontSizeState({ body, sizes });
     }, [lines, body, paragraphStarts]);
 
-    // Phase 3: run GSAP animation once font sizes are applied
+    // Animate once per-line font sizes are committed to the DOM
     useGSAP(() => {
         if (!fontSizes) {
             return;
@@ -336,7 +359,11 @@ export function PostAnimator({
 
     // Fade panels in for no-body posts that have context panels (Phase 3 doesn't run for these).
     useGSAP(() => {
-        if (body || !(post.reply_to || post.quoted_post)) {
+        if (
+            body ||
+            !(post.reply_to || post.quoted_post) ||
+            post.media.length > 0
+        ) {
             return;
         }
 
@@ -359,7 +386,74 @@ export function PostAnimator({
         );
 
         return () => tween.kill();
-    }, [post.id, body]);
+    }, [post.id, body, post.media.length]);
+
+    // Image posts: centered card matching text post layout
+    if (post.media.length > 0) {
+        return (
+            <div className="flex h-full w-full items-center justify-center p-6">
+                <div className="flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/50 backdrop-blur-sm">
+                    <ImageCarousel
+                        media={post.media}
+                        duration={8000}
+                        paused={paused}
+                        blurMedia={blurMedia}
+                        onRevealMedia={onRevealMedia ?? (() => {})}
+                        onComplete={() =>
+                            (onAdvanceRef.current ?? onReadyRef.current)?.()
+                        }
+                        onProgress={onProgress}
+                    />
+                    {post.body && (
+                        <div className="shrink-0 border-white/10 border-t px-4 py-3 text-sm text-white/80 leading-snug">
+                            <EmojiText text={post.body} emojis={post.emojis} />
+                        </div>
+                    )}
+                    {(post.reply_to || post.quoted_post || post.link_url) && (
+                        <div className="flex shrink-0 flex-col gap-2 border-white/10 border-t px-4 py-3">
+                            {post.reply_to && (
+                                <ContextPanel
+                                    icon={<Reply className="size-3.5" />}
+                                    author_name={post.reply_to.author_name}
+                                    author_avatar={post.reply_to.author_avatar}
+                                    author_handle={post.reply_to.author_handle}
+                                    emojis={post.emojis}
+                                    body={post.reply_to.body}
+                                    original_url={post.reply_to.original_url}
+                                    chip_mentions={post.reply_to.chip_mentions}
+                                />
+                            )}
+                            {post.quoted_post && (
+                                <ContextPanel
+                                    icon={<Quote className="size-3.5" />}
+                                    author_name={post.quoted_post.author_name}
+                                    author_avatar={
+                                        post.quoted_post.author_avatar
+                                    }
+                                    author_handle={
+                                        post.quoted_post.author_handle
+                                    }
+                                    emojis={post.emojis}
+                                    body={post.quoted_post.body}
+                                    original_url={post.quoted_post.original_url}
+                                    chip_mentions={
+                                        post.quoted_post.chip_mentions
+                                    }
+                                />
+                            )}
+                            {post.link_url && (
+                                <LinkCard
+                                    url={post.link_url}
+                                    title={post.link_title}
+                                    favicon={post.link_favicon}
+                                />
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     if (!body) {
         const firstMedia = post.media[0];
@@ -385,7 +479,7 @@ export function PostAnimator({
                                     onClick={onRevealMedia}
                                     className="rounded-full bg-black/60 px-4 py-1.5 text-sm text-white hover:bg-black/80"
                                 >
-                                    Show sensitive media
+                                    {post.cw_text ?? 'Show sensitive media'}
                                 </button>
                             </div>
                         )}
@@ -410,6 +504,7 @@ export function PostAnimator({
                                 emojis={post.emojis}
                                 body={post.reply_to.body}
                                 original_url={post.reply_to.original_url}
+                                chip_mentions={post.reply_to.chip_mentions}
                             />
                         )}
                         {post.quoted_post && (
@@ -421,6 +516,7 @@ export function PostAnimator({
                                 emojis={post.emojis}
                                 body={post.quoted_post.body}
                                 original_url={post.quoted_post.original_url}
+                                chip_mentions={post.quoted_post.chip_mentions}
                             />
                         )}
                         {post.link_url && (
@@ -457,6 +553,7 @@ export function PostAnimator({
                                 emojis={post.emojis}
                                 body={post.reply_to.body}
                                 original_url={post.reply_to.original_url}
+                                chip_mentions={post.reply_to.chip_mentions}
                             />
                         )}
                         {post.quoted_post && (
@@ -468,6 +565,7 @@ export function PostAnimator({
                                 emojis={post.emojis}
                                 body={post.quoted_post.body}
                                 original_url={post.quoted_post.original_url}
+                                chip_mentions={post.quoted_post.chip_mentions}
                             />
                         )}
                     </div>
@@ -512,22 +610,30 @@ export function PostAnimator({
                     />
                 )}
                 {post.hashtags.length > 0 && (
-                    <div
-                        aria-hidden="true"
-                        className="absolute top-0 left-full flex h-full flex-col items-center justify-center gap-1 overflow-hidden pl-3"
-                    >
-                        {[...new Set(post.hashtags)].map((tag) => (
-                            <span
-                                key={tag}
-                                className="rounded-full bg-white/10 px-1.5 py-1.5 text-sm"
-                                style={{
-                                    color: textColor,
-                                    writingMode: 'vertical-rl',
-                                }}
-                            >
-                                #{tag}
-                            </span>
-                        ))}
+                    <div className="absolute top-0 left-full flex h-full flex-col items-center justify-center gap-1 overflow-hidden pl-3">
+                        {[...new Set(post.hashtags)].map((tag) => {
+                            const href =
+                                post.source === 'mastodon' &&
+                                post.source_instance
+                                    ? `https://${post.source_instance}/tags/${encodeURIComponent(tag)}`
+                                    : `https://bsky.app/search?q=%23${encodeURIComponent(tag)}`;
+
+                            return (
+                                <a
+                                    key={tag}
+                                    href={href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="rounded-full bg-white/10 px-1.5 py-1.5 text-sm"
+                                    style={{
+                                        color: textColor,
+                                        writingMode: 'vertical-rl',
+                                    }}
+                                >
+                                    #{tag}
+                                </a>
+                            );
+                        })}
                     </div>
                 )}
             </div>

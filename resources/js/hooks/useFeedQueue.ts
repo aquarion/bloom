@@ -5,18 +5,42 @@ import type { FeedResponse, Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 
 const REFILL_THRESHOLD = 5;
+const HISTORY_CAP = 50;
 
-type State = { current: Post | null; queue: Post[]; cursor: string | null };
+type State = {
+    current: Post | null;
+    queue: Post[];
+    cursor: string | null;
+    history: Post[];
+};
 type Action =
     | { type: 'advance' }
+    | { type: 'go_back' }
     | { type: 'enqueue'; posts: Post[]; cursor: string | null };
 
 function reducer(state: State, action: Action): State {
     switch (action.type) {
         case 'advance': {
             const [next, ...rest] = state.queue;
+            const history = state.current
+                ? [...state.history.slice(-(HISTORY_CAP - 1)), state.current]
+                : state.history;
 
-            return { ...state, current: next ?? null, queue: rest };
+            return { ...state, current: next ?? null, queue: rest, history };
+        }
+
+        case 'go_back': {
+            if (state.history.length === 0) {
+                return state;
+            }
+
+            const prev = state.history[state.history.length - 1];
+            const history = state.history.slice(0, -1);
+            const queue = state.current
+                ? [state.current, ...state.queue]
+                : state.queue;
+
+            return { ...state, current: prev, queue, history };
         }
 
         case 'enqueue': {
@@ -42,6 +66,7 @@ function reducer(state: State, action: Action): State {
                     current: merged[0],
                     queue: merged.slice(1),
                     cursor: action.cursor,
+                    history: state.history,
                 };
             }
 
@@ -89,6 +114,7 @@ export function useFeedQueue({
         current: filteredInitial[0] ?? null,
         queue: filteredInitial.slice(1),
         cursor: initialCursor,
+        history: [],
     });
 
     const fetchingRef = useRef(false);
@@ -141,5 +167,15 @@ export function useFeedQueue({
         dispatch({ type: 'advance' });
     }, []);
 
-    return { current: state.current, queue: state.queue, advance };
+    const goBack = useCallback(() => {
+        dispatch({ type: 'go_back' });
+    }, []);
+
+    return {
+        current: state.current,
+        queue: state.queue,
+        advance,
+        goBack,
+        canGoBack: state.history.length > 0,
+    };
 }

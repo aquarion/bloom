@@ -297,7 +297,7 @@ describe('ImageCarousel — pause and sensitive media', () => {
         expect(onComplete).not.toHaveBeenCalled();
     });
 
-    it('does not advance when blurMedia is true', () => {
+    it('still advances when blurMedia is true', () => {
         const onComplete = vi.fn();
         render(
             <ImageCarousel
@@ -309,10 +309,10 @@ describe('ImageCarousel — pause and sensitive media', () => {
         );
 
         act(() => {
-            vi.advanceTimersByTime(DURATION * 3);
+            vi.advanceTimersByTime(DURATION + TICK_MS);
         });
 
-        expect(onComplete).not.toHaveBeenCalled();
+        expect(onComplete).toHaveBeenCalledOnce();
     });
 
     it('shows "Show sensitive media" button when blurMedia is true', () => {

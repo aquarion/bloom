@@ -31,7 +31,7 @@ export function ImageCarousel({
         onProgressRef.current = onProgress;
     }, [onComplete, onProgress]);
 
-    const isPaused = paused || blurMedia;
+    const isPaused = paused;
 
     // Run the per-image timer; reset elapsed only when activeIndex changes, not on pause/unpause
     useEffect(() => {

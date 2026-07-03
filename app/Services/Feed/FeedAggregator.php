@@ -97,6 +97,12 @@ class FeedAggregator
                             continue;
                         }
 
+                        Log::info('Public Mastodon instance requires auth; falling back to home timeline', [
+                            'account_id' => $account->id,
+                            'host' => $host,
+                            'auth_account_id' => $authAccount->id,
+                        ]);
+
                         $statuses = $this->mastodon->getHomeTimeline($authAccount, $perAccountLimit, $accountCursor);
 
                         if ($account->auth_failed_at !== null) {
@@ -175,6 +181,8 @@ class FeedAggregator
                     'account_id' => $account->id,
                     'auth_account_id' => $authAccount?->id,
                     'provider' => $account->provider,
+                    'feed_type' => $account->feed_type,
+                    'http_status' => $e instanceof RequestException ? $e->response->status() : null,
                     'error' => $e->getMessage(),
                 ]);
 

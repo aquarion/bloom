@@ -155,6 +155,25 @@ it('redirects to login when feed refill gets unauthenticated', async () => {
     expect(router.visit).toHaveBeenCalledWith('/login');
 });
 
+it('redirects to login when feed refill gets an expired session (419)', async () => {
+    const posts = Array.from({ length: 6 }, (_, i) => makePost(String(i)));
+
+    vi.mocked(axios.isAxiosError).mockReturnValue(true);
+    vi.mocked(axios.get).mockRejectedValue({
+        isAxiosError: true,
+        response: { status: 419 },
+    });
+    vi.mocked(router.visit).mockClear();
+
+    renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: 'cursor123' }),
+    );
+
+    await act(async () => Promise.resolve());
+
+    expect(router.visit).toHaveBeenCalledWith('/login');
+});
+
 it('skips posts with cw_text when cwBehavior is skip', () => {
     const cwPost = makePost('cw1');
     cwPost.cw_text = 'Content warning';

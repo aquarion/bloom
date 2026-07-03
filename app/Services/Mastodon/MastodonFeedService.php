@@ -128,13 +128,6 @@ class MastodonFeedService
             return null;
         }
 
-        if ($response->failed()) {
-            Log::warning('Failed to fetch Mastodon public timeline', [
-                'instance_url' => $instanceUrl,
-                'http_status' => $response->status(),
-            ]);
-        }
-
         $response->throw();
 
         $fetched = $response->json();

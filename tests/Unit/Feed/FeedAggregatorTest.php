@@ -931,3 +931,51 @@ it('fetches bluesky algorithmic feed using home account credentials', function (
     expect($result['posts'])->toHaveCount(1)
         ->and($result['posts'][0]['source'])->toBe('bluesky');
 });
+
+it('does not drop algorithmic feed posts when combined feeds exceed the old default buffer', function () {
+    // Regression: buffer_size was 40 by default. With 25 home posts + 25 algo posts = 50,
+    // the 10 oldest algo posts would be silently cut because algo feeds surface older content.
+    config(['feed.buffer_size' => 200, 'feed.max_age_days' => null]);
+
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'tok',
+        'handle' => '@alice.bsky.social',
+    ]);
+    SocialAccount::factory()->blueskyFeed()->create(['user_id' => $user->id]);
+
+    $makePost = fn (string $id, string $date) => [
+        'post' => [
+            'uri' => "at://did:plc:author/app.bsky.feed.post/{$id}",
+            'cid' => "cid{$id}",
+            'author' => ['did' => 'did:plc:author', 'handle' => 'author.bsky.social', 'displayName' => 'Author', 'avatar' => 'https://cdn.bsky.app/av.jpg', 'banner' => null],
+            'record' => ['$type' => 'app.bsky.feed.post', 'text' => "post {$id}", 'createdAt' => $date],
+            'indexedAt' => $date,
+            'likeCount' => 0,
+            'repostCount' => 0,
+            'replyCount' => 0,
+        ],
+    ];
+
+    $homePosts = array_map(fn ($i) => $makePost("home{$i}", now()->subMinutes($i)->toIso8601String()), range(1, 25));
+    // Algo feed surfaces older content — all posts are a few hours old
+    $algoPosts = array_map(fn ($i) => $makePost("algo{$i}", now()->subHours($i + 1)->toIso8601String()), range(1, 25));
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => $homePosts, 'cursor' => null]);
+    $bluesky->shouldReceive('getFeed')->andReturn(['posts' => $algoPosts, 'cursor' => null]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    $ids = array_column($result['posts'], 'id');
+    // Normalized Bluesky IDs are prefixed: "bluesky_{uri}"
+    $algoIds = array_values(array_filter($ids, fn ($id) => str_contains($id, '/algo')));
+
+    expect($result['posts'])->toHaveCount(50)
+        ->and($algoIds)->toHaveCount(25);
+});

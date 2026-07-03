@@ -7,6 +7,7 @@ use App\Services\Feed\FeedAggregator;
 use App\Services\Feed\PostNormalizer;
 use App\Services\Mastodon\MastodonFeedService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -978,4 +979,72 @@ it('does not drop algorithmic feed posts when combined feeds exceed the old defa
 
     expect($result['posts'])->toHaveCount(50)
         ->and($algoIds)->toHaveCount(25);
+});
+
+it('returns posts from other accounts when one provider throws a connection exception', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'feed_type' => 'home',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'tok',
+        'handle' => '@me@fosstodon.org',
+    ]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'tok',
+        'handle' => '@alice.bsky.social',
+    ]);
+
+    $status = [
+        'id' => '1',
+        'created_at' => now()->toIso8601String(),
+        'in_reply_to_id' => null,
+        'url' => 'https://fosstodon.org/@author/1',
+        'content' => '<p>mastodon post</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$status]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')
+        ->andThrow(new ConnectionException('timeout'));
+
+    $aggregator = new FeedAggregator($mastodon, $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['source'])->toBe('mastodon');
+});
+
+it('sets auth_failed_at when public mastodon requires auth but no home account exists', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    $publicAccount = SocialAccount::factory()->publicMastodon('https://auth-required.example')->create([
+        'user_id' => $user->id,
+    ]);
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getPublicTimeline')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toBeEmpty();
+    $publicAccount->refresh();
+    expect($publicAccount->auth_failed_at)->not->toBeNull();
 });

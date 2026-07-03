@@ -351,7 +351,7 @@ class PostNormalizer
     {
         $withBreaks = str_replace(['</p>', '<br>', '<br/>'], "\n", $html);
         $text = html_entity_decode(strip_tags($withBreaks), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        $text = preg_replace('/\n{3,}/', "\n\n", $text) ?? $text;
         $text = $this->stripHashtags($this->stripUrls(trim($text)));
 
         return $this->classifyMastodonMentions($text, $apiMentions, $originAcct);
@@ -415,8 +415,10 @@ class PostNormalizer
             if ($mention['strip']) {
                 $start = $mention['start'] - $removed;
                 $length = $mention['end'] - $mention['start'];
-                $body = substr($body, 0, $start).substr($body, $start + $length);
-                $removed += $length;
+                if ($start >= 0 && $start <= strlen($body) && $length > 0) {
+                    $body = substr($body, 0, $start).substr($body, $start + $length);
+                    $removed += $length;
+                }
             }
         }
 
@@ -496,8 +498,12 @@ class PostNormalizer
             if ($mention['role'] === MentionClassifier::ROLE_CHIP && $mention['strip']) {
                 $start = $mention['start'] - $removed;
                 $length = $mention['end'] - $mention['start'];
-                $body = substr($body, 0, $start).substr($body, $start + $length);
-                $removed += $length;
+                // byteEnd is an exclusive offset and may equal strlen when the mention is
+                // at the very end of the string — PHP's substr handles that gracefully.
+                if ($start >= 0 && $start <= strlen($body) && $length > 0) {
+                    $body = substr($body, 0, $start).substr($body, $start + $length);
+                    $removed += $length;
+                }
             }
         }
 
@@ -651,7 +657,7 @@ class PostNormalizer
             '/https?:\/\/\S+/',
             fn ($m) => strlen($m[0]) > 39 ? substr($m[0], 0, 39).'…' : $m[0],
             $text
-        );
+        ) ?? $text;
     }
 
     private function truncateBody(string $text, ?int $limit = null): string

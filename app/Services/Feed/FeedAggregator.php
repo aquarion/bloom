@@ -199,7 +199,10 @@ class FeedAggregator
             }
         }
 
-        $bufferSize = config('feed.buffer_size', 40);
+        // Memory ceiling — prevent unbounded allocations when many accounts
+        // are connected or per-feed limits are high. Not a diversity floor:
+        // the dedup pool should include everything fetched.
+        $bufferSize = config('feed.buffer_size', 200);
         $sorted = $posts->sortByDesc('created_at')->values();
 
         $seen = [];

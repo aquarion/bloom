@@ -65,6 +65,7 @@ class PostNormalizer
                 $source['tags'] ?? []
             ))),
             'cw_text' => isset($source['spoiler_text']) && $source['spoiler_text'] !== '' ? $source['spoiler_text'] : null,
+            'cw_is_author_level' => false,
             'sensitive_media' => (bool) ($source['sensitive'] ?? false),
         ];
     }
@@ -129,6 +130,7 @@ class PostNormalizer
             'emojis' => [],
             'hashtags' => $hashtags,
             'cw_text' => $labelData['cw_text'],
+            'cw_is_author_level' => $labelData['cw_is_author_level'],
             'sensitive_media' => $labelData['sensitive_media'],
             'chip_mentions' => $mentionResult['chip_mentions'],
         ];
@@ -410,10 +412,12 @@ class PostNormalizer
                 'profile_url' => $this->safeUrl($apiMention['url']),
             ];
 
-            $start = $mention['start'] - $removed;
-            $length = $mention['end'] - $mention['start'];
-            $body = substr($body, 0, $start).substr($body, $start + $length);
-            $removed += $length;
+            if ($mention['strip']) {
+                $start = $mention['start'] - $removed;
+                $length = $mention['end'] - $mention['start'];
+                $body = substr($body, 0, $start).substr($body, $start + $length);
+                $removed += $length;
+            }
         }
 
         $body = trim(preg_replace('/[ \t]{2,}/', ' ', $body) ?? $body);
@@ -479,12 +483,9 @@ class PostNormalizer
         $removed = 0;
 
         foreach ($classified as $mention) {
-            if ($mention['role'] !== MentionClassifier::ROLE_CHIP) {
-                continue;
-            }
-
-            // Intentionally blank — resolveMentionProfiles() fills these via a batched getProfiles call.
-            // profile_url holds the DID so the batch lookup can key on it.
+            // Bluesky body text has no hyperlinks, so every mention — leading, trailing, or
+            // mid-text — needs a chip to be actionable. Intentionally blank: resolveMentionProfiles()
+            // fills handle/display_name/avatar via a batched getProfiles call keyed on the DID.
             $chipMentions[] = [
                 'handle' => '',
                 'display_name' => '',
@@ -492,10 +493,12 @@ class PostNormalizer
                 'profile_url' => $mention['id'],
             ];
 
-            $start = $mention['start'] - $removed;
-            $length = $mention['end'] - $mention['start'];
-            $body = substr($body, 0, $start).substr($body, $start + $length);
-            $removed += $length;
+            if ($mention['role'] === MentionClassifier::ROLE_CHIP && $mention['strip']) {
+                $start = $mention['start'] - $removed;
+                $length = $mention['end'] - $mention['start'];
+                $body = substr($body, 0, $start).substr($body, $start + $length);
+                $removed += $length;
+            }
         }
 
         $body = trim(preg_replace('/[ \t]{2,}/', ' ', $body) ?? $body);
@@ -601,30 +604,43 @@ class PostNormalizer
 
     private function blueskyLabels(array $post): array
     {
-        // Collect labels from both the post and the author's profile.
+        // Filter each label set separately so we can detect author-level CWs.
         // Authors of adult-content accounts label their profile rather than each post.
-        $postLabels = array_map(fn ($l) => $l['val'] ?? '', $post['labels'] ?? []);
-        $authorLabels = array_map(fn ($l) => $l['val'] ?? '', $post['author']['labels'] ?? []);
-        $labels = array_values(array_filter(
-            array_unique(array_merge($postLabels, $authorLabels)),
-            fn ($v) => $v !== '',
+        // AT Protocol labels prefixed with '!' are behavioural/system labels (e.g.
+        // '!no-unauthenticated', '!hide') — they control platform access, not content type.
+        // Exclude them so they don't trigger a spurious "Content warning" overlay.
+        $filter = fn (array $raw): array => array_values(array_filter(
+            array_map(fn ($l) => $l['val'] ?? '', $raw),
+            fn ($v) => $v !== '' && ! str_starts_with($v, '!'),
         ));
+
+        $postLabels = $filter($post['labels'] ?? []);
+        $authorLabels = $filter($post['author']['labels'] ?? []);
+        $labels = array_values(array_unique(array_merge($postLabels, $authorLabels)));
 
         $adultLabels = ['sexual', 'nudity', 'porn'];
         $graphicLabels = ['graphic-media', 'gore'];
         $mediaLabels = array_merge($adultLabels, $graphicLabels);
 
-        $cwText = null;
-        if (array_intersect($labels, $adultLabels)) {
-            $cwText = 'Adult content';
-        } elseif (array_intersect($labels, $graphicLabels)) {
-            $cwText = 'Graphic media';
-        } elseif (! empty($labels)) {
-            $cwText = 'Content warning';
-        }
+        $resolveCwText = function (array $l) use ($adultLabels, $graphicLabels): ?string {
+            if (array_intersect($l, $adultLabels)) {
+                return 'Adult content';
+            }
+            if (array_intersect($l, $graphicLabels)) {
+                return 'Graphic media';
+            }
+
+            return ! empty($l) ? 'Content warning' : null;
+        };
+
+        $cwText = $resolveCwText($labels);
+        // Author-level when the post itself carries no cw-worthy labels —
+        // the CW exists only because the author's profile is labelled.
+        $cwIsAuthorLevel = $cwText !== null && $resolveCwText($postLabels) === null;
 
         return [
             'cw_text' => $cwText,
+            'cw_is_author_level' => $cwIsAuthorLevel,
             'sensitive_media' => ! empty(array_intersect($labels, $mediaLabels)),
         ];
     }

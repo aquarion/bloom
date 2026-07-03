@@ -1833,13 +1833,13 @@ it('maps bluesky gore label to Graphic media', function () {
         ->and($post['sensitive_media'])->toBeTrue();
 });
 
-it('maps unknown bluesky label to Content warning generic fallback', function () {
+it('maps unknown bluesky content label to Content warning generic fallback', function () {
     $feedPost = [
         'post' => [
             'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
             'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
             'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
-            'labels' => [['val' => '!hide']],
+            'labels' => [['val' => 'custom-warning']],
             'embed' => null,
         ],
     ];
@@ -1847,6 +1847,28 @@ it('maps unknown bluesky label to Content warning generic fallback', function ()
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
     expect($post['cw_text'])->toBe('Content warning')
+        ->and($post['sensitive_media'])->toBeFalse();
+});
+
+it('ignores AT Protocol system labels prefixed with ! and does not show a CW overlay', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [['val' => '!no-unauthenticated']],
+            ],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBeNull()
         ->and($post['sensitive_media'])->toBeFalse();
 });
 
@@ -1869,6 +1891,7 @@ it('sets cw_text from bluesky author profile label when post has no labels', fun
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
     expect($post['cw_text'])->toBe('Adult content')
+        ->and($post['cw_is_author_level'])->toBeTrue()
         ->and($post['sensitive_media'])->toBeTrue();
 });
 
@@ -1891,10 +1914,33 @@ it('merges bluesky post-level and author-level labels for combined classificatio
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
     expect($post['cw_text'])->toBe('Adult content')
+        ->and($post['cw_is_author_level'])->toBeFalse()
         ->and($post['sensitive_media'])->toBeTrue();
 });
 
-it('classifies a single leading mastodon mention as inline by default', function () {
+it('sets cw_is_author_level false when only post-level labels trigger the cw', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [],
+            ],
+            'labels' => [['val' => 'gore']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('Graphic media')
+        ->and($post['cw_is_author_level'])->toBeFalse();
+});
+
+it('chips a single leading mastodon mention without stripping it from the body', function () {
     $status = [
         'id' => '1',
         'content' => '<p>@alice thanks for the boost</p>',
@@ -1910,7 +1956,8 @@ it('classifies a single leading mastodon mention as inline by default', function
     $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['body'])->toBe('@alice thanks for the boost')
-        ->and($post['chip_mentions'])->toBe([]);
+        ->and($post['chip_mentions'])->toHaveCount(1)
+        ->and($post['chip_mentions'][0]['handle'])->toBe('@alice');
 });
 
 it('detects cross-instance mastodon mentions rendered with bare username, not full acct', function () {
@@ -2034,7 +2081,7 @@ it('strips a trailing mention from a mastodon reply_to body to a chip', function
         ->and($post['reply_to']['chip_mentions'][0]['handle'])->toBe('@bob');
 });
 
-it('classifies a single leading bluesky mention as inline by default', function () {
+it('chips a single leading bluesky mention without stripping it from the body', function () {
     $feedPost = [
         'post' => [
             'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
@@ -2055,7 +2102,31 @@ it('classifies a single leading bluesky mention as inline by default', function 
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
     expect($post['body'])->toBe('@alice.bsky.social thanks for the boost')
-        ->and($post['chip_mentions'])->toBe([]);
+        ->and($post['chip_mentions'])->toHaveCount(1);
+});
+
+it('chips a mid-text bluesky mention without stripping it from the body', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => [
+                'text' => 'thanks @alice.bsky.social for the boost',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+                'facets' => [
+                    [
+                        'index' => ['byteStart' => 7, 'byteEnd' => 25],
+                        'features' => [['$type' => 'app.bsky.richtext.facet#mention', 'did' => 'did:plc:alice']],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['body'])->toBe('thanks @alice.bsky.social for the boost')
+        ->and($post['chip_mentions'])->toHaveCount(1);
 });
 
 it('strips a trailing bluesky mention to a chip', function () {

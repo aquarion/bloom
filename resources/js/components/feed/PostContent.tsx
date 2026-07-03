@@ -7,19 +7,32 @@ import { PostAnimator } from './PostAnimator';
 function CwOverlay({
     cwText,
     onReveal,
+    isAuthorLevel,
 }: {
     cwText: string;
     onReveal: () => void;
+    isAuthorLevel: boolean;
 }) {
     return (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 px-8 text-center text-white">
-            <p className="mb-4 max-w-sm text-base">{cwText}</p>
+            {isAuthorLevel ? (
+                <>
+                    <p className="mb-1 max-w-sm text-base">
+                        This author posts {cwText.toLowerCase()}
+                    </p>
+                    <p className="mb-4 max-w-sm text-sm text-white/60">
+                        Revealing will unhide all their posts for this session
+                    </p>
+                </>
+            ) : (
+                <p className="mb-4 max-w-sm text-base">{cwText}</p>
+            )}
             <button
                 type="button"
                 onClick={onReveal}
                 className="rounded-full bg-white/20 px-4 py-1.5 text-sm hover:bg-white/30"
             >
-                Show anyway
+                {isAuthorLevel ? 'Show author' : 'Show anyway'}
             </button>
         </div>
     );
@@ -51,11 +64,21 @@ export function PostContent({
     const [mediaRevealed, setMediaRevealed] = useState(false);
 
     const cwText = post.cw_text;
+    const isAuthorLevel = post.cw_is_author_level;
     const showCwOverlay =
         cwText !== null &&
         cwBehavior === 'blur' &&
         !cwRevealed &&
-        !authorCwRevealed;
+        !authorCwRevealed &&
+        // When the media is already individually blurred (Bluesky label-based CW),
+        // the full-post overlay is redundant — post text is readable and gives enough
+        // context to decide whether to reveal. Mastodon spoiler_text is user-authored
+        // so it always deserves its own overlay.
+        !(
+            post.source === 'bluesky' &&
+            post.sensitive_media &&
+            sensitiveMediaBehavior === 'blur'
+        );
 
     // Tracks whether PostAnimator fired onReady while the CW overlay was blocking it,
     // so we can forward it immediately when the user dismisses the overlay.
@@ -64,7 +87,8 @@ export function PostContent({
     // Initialized from the computed showCwOverlay so it's correct before the
     // first useLayoutEffect sync — PostAnimator's layout effects (children) run
     // before ours (parent), so handleReady can fire before our sync otherwise.
-    const showCwOverlayRef = useRef(showCwOverlay);
+    // Author-level overlays don't suppress onReady — auto-advance continues.
+    const showCwOverlayRef = useRef(showCwOverlay && !isAuthorLevel);
     const revealInProgressRef = useRef(false);
     const blurMedia =
         post.sensitive_media &&
@@ -73,11 +97,12 @@ export function PostContent({
 
     useLayoutEffect(() => {
         onReadyRef.current = onReady;
-        showCwOverlayRef.current = showCwOverlay;
+        showCwOverlayRef.current = showCwOverlay && !isAuthorLevel;
     });
 
-    // Suppress readiness signals while the CW overlay is up — otherwise the
-    // auto-advance timer would start and scroll past unacknowledged CW content.
+    // Suppress readiness signals while a post-level CW overlay is up — otherwise
+    // the auto-advance timer would start and scroll past unacknowledged content.
+    // Author-level overlays don't block the timer; the feed advances on its own.
     const handleReady = useCallback(() => {
         if (showCwOverlayRef.current) {
             pendingReadyRef.current = true;
@@ -120,11 +145,15 @@ export function PostContent({
                     onProgress={onProgress}
                     blurMedia={blurMedia}
                     onRevealMedia={() => setMediaRevealed(true)}
-                    paused={paused || showCwOverlay}
+                    paused={paused || (showCwOverlay && !isAuthorLevel)}
                 />
             </div>
             {showCwOverlay && cwText !== null && (
-                <CwOverlay cwText={cwText} onReveal={revealCw} />
+                <CwOverlay
+                    cwText={cwText}
+                    onReveal={revealCw}
+                    isAuthorLevel={isAuthorLevel}
+                />
             )}
         </div>
     );

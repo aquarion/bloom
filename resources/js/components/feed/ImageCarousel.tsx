@@ -31,7 +31,7 @@ export function ImageCarousel({
         onProgressRef.current = onProgress;
     }, [onComplete, onProgress]);
 
-    const isPaused = paused || blurMedia;
+    const isPaused = paused;
 
     // Run the per-image timer; reset elapsed only when activeIndex changes, not on pause/unpause
     useEffect(() => {
@@ -79,20 +79,49 @@ export function ImageCarousel({
         }
     };
 
-    const current = media[activeIndex];
-    const src =
-        current?.type === 'video'
-            ? (current.preview_url ?? undefined)
-            : current?.url;
-
     return (
-        <div className="relative flex w-full items-center justify-center overflow-hidden">
-            {src && (
-                <img
-                    src={src}
-                    alt={current?.alt_text ?? ''}
-                    className={`max-h-[60vh] max-w-full object-contain p-4 transition-all duration-300 ${blurMedia ? 'blur-xl' : ''}`}
-                />
+        <div className="relative w-full overflow-hidden">
+            {/* Sliding track — all images stay in DOM so container height is stable */}
+            <div
+                data-testid="carousel-track"
+                className="flex transition-transform duration-300 ease-in-out"
+                style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+            >
+                {media.map((item) => {
+                    const src =
+                        item.type === 'video'
+                            ? (item.preview_url ?? undefined)
+                            : item.url;
+
+                    return (
+                        <div
+                            key={item.url ?? item.preview_url}
+                            className="flex w-full flex-shrink-0 items-center justify-center"
+                        >
+                            {src && (
+                                <img
+                                    src={src}
+                                    alt={item.alt_text ?? ''}
+                                    className={`max-h-[60vh] max-w-full object-contain p-4 transition-[filter] duration-300 ${blurMedia ? 'blur-xl' : ''}`}
+                                />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Dot indicators — only shown for multi-image posts */}
+            {media.length > 1 && (
+                <div className="pointer-events-none absolute right-0 bottom-2 left-0 flex justify-center gap-1.5">
+                    {media.map((item, i) => (
+                        <div
+                            key={item.url ?? item.preview_url}
+                            className={`h-1.5 w-1.5 rounded-full transition-colors duration-200 ${
+                                i === activeIndex ? 'bg-white' : 'bg-white/40'
+                            }`}
+                        />
+                    ))}
+                </div>
             )}
 
             {blurMedia && (

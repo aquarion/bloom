@@ -132,7 +132,10 @@ describe('ImageCarousel — multiple images', () => {
             />,
         );
         expect(screen.getByAltText('first')).toBeInTheDocument();
-        expect(screen.queryByAltText('second')).not.toBeInTheDocument();
+        expect(screen.getByAltText('second')).toBeInTheDocument();
+        expect(screen.getByTestId('carousel-track')).toHaveStyle(
+            'transform: translateX(-0%)',
+        );
     });
 
     it('advances to the second image after one duration elapses', () => {
@@ -150,8 +153,9 @@ describe('ImageCarousel — multiple images', () => {
             vi.advanceTimersByTime(DURATION + TICK_MS);
         });
 
-        expect(screen.queryByAltText('first')).not.toBeInTheDocument();
-        expect(screen.getByAltText('second')).toBeInTheDocument();
+        expect(screen.getByTestId('carousel-track')).toHaveStyle(
+            'transform: translateX(-100%)',
+        );
     });
 
     it('calls onComplete only after all images have been shown', () => {
@@ -188,8 +192,9 @@ describe('ImageCarousel — multiple images', () => {
 
         fireEvent.click(screen.getByTestId('carousel-next'));
 
-        expect(screen.queryByAltText('first')).not.toBeInTheDocument();
-        expect(screen.getByAltText('second')).toBeInTheDocument();
+        expect(screen.getByTestId('carousel-track')).toHaveStyle(
+            'transform: translateX(-100%)',
+        );
     });
 
     it('calls onComplete immediately when right tap zone is clicked on the last image', () => {

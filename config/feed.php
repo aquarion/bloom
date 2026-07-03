@@ -13,9 +13,10 @@ return [
     // Number of posts to fetch from each provider per request
     'per_provider_limit' => env('FEED_PER_PROVIDER_LIMIT', 20),
 
-    // Total number of posts returned in the buffer (aggregated from all providers)
-    // This should be >= per_provider_limit to ensure diverse content
-    'buffer_size' => env('FEED_BUFFER_SIZE', 40),
+    // Memory ceiling on the dedup pool before posts are returned. Set high enough
+    // that it never cuts normal multi-account fetches; only kicks in as a safety
+    // valve for unusual configurations (many accounts, high per-feed limits).
+    'buffer_size' => env('FEED_BUFFER_SIZE', 200),
 
     // Maximum characters shown in reply-to and quoted-post context panels
     'context_body_limit' => env('FEED_CONTEXT_BODY_LIMIT', 300),

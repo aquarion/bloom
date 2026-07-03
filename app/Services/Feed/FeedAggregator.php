@@ -199,14 +199,10 @@ class FeedAggregator
             }
         }
 
-        // Scale the buffer with the number of connected feeds so each source
-        // gets a fair share of slots. A fixed buffer silently drops posts from
-        // slower/older feeds (e.g. algorithmic feeds that surface older content).
-        $accountCount = $user->socialAccounts->count();
-        $bufferSize = max(
-            config('feed.buffer_size', 40),
-            $accountCount * config('feed.per_provider_limit', 20),
-        );
+        // Memory ceiling — prevent unbounded allocations when many accounts
+        // are connected or per-feed limits are high. Not a diversity floor:
+        // the dedup pool should include everything fetched.
+        $bufferSize = config('feed.buffer_size', 200);
         $sorted = $posts->sortByDesc('created_at')->values();
 
         $seen = [];

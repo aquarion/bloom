@@ -19,7 +19,7 @@ class BlueskyController extends Controller
     {
         $request->validate([
             'handle' => 'required|string',
-            'app_password' => 'required|string',
+            'app_password' => 'required|string', // pragma: allowlist secret
             'pds_url' => 'nullable|url|starts_with:https://',
         ]);
 
@@ -62,7 +62,7 @@ class BlueskyController extends Controller
     {
         abort_if($account->user_id !== $request->user()->id || $account->provider !== 'bluesky', 403);
 
-        $request->validate(['app_password' => 'required|string']);
+        $request->validate(['app_password' => 'required|string']); // pragma: allowlist secret
 
         $result = $this->attemptCreateSession(
             $account->handle,

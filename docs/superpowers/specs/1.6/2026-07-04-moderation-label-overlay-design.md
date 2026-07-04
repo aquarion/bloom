@@ -106,6 +106,32 @@ cw_label_source: 'self' | 'external' | null;
 
 ---
 
+---
+
+## Bug fix — keyboard shortcuts blocked by CW overlay
+
+### Observed behaviour
+
+Both post-level and author-level CW overlays currently block the `j` (advance) and `k` (go back) keyboard shortcuts. The space-bar pause shortcut works. Root cause to be confirmed during implementation (most likely: `animationReady` is false while `onReady` is suppressed, and something in the advance path depends on it — or a timing issue in the GSAP call).
+
+### Intended behaviour
+
+| Overlay type | `j` | `k` |
+|---|---|---|
+| Post-level CW | Advance past the post (skip without revealing) | Go back |
+| Author-level CW | Advance normally | Go back |
+| No overlay | Advance normally | Go back |
+
+Neither overlay should block keyboard navigation. Auto-advance timer behaviour is unchanged (post-level CW already suppresses `onReady` which keeps the timer paused; that stays as-is).
+
+### Fix approach
+
+Separate the "timer advance" path from the "keyboard/manual advance" path. The timer advance is already gated on `animationReady` via `useAutoAdvance`. Keyboard-triggered `handleAdvance` and `handleGoBack` should not require `animationReady` — if the post hasn't signalled ready yet (because a CW overlay is suppressing it), the keyboard shortcut still advances. If GSAP has nothing to animate (refs not mounted), it short-circuits on the existing `!bg || !content` guard; no additional gate needed.
+
+Exact implementation depends on root cause confirmed during implementation.
+
+---
+
 ## Tests
 
 **Backend (`PostNormalizerTest.php`):**
@@ -121,3 +147,8 @@ cw_label_source: 'self' | 'external' | null;
 - `external` source renders "has been labelled as posting X" with author chip
 - `self` source renders "marks their posts as X" with author chip
 - Non-author-level overlay unchanged (no chip, no source text)
+
+**Keyboard shortcuts (`feed.test.tsx` or equivalent):**
+- `j` advances past a post-level CW overlay without requiring reveal
+- `j` advances past an author-level CW overlay
+- `k` goes back past both overlay types

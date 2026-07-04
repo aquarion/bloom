@@ -47,7 +47,11 @@ function CwOverlay({
                     </p>
                 </>
             ) : (
-                <p className="mb-4 max-w-sm text-base">{cwText}</p>
+                <p className="mb-4 max-w-sm text-base">
+                    {labelSource === 'self'
+                        ? `The author marked this post as ${cwText.toLowerCase()}`
+                        : `This post has been labelled as ${cwText.toLowerCase()}`}
+                </p>
             )}
             <button
                 type="button"

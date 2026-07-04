@@ -135,13 +135,15 @@ describe('PostContent — author-level CW overlay', () => {
                 post={makePost({
                     cw_text: 'Graphic media',
                     cw_is_author_level: false,
-                    cw_label_source: null,
+                    cw_label_source: 'self',
                 })}
                 cwBehavior="blur"
             />,
         );
 
         expect(screen.queryByTestId('author-chip')).not.toBeInTheDocument();
-        expect(screen.getByText('Graphic media')).toBeInTheDocument();
+        expect(
+            screen.getByText('The author marked this post as graphic media'),
+        ).toBeInTheDocument();
     });
 });

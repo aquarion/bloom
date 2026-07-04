@@ -66,7 +66,7 @@ class PostNormalizer
             ))),
             'cw_text' => isset($source['spoiler_text']) && $source['spoiler_text'] !== '' ? $source['spoiler_text'] : null,
             'cw_is_author_level' => false,
-            'cw_label_source' => null,
+            'cw_label_source' => isset($source['spoiler_text']) && $source['spoiler_text'] !== '' ? 'self' : null,
             'sensitive_media' => (bool) ($source['sensitive'] ?? false),
         ];
     }
@@ -662,10 +662,11 @@ class PostNormalizer
         $cwIsAuthorLevel = $cwText !== null && $resolveCwText($postLabels) === null;
 
         $cwLabelSource = null;
-        if ($cwIsAuthorLevel) {
+        if ($cwText !== null) {
             $authorDid = $post['author']['did'] ?? null;
             $cwLabelSource = 'self';
-            foreach ($post['author']['labels'] ?? [] as $label) {
+            $labelsToCheck = $cwIsAuthorLevel ? ($post['author']['labels'] ?? []) : ($post['labels'] ?? []);
+            foreach ($labelsToCheck as $label) {
                 $val = $label['val'] ?? '';
                 if ($val === '' || str_starts_with($val, '!')) {
                     continue;

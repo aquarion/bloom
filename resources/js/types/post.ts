@@ -61,6 +61,7 @@ export interface Post {
     chip_mentions: Mention[];
     cw_text: string | null;
     cw_is_author_level: boolean;
+    cw_label_source: 'self' | 'external' | null;
     sensitive_media: boolean;
 }
 

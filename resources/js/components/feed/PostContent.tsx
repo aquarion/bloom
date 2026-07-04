@@ -2,23 +2,45 @@ import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { postDisplayColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
+import { AuthorChip } from './AuthorChip';
 import { PostAnimator } from './PostAnimator';
 
 function CwOverlay({
     cwText,
     onReveal,
     isAuthorLevel,
+    labelSource,
+    authorName,
+    authorHandle,
+    authorAvatar,
+    authorEmojis,
 }: {
     cwText: string;
     onReveal: () => void;
     isAuthorLevel: boolean;
+    labelSource: 'self' | 'external' | null;
+    authorName: string;
+    authorHandle: string;
+    authorAvatar: string;
+    authorEmojis: Record<string, string>;
 }) {
     return (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/80 px-8 text-center text-white">
             {isAuthorLevel ? (
                 <>
+                    <p className="mb-3 max-w-sm text-base">This author</p>
+                    <div className="mb-3 w-full max-w-xs">
+                        <AuthorChip
+                            name={authorName}
+                            account={authorHandle}
+                            avatar={authorAvatar}
+                            emojis={authorEmojis}
+                        />
+                    </div>
                     <p className="mb-1 max-w-sm text-base">
-                        This author posts {cwText.toLowerCase()}
+                        {labelSource === 'self'
+                            ? `marks their posts as ${cwText.toLowerCase()}`
+                            : `has been labelled as posting ${cwText.toLowerCase()}`}
                     </p>
                     <p className="mb-4 max-w-sm text-sm text-white/60">
                         Revealing will unhide all their posts for this session
@@ -153,6 +175,11 @@ export function PostContent({
                     cwText={cwText}
                     onReveal={revealCw}
                     isAuthorLevel={isAuthorLevel}
+                    labelSource={post.cw_label_source}
+                    authorName={post.author_name}
+                    authorHandle={post.author_handle}
+                    authorAvatar={post.author_avatar}
+                    authorEmojis={post.emojis}
                 />
             )}
         </div>

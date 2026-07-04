@@ -66,6 +66,7 @@ class PostNormalizer
             ))),
             'cw_text' => isset($source['spoiler_text']) && $source['spoiler_text'] !== '' ? $source['spoiler_text'] : null,
             'cw_is_author_level' => false,
+            'cw_label_source' => null,
             'sensitive_media' => (bool) ($source['sensitive'] ?? false),
         ];
     }
@@ -131,6 +132,7 @@ class PostNormalizer
             'hashtags' => $hashtags,
             'cw_text' => $labelData['cw_text'],
             'cw_is_author_level' => $labelData['cw_is_author_level'],
+            'cw_label_source' => $labelData['cw_label_source'],
             'sensitive_media' => $labelData['sensitive_media'],
             'chip_mentions' => $mentionResult['chip_mentions'],
         ];
@@ -659,9 +661,26 @@ class PostNormalizer
         // the CW exists only because the author's profile is labelled.
         $cwIsAuthorLevel = $cwText !== null && $resolveCwText($postLabels) === null;
 
+        $cwLabelSource = null;
+        if ($cwIsAuthorLevel) {
+            $authorDid = $post['author']['did'] ?? null;
+            $cwLabelSource = 'self';
+            foreach ($post['author']['labels'] ?? [] as $label) {
+                $val = $label['val'] ?? '';
+                if ($val === '' || str_starts_with($val, '!')) {
+                    continue;
+                }
+                if (($label['src'] ?? '') !== $authorDid) {
+                    $cwLabelSource = 'external';
+                    break;
+                }
+            }
+        }
+
         return [
             'cw_text' => $cwText,
             'cw_is_author_level' => $cwIsAuthorLevel,
+            'cw_label_source' => $cwLabelSource,
             'sensitive_media' => ! empty(array_intersect($labels, $mediaLabels)),
         ];
     }

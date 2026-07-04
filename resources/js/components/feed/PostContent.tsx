@@ -104,15 +104,7 @@ export function PostContent({
             sensitiveMediaBehavior === 'blur'
         );
 
-    // Tracks whether PostAnimator fired onReady while the CW overlay was blocking it,
-    // so we can forward it immediately when the user dismisses the overlay.
-    const pendingReadyRef = useRef(false);
     const onReadyRef = useRef(onReady);
-    // Initialized from the computed showCwOverlay so it's correct before the
-    // first useLayoutEffect sync — PostAnimator's layout effects (children) run
-    // before ours (parent), so handleReady can fire before our sync otherwise.
-    // Author-level overlays don't suppress onReady — auto-advance continues.
-    const showCwOverlayRef = useRef(showCwOverlay && !isAuthorLevel);
     const revealInProgressRef = useRef(false);
     const blurMedia =
         post.sensitive_media &&
@@ -121,7 +113,6 @@ export function PostContent({
 
     useLayoutEffect(() => {
         onReadyRef.current = onReady;
-        showCwOverlayRef.current = showCwOverlay && !isAuthorLevel;
     });
 
     const onCwOverlayActiveRef = useRef(onCwOverlayActive);
@@ -130,20 +121,11 @@ export function PostContent({
     });
 
     useLayoutEffect(() => {
-        if (!isAuthorLevel) {
-            onCwOverlayActiveRef.current?.(showCwOverlay);
-        }
-    }, [showCwOverlay, isAuthorLevel]);
+        onCwOverlayActiveRef.current?.(showCwOverlay);
+    }, [showCwOverlay]);
 
-    // Suppress readiness signals while a post-level CW overlay is up — otherwise
-    // the auto-advance timer would start and scroll past unacknowledged content.
-    // Author-level overlays don't block the timer; the feed advances on its own.
     const handleReady = useCallback(() => {
-        if (showCwOverlayRef.current) {
-            pendingReadyRef.current = true;
-        } else {
-            onReadyRef.current?.();
-        }
+        onReadyRef.current?.();
     }, []);
 
     const onRevealAuthorRef = useRef(onRevealAuthor);
@@ -151,8 +133,6 @@ export function PostContent({
         onRevealAuthorRef.current = onRevealAuthor;
     });
 
-    // Fires any onReady suppressed while the overlay was up,
-    // and records this author as revealed for the rest of the session.
     const revealCw = useCallback(() => {
         if (revealInProgressRef.current) {
             return;
@@ -162,11 +142,6 @@ export function PostContent({
 
         setCwRevealed(true);
         onRevealAuthorRef.current?.();
-
-        if (pendingReadyRef.current) {
-            pendingReadyRef.current = false;
-            onReadyRef.current?.();
-        }
     }, []);
 
     return (
@@ -180,7 +155,7 @@ export function PostContent({
                     onProgress={onProgress}
                     blurMedia={blurMedia}
                     onRevealMedia={() => setMediaRevealed(true)}
-                    paused={paused || (showCwOverlay && !isAuthorLevel)}
+                    paused={paused}
                 />
             </div>
             {showCwOverlay && cwText !== null && (

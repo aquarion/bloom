@@ -628,15 +628,30 @@ class PostNormalizer
         $graphicLabels = ['graphic-media', 'gore'];
         $mediaLabels = array_merge($adultLabels, $graphicLabels);
 
-        $resolveCwText = function (array $l) use ($adultLabels, $graphicLabels): ?string {
+        $moderationLabelMap = [
+            'rude' => 'rude content',
+            'threat' => 'threatening content',
+            'intolerant' => 'intolerant content',
+            'self-harm' => 'self-harm content',
+            'spam' => 'spam',
+            'impersonation' => 'impersonation',
+            'misleading' => 'misleading content',
+        ];
+
+        $resolveCwText = function (array $l) use ($adultLabels, $graphicLabels, $moderationLabelMap): ?string {
             if (array_intersect($l, $adultLabels)) {
                 return 'Adult content';
             }
             if (array_intersect($l, $graphicLabels)) {
                 return 'Graphic media';
             }
+            foreach ($l as $label) {
+                if (isset($moderationLabelMap[$label])) {
+                    return $moderationLabelMap[$label];
+                }
+            }
 
-            return ! empty($l) ? 'Content warning' : null;
+            return ! empty($l) ? $l[0] : null;
         };
 
         $cwText = $resolveCwText($labels);

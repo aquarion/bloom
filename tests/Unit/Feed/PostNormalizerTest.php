@@ -1833,7 +1833,7 @@ it('maps bluesky gore label to Graphic media', function () {
         ->and($post['sensitive_media'])->toBeTrue();
 });
 
-it('maps unknown bluesky content label to Content warning generic fallback', function () {
+it('falls back to raw label value for unknown bluesky content labels', function () {
     $feedPost = [
         'post' => [
             'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
@@ -1846,8 +1846,72 @@ it('maps unknown bluesky content label to Content warning generic fallback', fun
 
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
-    expect($post['cw_text'])->toBe('Content warning')
+    expect($post['cw_text'])->toBe('custom-warning')
         ->and($post['sensitive_media'])->toBeFalse();
+});
+
+it('maps bluesky rude label to rude content', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'rude']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('rude content');
+});
+
+it('maps bluesky threat label to threatening content', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'threat']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('threatening content');
+});
+
+it('maps bluesky spam label to spam', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'spam']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('spam');
+});
+
+it('falls back to raw label value for unknown bluesky labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'custom-warning']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('custom-warning');
 });
 
 it('ignores AT Protocol system labels prefixed with ! and does not show a CW overlay', function () {

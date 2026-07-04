@@ -70,6 +70,7 @@ export function PostContent({
     paused = false,
     authorCwRevealed = false,
     onRevealAuthor,
+    onCwOverlayActive,
 }: {
     post: Post;
     onReady?: () => void;
@@ -80,6 +81,7 @@ export function PostContent({
     paused?: boolean;
     authorCwRevealed?: boolean;
     onRevealAuthor?: () => void;
+    onCwOverlayActive?: (active: boolean) => void;
 }) {
     const colors = postDisplayColors(post);
     const [cwRevealed, setCwRevealed] = useState(false);
@@ -121,6 +123,17 @@ export function PostContent({
         onReadyRef.current = onReady;
         showCwOverlayRef.current = showCwOverlay && !isAuthorLevel;
     });
+
+    const onCwOverlayActiveRef = useRef(onCwOverlayActive);
+    useLayoutEffect(() => {
+        onCwOverlayActiveRef.current = onCwOverlayActive;
+    });
+
+    useLayoutEffect(() => {
+        if (!isAuthorLevel) {
+            onCwOverlayActiveRef.current?.(showCwOverlay);
+        }
+    }, [showCwOverlay, isAuthorLevel]);
 
     // Suppress readiness signals while a post-level CW overlay is up — otherwise
     // the auto-advance timer would start and scroll past unacknowledged content.

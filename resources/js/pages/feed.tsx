@@ -72,6 +72,7 @@ export default function Feed({
     const animationReady = readyForPostId === current?.id;
     const bgRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
+    const cwOverlayActiveRef = useRef(false);
     // Stores the timestamp when the transition is expected to finish; prevents
     // double-firing and self-heals if GSAP ever fails to fire onComplete.
     const transitionEndRef = useRef(0);
@@ -264,6 +265,9 @@ export default function Feed({
                         onRevealAuthor={() =>
                             handleRevealAuthor(current.author_handle)
                         }
+                        onCwOverlayActive={(active) => {
+                            cwOverlayActiveRef.current = active;
+                        }}
                     />
                 </div>
 

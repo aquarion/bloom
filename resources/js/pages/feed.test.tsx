@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { PostContent } from '@/components/feed/PostContent';
 import type { Post } from '@/types/post';
 import Feed from './feed';
 
@@ -23,7 +24,9 @@ vi.mock('gsap', () => ({
 vi.mock('@/components/feed/PostBackground', () => ({
     PostBackground: () => null,
 }));
-vi.mock('@/components/feed/PostContent', () => ({ PostContent: () => null }));
+vi.mock('@/components/feed/PostContent', () => ({
+    PostContent: vi.fn(() => null),
+}));
 vi.mock('@/components/feed/Attribution', () => ({ Attribution: () => null }));
 vi.mock('@/components/feed/SourceBadge', () => ({ SourceBadge: () => null }));
 vi.mock('@/components/feed/ProgressBar', () => ({ ProgressBar: () => null }));
@@ -105,5 +108,37 @@ describe('Feed', () => {
         );
 
         expect(panel).toHaveAttribute('data-open', 'true');
+    });
+
+    it('pressing j fires handleAdvance even when a CW overlay is active', async () => {
+        const gsapModule = await import('gsap');
+        const { gsap } = gsapModule;
+        vi.mocked(gsap.timeline).mockClear();
+
+        let cwActiveCallback: ((active: boolean) => void) | undefined;
+        vi.mocked(PostContent).mockImplementation(
+            ({
+                onCwOverlayActive,
+            }: {
+                onCwOverlayActive?: (active: boolean) => void;
+            }) => {
+                cwActiveCallback = onCwOverlayActive;
+
+                return null;
+            },
+        );
+
+        render(
+            <Feed
+                {...defaultProps}
+                initialPosts={[makePost('1'), makePost('2')]}
+            />,
+        );
+
+        act(() => cwActiveCallback?.(true));
+
+        fireEvent.keyDown(window, { key: 'j' });
+
+        expect(gsap.timeline).toHaveBeenCalled();
     });
 });

@@ -124,7 +124,7 @@ describe('Feed', () => {
             }) => {
                 cwActiveCallback = onCwOverlayActive;
 
-                return null;
+                return (<></>) as unknown as ReturnType<typeof PostContent>;
             },
         );
 

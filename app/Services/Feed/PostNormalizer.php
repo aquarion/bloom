@@ -64,9 +64,9 @@ class PostNormalizer
                 fn ($t) => mb_strtolower($t['name'] ?? '', 'UTF-8'),
                 $source['tags'] ?? []
             ))),
-            'cw_text' => isset($source['spoiler_text']) && $source['spoiler_text'] !== '' ? $source['spoiler_text'] : null,
+            'cw_text' => ($hasSpoilerText = isset($source['spoiler_text']) && $source['spoiler_text'] !== '') ? $source['spoiler_text'] : null,
             'cw_is_author_level' => false,
-            'cw_label_source' => isset($source['spoiler_text']) && $source['spoiler_text'] !== '' ? 'self' : null,
+            'cw_label_source' => $hasSpoilerText ? 'self' : null,
             'sensitive_media' => (bool) ($source['sensitive'] ?? false),
         ];
     }

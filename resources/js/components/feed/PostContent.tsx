@@ -18,7 +18,7 @@ function CwOverlay({
     cwText: string;
     onReveal: () => void;
     isAuthorLevel: boolean;
-    labelSource: 'self' | 'external' | null;
+    labelSource: 'self' | 'external';
     authorName: string;
     authorHandle: string;
     authorAvatar: string;
@@ -167,7 +167,7 @@ export function PostContent({
                     cwText={cwText}
                     onReveal={revealCw}
                     isAuthorLevel={isAuthorLevel}
-                    labelSource={post.cw_label_source}
+                    labelSource={post.cw_label_source ?? 'self'}
                     authorName={post.author_name}
                     authorHandle={post.author_handle}
                     authorAvatar={post.author_avatar}

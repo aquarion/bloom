@@ -61,6 +61,7 @@ export interface Post {
     chip_mentions: Mention[];
     cw_text: string | null;
     cw_is_author_level: boolean;
+    /** Who applied the content warning. 'self' = author labelled their own content; 'external' = third-party labeller (Bluesky only); null = no CW (cw_text is also null). */
     cw_label_source: 'self' | 'external' | null;
     sensitive_media: boolean;
 }

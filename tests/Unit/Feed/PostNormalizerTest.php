@@ -1833,7 +1833,7 @@ it('maps bluesky gore label to Graphic media', function () {
         ->and($post['sensitive_media'])->toBeTrue();
 });
 
-it('maps unknown bluesky content label to Content warning generic fallback', function () {
+it('falls back to raw label value for unknown bluesky content labels', function () {
     $feedPost = [
         'post' => [
             'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
@@ -1846,8 +1846,72 @@ it('maps unknown bluesky content label to Content warning generic fallback', fun
 
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
-    expect($post['cw_text'])->toBe('Content warning')
+    expect($post['cw_text'])->toBe('custom-warning')
         ->and($post['sensitive_media'])->toBeFalse();
+});
+
+it('maps bluesky rude label to rude content', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'rude']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('rude content');
+});
+
+it('maps bluesky threat label to threatening content', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'threat']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('threatening content');
+});
+
+it('maps bluesky spam label to spam', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'spam']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('spam');
+});
+
+it('falls back to raw label value for unknown bluesky labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'custom-warning']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_text'])->toBe('custom-warning');
 });
 
 it('ignores AT Protocol system labels prefixed with ! and does not show a CW overlay', function () {
@@ -2262,4 +2326,127 @@ it('sets source_instance to null for bluesky posts', function () {
     $result = (new PostNormalizer)->fromBluesky($feedPost);
 
     expect($result['source_instance'])->toBeNull();
+});
+
+it('sets cw_label_source to self when author label src matches author did', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'did' => 'did:plc:authorabc',
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [['val' => 'porn', 'src' => 'did:plc:authorabc']],
+            ],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_label_source'])->toBe('self')
+        ->and($post['cw_is_author_level'])->toBeTrue();
+});
+
+it('sets cw_label_source to external when author label src does not match author did', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'did' => 'did:plc:authorabc',
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [['val' => 'rude', 'src' => 'did:plc:ar7c4by46qjdydhdevvrndac']],
+            ],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_label_source'])->toBe('external')
+        ->and($post['cw_is_author_level'])->toBeTrue();
+});
+
+it('sets cw_label_source to external when any author label has a different src', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'did' => 'did:plc:authorabc',
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [
+                    ['val' => 'porn', 'src' => 'did:plc:authorabc'],
+                    ['val' => 'rude', 'src' => 'did:plc:ar7c4by46qjdydhdevvrndac'],
+                ],
+            ],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_label_source'])->toBe('external');
+});
+
+it('sets cw_label_source to self when cw is post-level with self-applied label', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => [
+                'did' => 'did:plc:authorabc',
+                'displayName' => 'Alice',
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/av.jpg',
+                'labels' => [],
+            ],
+            'labels' => [['val' => 'gore', 'src' => 'did:plc:authorabc']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_label_source'])->toBe('self')
+        ->and($post['cw_is_author_level'])->toBeFalse();
+});
+
+it('sets cw_label_source to self for mastodon posts with spoiler_text', function () {
+    $status = [
+        'id' => '123',
+        'url' => 'https://mastodon.social/@alice/123',
+        'content' => '<p>hello</p>',
+        'spoiler_text' => 'CW: politics',
+        'created_at' => '2024-01-01T00:00:00.000Z',
+        'account' => [
+            'display_name' => 'Alice',
+            'acct' => 'alice@mastodon.social',
+            'avatar' => 'https://example.com/av.jpg',
+            'header' => null,
+            'emojis' => [],
+        ],
+        'media_attachments' => [],
+        'tags' => [],
+        'mentions' => [],
+        'reblog' => null,
+        'in_reply_to_id' => null,
+        'sensitive' => false,
+        'emojis' => [],
+        'card' => null,
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.social');
+
+    expect($post['cw_label_source'])->toBe('self');
 });

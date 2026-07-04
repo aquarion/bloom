@@ -64,8 +64,9 @@ class PostNormalizer
                 fn ($t) => mb_strtolower($t['name'] ?? '', 'UTF-8'),
                 $source['tags'] ?? []
             ))),
-            'cw_text' => isset($source['spoiler_text']) && $source['spoiler_text'] !== '' ? $source['spoiler_text'] : null,
+            'cw_text' => ($hasSpoilerText = isset($source['spoiler_text']) && $source['spoiler_text'] !== '') ? $source['spoiler_text'] : null,
             'cw_is_author_level' => false,
+            'cw_label_source' => $hasSpoilerText ? 'self' : null,
             'sensitive_media' => (bool) ($source['sensitive'] ?? false),
         ];
     }
@@ -131,6 +132,7 @@ class PostNormalizer
             'hashtags' => $hashtags,
             'cw_text' => $labelData['cw_text'],
             'cw_is_author_level' => $labelData['cw_is_author_level'],
+            'cw_label_source' => $labelData['cw_label_source'],
             'sensitive_media' => $labelData['sensitive_media'],
             'chip_mentions' => $mentionResult['chip_mentions'],
         ];
@@ -628,15 +630,30 @@ class PostNormalizer
         $graphicLabels = ['graphic-media', 'gore'];
         $mediaLabels = array_merge($adultLabels, $graphicLabels);
 
-        $resolveCwText = function (array $l) use ($adultLabels, $graphicLabels): ?string {
+        $moderationLabelMap = [
+            'rude' => 'rude content',
+            'threat' => 'threatening content',
+            'intolerant' => 'intolerant content',
+            'self-harm' => 'self-harm content',
+            'spam' => 'spam',
+            'impersonation' => 'impersonation',
+            'misleading' => 'misleading content',
+        ];
+
+        $resolveCwText = function (array $l) use ($adultLabels, $graphicLabels, $moderationLabelMap): ?string {
             if (array_intersect($l, $adultLabels)) {
                 return 'Adult content';
             }
             if (array_intersect($l, $graphicLabels)) {
                 return 'Graphic media';
             }
+            foreach ($l as $label) {
+                if (isset($moderationLabelMap[$label])) {
+                    return $moderationLabelMap[$label];
+                }
+            }
 
-            return ! empty($l) ? 'Content warning' : null;
+            return ! empty($l) ? $l[0] : null;
         };
 
         $cwText = $resolveCwText($labels);
@@ -644,9 +661,27 @@ class PostNormalizer
         // the CW exists only because the author's profile is labelled.
         $cwIsAuthorLevel = $cwText !== null && $resolveCwText($postLabels) === null;
 
+        $cwLabelSource = null;
+        if ($cwText !== null) {
+            $authorDid = $post['author']['did'] ?? null;
+            $cwLabelSource = 'self';
+            $labelsToCheck = $cwIsAuthorLevel ? ($post['author']['labels'] ?? []) : ($post['labels'] ?? []);
+            foreach ($labelsToCheck as $label) {
+                $val = $label['val'] ?? '';
+                if ($val === '' || str_starts_with($val, '!')) {
+                    continue;
+                }
+                if (($label['src'] ?? '') !== $authorDid) {
+                    $cwLabelSource = 'external';
+                    break;
+                }
+            }
+        }
+
         return [
             'cw_text' => $cwText,
             'cw_is_author_level' => $cwIsAuthorLevel,
+            'cw_label_source' => $cwLabelSource,
             'sensitive_media' => ! empty(array_intersect($labels, $mediaLabels)),
         ];
     }

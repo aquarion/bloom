@@ -82,6 +82,7 @@ const makePost = (overrides: Partial<Post> = {}): Post => ({
     chip_mentions: [],
     cw_text: null,
     cw_is_author_level: false,
+    cw_label_source: null,
     sensitive_media: false,
     ...overrides,
 });

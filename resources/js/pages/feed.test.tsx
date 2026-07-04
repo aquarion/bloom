@@ -23,7 +23,9 @@ vi.mock('gsap', () => ({
 vi.mock('@/components/feed/PostBackground', () => ({
     PostBackground: () => null,
 }));
-vi.mock('@/components/feed/PostContent', () => ({ PostContent: () => null }));
+vi.mock('@/components/feed/PostContent', () => ({
+    PostContent: vi.fn(() => null),
+}));
 vi.mock('@/components/feed/Attribution', () => ({ Attribution: () => null }));
 vi.mock('@/components/feed/SourceBadge', () => ({ SourceBadge: () => null }));
 vi.mock('@/components/feed/ProgressBar', () => ({ ProgressBar: () => null }));
@@ -76,6 +78,7 @@ const makePost = (id: string): Post => ({
     chip_mentions: [],
     cw_text: null,
     cw_is_author_level: false,
+    cw_label_source: null,
     sensitive_media: false,
 });
 
@@ -104,5 +107,22 @@ describe('Feed', () => {
         );
 
         expect(panel).toHaveAttribute('data-open', 'true');
+    });
+
+    it('pressing j fires handleAdvance unconditionally (keyboard nav is not gated on CW overlay state)', async () => {
+        const gsapModule = await import('gsap');
+        const { gsap } = gsapModule;
+        vi.mocked(gsap.timeline).mockClear();
+
+        render(
+            <Feed
+                {...defaultProps}
+                initialPosts={[makePost('1'), makePost('2')]}
+            />,
+        );
+
+        fireEvent.keyDown(window, { key: 'j' });
+
+        expect(gsap.timeline).toHaveBeenCalled();
     });
 });

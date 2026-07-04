@@ -268,7 +268,7 @@ it('sets cw_label_source to external when any author label has a different src',
     expect($post['cw_label_source'])->toBe('external');
 });
 
-it('sets cw_label_source to null when cw is post-level not author-level', function () {
+it('sets cw_label_source to self when cw is post-level with self-applied label', function () {
     $feedPost = [
         'post' => [
             'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
@@ -287,11 +287,11 @@ it('sets cw_label_source to null when cw is post-level not author-level', functi
 
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
-    expect($post['cw_label_source'])->toBeNull()
+    expect($post['cw_label_source'])->toBe('self')
         ->and($post['cw_is_author_level'])->toBeFalse();
 });
 
-it('sets cw_label_source to null for mastodon posts', function () {
+it('sets cw_label_source to self for mastodon posts with spoiler_text', function () {
     $status = [
         'id' => '123',
         'content' => '<p>hello</p>',
@@ -316,7 +316,7 @@ it('sets cw_label_source to null for mastodon posts', function () {
 
     $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.social');
 
-    expect($post['cw_label_source'])->toBeNull();
+    expect($post['cw_label_source'])->toBe('self');
 });
 ```
 

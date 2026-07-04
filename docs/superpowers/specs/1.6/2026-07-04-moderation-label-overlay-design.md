@@ -93,7 +93,14 @@ The existing `AuthorChip` component is reused as-is.
 
 `cwText` is lowercased for display (existing behaviour). The chip sits between the two lines in all cases.
 
-Post-level overlays (`isAuthorLevel: false`) are unchanged — no chip, no source phrasing.
+Post-level overlays (`isAuthorLevel: false`) show no author chip, but do use source-aware phrasing:
+
+| `labelSource` | Text |
+|---|---|
+| `self` | "The author marked this post as {cwText}" |
+| `external` | "This post has been labelled as {cwText}" |
+
+`cwText` is lowercased for display. `cw_label_source` is computed for post-level Bluesky labels the same way as author-level (comparing `src` to `author.did`). Mastodon `spoiler_text` is always `'self'`.
 
 ---
 
@@ -122,7 +129,7 @@ Both post-level and author-level CW overlays currently block the `j` (advance) a
 | Author-level CW | Advance normally | Go back |
 | No overlay | Advance normally | Go back |
 
-Neither overlay should block keyboard navigation. Auto-advance timer behaviour is unchanged (post-level CW already suppresses `onReady` which keeps the timer paused; that stays as-is).
+Neither overlay should block keyboard navigation. Auto-advance timer behaviour: both overlay types allow auto-advance to run — post-level CWs no longer suppress `onReady`. The overlay blurs the post and a reveal button is shown, but the feed advances on its own timer regardless.
 
 ### Fix approach
 

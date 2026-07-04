@@ -1,7 +1,6 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { PostContent } from '@/components/feed/PostContent';
 import type { Post } from '@/types/post';
 import Feed from './feed';
 
@@ -110,23 +109,10 @@ describe('Feed', () => {
         expect(panel).toHaveAttribute('data-open', 'true');
     });
 
-    it('pressing j fires handleAdvance even when a CW overlay is active', async () => {
+    it('pressing j fires handleAdvance unconditionally (keyboard nav is not gated on CW overlay state)', async () => {
         const gsapModule = await import('gsap');
         const { gsap } = gsapModule;
         vi.mocked(gsap.timeline).mockClear();
-
-        let cwActiveCallback: ((active: boolean) => void) | undefined;
-        vi.mocked(PostContent).mockImplementation(
-            ({
-                onCwOverlayActive,
-            }: {
-                onCwOverlayActive?: (active: boolean) => void;
-            }) => {
-                cwActiveCallback = onCwOverlayActive;
-
-                return (<></>) as unknown as ReturnType<typeof PostContent>;
-            },
-        );
 
         render(
             <Feed
@@ -134,8 +120,6 @@ describe('Feed', () => {
                 initialPosts={[makePost('1'), makePost('2')]}
             />,
         );
-
-        act(() => cwActiveCallback?.(true));
 
         fireEvent.keyDown(window, { key: 'j' });
 

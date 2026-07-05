@@ -3,7 +3,7 @@ title: Privacy Policy
 last_updated: "2026-07-05"
 ---
 
-Bloom is operated by **Istic Networks Ltd.**, registered in England and Wales. Contact: [hello@istic.net](mailto:hello@istic.net) · [istic.co](https://istic.co).
+Bloom is operated by **[Istic Networks Ltd.](https://istic.co)**, registered in England and Wales. Contact: [hello@istic.net](mailto:hello@istic.net) · [istic.co](https://istic.co).
 
 ## 1. Data we collect
 

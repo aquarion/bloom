@@ -29,4 +29,4 @@ Cookies are small text files stored by your browser. Bloom uses them to keep you
 
 You can delete or block cookies via your browser settings. Disabling the session cookie will prevent sign-in.
 
-To opt out of Matomo analytics tracking, visit the [Matomo opt-out page](https://stat.istic.net/index.php?module=CoreAdminHome&action=optOut).
+To opt out of Istic's Matomo analytics tracking, visit our [opt-out page](https://stat.istic.net/index.php?module=CoreAdminHome&action=optOut).

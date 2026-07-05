@@ -1,4 +1,4 @@
-import { Form, Head, useForm, usePage } from '@inertiajs/react';
+import { Form, Head, Link, useForm, usePage } from '@inertiajs/react';
 import BetaTesterController from '@/actions/App/Http/Controllers/Settings/BetaTesterController';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import SettingsPageLayout from '@/layouts/settings-page-layout';
+import docs from '@/routes/docs';
 import { edit } from '@/routes/profile';
 
 export default function Profile({ status }: { status?: string }) {
@@ -125,7 +126,13 @@ export default function Profile({ status }: { status?: string }) {
                                 data-test="beta-tester-checkbox"
                             />
                             <Label htmlFor="beta_tester">
-                                Enable beta features
+                                Enable{' '}
+                                <Link
+                                    href={docs.show('changelog')}
+                                    className="underline"
+                                >
+                                    beta features
+                                </Link>
                             </Label>
                             <Button
                                 type="submit"

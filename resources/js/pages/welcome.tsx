@@ -12,6 +12,7 @@ import { useAutoAdvance } from '@/hooks/useAutoAdvance';
 import { useWelcomeQueue } from '@/hooks/useWelcomeQueue';
 import { trackEvent } from '@/lib/matomo';
 import { login, register } from '@/routes';
+import { show as docsShow } from '@/routes/docs';
 import type { Post } from '@/types/post';
 
 export default function Welcome({
@@ -188,6 +189,20 @@ export default function Welcome({
                         </div>
                     </div>
 
+                    <div className="pointer-events-auto flex justify-center gap-4 pb-2 text-white/40 text-xs">
+                        <Link
+                            href={docsShow('privacy')}
+                            className="hover:text-white/60"
+                        >
+                            Privacy Policy
+                        </Link>
+                        <Link
+                            href={docsShow('cookies')}
+                            className="hover:text-white/60"
+                        >
+                            Cookie Policy
+                        </Link>
+                    </div>
                     <ProgressBar progress={progress} />
                 </div>
             </div>

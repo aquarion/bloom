@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\PasskeyAuthController;
 use App\Http\Controllers\Auth\PasskeyRecoveryController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocsController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +46,8 @@ Route::get('site.webmanifest', function () {
         'display' => 'standalone',
     ])->header('Content-Type', 'application/manifest+json');
 })->name('manifest.webmanifest');
+
+Route::get('docs/{slug}', [DocsController::class, 'show'])->name('docs.show');
 
 Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');

@@ -26,10 +26,18 @@ import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { feed, logout } from '@/routes';
 import { edit as appearanceEdit } from '@/routes/appearance';
 import { edit as connectionsEdit } from '@/routes/connections';
+import { show as docsShow } from '@/routes/docs';
 import { edit as feedSettingsEdit } from '@/routes/feed/settings';
 import { edit as profileEdit } from '@/routes/profile';
 import { edit as securityEdit } from '@/routes/security';
 import type { NavItem } from '@/types';
+
+const docsNavLinks = [
+    { title: 'Privacy Policy', slug: 'privacy' },
+    { title: 'Cookie Policy', slug: 'cookies' },
+    { title: 'Changelog', slug: 'changelog' },
+    { title: 'Legal Changes', slug: 'legal-changes' },
+] as const;
 
 const footerNavItems: NavItem[] = [
     {
@@ -131,6 +139,20 @@ export function AppSidebarContents() {
                         )}
                     </div>
                 )}
+                <SidebarMenu className="group-data-[collapsible=icon]:hidden">
+                    {docsNavLinks.map(({ title, slug }) => (
+                        <SidebarMenuItem key={slug}>
+                            <SidebarMenuButton asChild size="sm">
+                                <Link
+                                    href={docsShow(slug)}
+                                    className="text-neutral-500 text-xs dark:text-neutral-400"
+                                >
+                                    <span>{title}</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    ))}
+                </SidebarMenu>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild>

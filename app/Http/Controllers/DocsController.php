@@ -28,7 +28,10 @@ class DocsController extends Controller
 
         $markdown = File::get($path);
 
-        $environment = new Environment;
+        $environment = new Environment([
+            'html_input' => 'strip',
+            'allow_unsafe_links' => false,
+        ]);
         $environment->addExtension(new CommonMarkCoreExtension);
         $environment->addExtension(new FrontMatterExtension);
         $environment->addExtension(new TableExtension);

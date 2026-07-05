@@ -1,14 +1,15 @@
 <?php
 
 it('renders a document by slug', function () {
-    $path = resource_path('docs/test-document.md');
+    $slug = 'test-'.str_replace('.', '', uniqid());
+    $path = resource_path("docs/{$slug}.md");
     if (! is_dir(dirname($path))) {
         mkdir(dirname($path), 0755, true);
     }
     file_put_contents($path, "---\ntitle: Test Document\nlast_updated: \"2026-07-05\"\n---\n\n## Hello\n\nThis is a test.");
 
     try {
-        $this->withoutVite()->get('/docs/test-document')
+        $this->withoutVite()->get("/docs/{$slug}")
             ->assertInertia(fn ($page) => $page
                 ->component('docs/show', false)
                 ->where('title', 'Test Document')
@@ -33,14 +34,15 @@ it('returns 404 for a slug with underscores', function () {
 });
 
 it('includes rendered html in content prop', function () {
-    $path = resource_path('docs/html-test.md');
+    $slug = 'html-'.str_replace('.', '', uniqid());
+    $path = resource_path("docs/{$slug}.md");
     if (! is_dir(dirname($path))) {
         mkdir(dirname($path), 0755, true);
     }
     file_put_contents($path, "---\ntitle: HTML Test\n---\n\n## Section\n\nParagraph text.");
 
     try {
-        $this->withoutVite()->get('/docs/html-test')
+        $this->withoutVite()->get("/docs/{$slug}")
             ->assertInertia(fn ($page) => $page
                 ->where('content', fn ($content) => str_contains($content, '<h2>') && str_contains($content, '<p>'))
             );

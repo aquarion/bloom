@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use League\CommonMark\Environment\Environment;
+use League\CommonMark\Exception\CommonMarkException;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
 use League\CommonMark\Extension\FrontMatter\FrontMatterExtension;
 use League\CommonMark\Extension\FrontMatter\Output\RenderedContentWithFrontMatter;
@@ -26,7 +28,12 @@ class DocsController extends Controller
             abort(404);
         }
 
-        $markdown = File::get($path);
+        try {
+            $markdown = File::get($path);
+        } catch (\Exception $e) {
+            Log::error('Failed to read documentation file', ['slug' => $slug, 'error' => $e->getMessage()]);
+            abort(500);
+        }
 
         $environment = new Environment([
             'html_input' => 'strip',
@@ -36,11 +43,22 @@ class DocsController extends Controller
         $environment->addExtension(new FrontMatterExtension);
         $environment->addExtension(new TableExtension);
         $converter = new MarkdownConverter($environment);
-        $result = $converter->convert($markdown);
+
+        try {
+            $result = $converter->convert($markdown);
+        } catch (CommonMarkException $e) {
+            Log::error('Failed to parse documentation file', ['slug' => $slug, 'error' => $e->getMessage()]);
+            abort(500);
+        }
 
         $frontMatter = $result instanceof RenderedContentWithFrontMatter
             ? $result->getFrontMatter()
             : [];
+
+        if (! is_array($frontMatter)) {
+            Log::warning('Documentation file has non-array frontmatter', ['slug' => $slug, 'type' => gettype($frontMatter)]);
+            $frontMatter = [];
+        }
 
         return Inertia::render('docs/show', [
             'title' => $frontMatter['title'] ?? ucwords(str_replace('-', ' ', $slug)),

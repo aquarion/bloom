@@ -9,7 +9,10 @@ use League\CommonMark\MarkdownConverter;
 
 function makeConverter(): MarkdownConverter
 {
-    $environment = new Environment;
+    $environment = new Environment([
+        'html_input' => 'strip',
+        'allow_unsafe_links' => false,
+    ]);
     $environment->addExtension(new CommonMarkCoreExtension);
     $environment->addExtension(new FrontMatterExtension);
     $environment->addExtension(new TableExtension);
@@ -29,4 +32,15 @@ it('renders markdown tables to html', function () {
     $result = makeConverter()->convert("| A | B |\n|---|---|\n| 1 | 2 |");
 
     expect((string) $result)->toContain('<table>')->toContain('<th>A</th>')->toContain('<td>1</td>');
+});
+
+it('strips raw html from rendered output', function () {
+    $result = makeConverter()->convert("## Title\n\n<script>alert('xss')</script>\n\nParagraph.");
+
+    expect((string) $result)->not->toContain('<script>')->toContain('<h2>Title</h2>');
+});
+
+it('throws for malformed yaml frontmatter', function () {
+    expect(fn () => makeConverter()->convert("---\n\tindented: with tab\n---\n\nContent."))
+        ->toThrow(RuntimeException::class, 'Failed to parse front matter');
 });

@@ -287,16 +287,16 @@ class FeedAggregator
         $cutoff = now()->subDays($maxAgeDays);
 
         return array_values(array_filter($posts, function (array $post) use ($cutoff) {
-            if (($post['boosted_by'] ?? null) !== null) {
-                return true;
-            }
+            $isBoosted = ($post['boosted_by'] ?? null) !== null;
+            $dateToCheck = $isBoosted
+                ? ($post['boosted_by_created_at'] ?? $post['created_at'] ?? null)
+                : ($post['created_at'] ?? null);
 
-            $createdAt = $post['created_at'] ?? null;
-            if ($createdAt === null) {
+            if ($dateToCheck === null) {
                 return false;
             }
 
-            return Carbon::parse($createdAt)->gte($cutoff);
+            return Carbon::parse($dateToCheck)->gte($cutoff);
         }));
     }
 

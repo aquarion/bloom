@@ -1,0 +1,14 @@
+name: "[Auto] Merge Dependabot Updates"
+
+on:
+  pull_request:
+    branches: [dependabot-updates]
+
+permissions: {}
+
+jobs:
+  automerge:
+    uses: istic/shared-workflows/.github/workflows/auto-merge-dependabot.yml@main
+    permissions:
+      pull-requests: write
+      contents: write

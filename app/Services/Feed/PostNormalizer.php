@@ -55,6 +55,7 @@ class PostNormalizer
             'link_favicon' => $this->faviconUrl($linkUrl),
             'reply_to' => $this->mastodonReplyTo($parentStatus, $host, $mentionsEnabled),
             'quoted_post' => $this->mastodonQuotedPost($source, $host, $quoteStatus, $mentionsEnabled),
+            'poll' => $this->normalizeMastodonPoll($source),
             'boosted_by' => $booster,
             'boosted_by_avatar' => $boosterAccount ? $this->safeUrl($boosterAccount['avatar'] ?? '') : null,
             'boosted_by_handle' => $boosterAccount ? '@'.$boosterAccount['acct'] : null,
@@ -226,6 +227,32 @@ class PostNormalizer
             'original_url' => $this->safeUrl($raw['url'] ?? ''),
             ...$this->buildNestedMastodonBody($raw['content'] ?? '', $raw['mentions'] ?? [], $mentionsEnabled),
             'created_at' => $raw['created_at'] ?? null,
+        ];
+    }
+
+    private function normalizeMastodonPoll(array $source): ?array
+    {
+        $poll = $source['poll'] ?? null;
+
+        if ($poll === null) {
+            return null;
+        }
+
+        return [
+            'id' => $poll['id'],
+            'expires_at' => $poll['expires_at'],
+            'expired' => (bool) $poll['expired'],
+            'multiple' => (bool) $poll['multiple'],
+            'votes_count' => $poll['votes_count'],
+            'options' => array_map(
+                fn (array $opt) => [
+                    'title' => $opt['title'],
+                    'votes_count' => $opt['votes_count'],
+                ],
+                $poll['options'],
+            ),
+            'voted' => (bool) ($poll['voted'] ?? false),
+            'own_votes' => $poll['own_votes'] ?? [],
         ];
     }
 

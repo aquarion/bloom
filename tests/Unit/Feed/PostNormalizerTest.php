@@ -2450,3 +2450,120 @@ it('sets cw_label_source to self for mastodon posts with spoiler_text', function
 
     expect($post['cw_label_source'])->toBe('self');
 });
+
+it('normalises a mastodon poll', function () {
+    $status = [
+        'id' => '555',
+        'content' => '<p>Best editor?</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/555',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '12345',
+            'expires_at' => '2024-01-16T10:00:00.000Z',
+            'expired' => false,
+            'multiple' => false,
+            'votes_count' => 30,
+            'options' => [
+                ['title' => 'Vim', 'votes_count' => 20],
+                ['title' => 'Emacs', 'votes_count' => 10],
+            ],
+            'voted' => false,
+            'own_votes' => [],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll'])->toBe([
+        'id' => '12345',
+        'expires_at' => '2024-01-16T10:00:00.000Z',
+        'expired' => false,
+        'multiple' => false,
+        'votes_count' => 30,
+        'options' => [
+            ['title' => 'Vim', 'votes_count' => 20],
+            ['title' => 'Emacs', 'votes_count' => 10],
+        ],
+        'voted' => false,
+        'own_votes' => [],
+    ]);
+});
+
+it('sets poll to null when a mastodon status has no poll', function () {
+    $status = [
+        'id' => '556',
+        'content' => '<p>No poll here</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/556',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll'])->toBeNull();
+});
+
+it('normalises an expired multiple-choice mastodon poll with own votes', function () {
+    $status = [
+        'id' => '557',
+        'content' => '<p>Pick your toppings</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/557',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '999',
+            'expires_at' => '2024-01-14T10:00:00.000Z',
+            'expired' => true,
+            'multiple' => true,
+            'votes_count' => 5,
+            'options' => [
+                ['title' => 'Cheese', 'votes_count' => 3],
+                ['title' => 'Pepperoni', 'votes_count' => 2],
+            ],
+            'voted' => true,
+            'own_votes' => [0, 1],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll']['expired'])->toBeTrue()
+        ->and($post['poll']['multiple'])->toBeTrue()
+        ->and($post['poll']['voted'])->toBeTrue()
+        ->and($post['poll']['own_votes'])->toBe([0, 1]);
+});
+
+it('sets poll to null for a bluesky post', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => [
+                'text' => 'hello bluesky',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+            ],
+            'author' => [
+                'did' => 'did:plc:abc',
+                'handle' => 'user.bsky.social',
+                'displayName' => 'Test User',
+                'avatar' => 'https://example.com/avatar.jpg',
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post)->not->toHaveKey('poll');
+});

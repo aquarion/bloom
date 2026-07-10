@@ -98,6 +98,8 @@ jobs:
             type=sha
             type=raw,value=latest,enable=${{ inputs.tag != '' || startsWith(github.ref, 'refs/tags/v') }}
             type=raw,value=staging,enable=${{ github.event_name == 'pull_request' }}
+          labels: |
+            org.opencontainers.image.description=${{ github.event_name == 'pull_request' && format('Staging build for PR #{0}: {1}', github.event.pull_request.number, github.event.pull_request.html_url) || format('Production build {0}', inputs.tag || github.ref_name) }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4

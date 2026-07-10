@@ -191,15 +191,16 @@ it('passes reply_to to normalizer for a reblogged reply', function () {
     ]);
 
     $parentUrl = 'https://fosstodon.org/@original/100';
+    $recentDate = now()->subDays(2)->toIso8601String();
     $reblog = [
         'id' => '300',
-        'created_at' => '2026-06-01T12:00:00.000Z',
+        'created_at' => $recentDate,
         'in_reply_to_id' => null,
         'account' => ['acct' => 'booster', 'display_name' => 'Booster', 'avatar' => 'https://fosstodon.org/booster.png', 'emojis' => []],
         'reblog' => [
             'id' => '200',
             'in_reply_to_id' => '100',
-            'created_at' => '2026-06-01T10:00:00.000Z',
+            'created_at' => $recentDate,
             'url' => 'https://fosstodon.org/@author/200',
             'content' => '<p>reply that got boosted</p>',
             'account' => ['acct' => 'author', 'display_name' => 'Author', 'avatar' => 'https://fosstodon.org/author.png', 'header' => '', 'emojis' => []],
@@ -216,7 +217,7 @@ it('passes reply_to to normalizer for a reblogged reply', function () {
         'id' => '100',
         'content' => '<p>original post</p>',
         'url' => $parentUrl,
-        'created_at' => '2026-06-01T09:00:00.000Z',
+        'created_at' => $recentDate,
         'account' => [
             'display_name' => 'Original Author',
             'acct' => 'original',
@@ -254,13 +255,15 @@ it('deduplicates posts with the same original_url, keeping the newest boost', fu
 
     // Two boosts of the same post — same original_url, different boost times
     $sharedUrl = 'https://fosstodon.org/@charlie/123';
+    $newerBoostTime = now()->subMinutes(5)->toIso8601String();
+    $olderBoostTime = now()->subMinutes(10)->toIso8601String();
     $newerBoost = [
         'id' => '200',
-        'created_at' => '2026-06-02T12:00:00.000Z',
+        'created_at' => $newerBoostTime,
         'in_reply_to_id' => null,
         'reblog' => [
             'id' => '123',
-            'created_at' => '2026-06-01T10:00:00.000Z',
+            'created_at' => now()->subDays(3)->toIso8601String(),
             'url' => $sharedUrl,
             'content' => '<p>original</p>',
             'account' => ['acct' => 'charlie', 'display_name' => 'Charlie', 'avatar' => 'https://fosstodon.org/avatar.png', 'header' => '', 'emojis' => []],
@@ -274,7 +277,7 @@ it('deduplicates posts with the same original_url, keeping the newest boost', fu
     ];
     $olderBoost = array_merge($newerBoost, [
         'id' => '201',
-        'created_at' => '2026-06-02T11:00:00.000Z',
+        'created_at' => $olderBoostTime,
         'account' => ['acct' => 'bob', 'display_name' => 'Bob', 'avatar' => 'https://fosstodon.org/bob.png', 'emojis' => []],
     ]);
 
@@ -360,7 +363,7 @@ it('filters posts older than max_age_days when not boosted', function () {
         ->and($result['posts'][0]['id'])->toBe('mastodon_new');
 });
 
-it('keeps boosted posts regardless of age', function () {
+it('keeps boosted post when boost event is recent even if original post is old', function () {
     $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 7]]);
     $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
@@ -404,6 +407,141 @@ it('keeps boosted posts regardless of age', function () {
 
     expect($result['posts'])->toHaveCount(1)
         ->and($result['posts'][0]['boosted_by'])->toBe('Booster');
+});
+
+it('filters boosted post when boost event is older than max_age_days', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 7]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $oldDate = now()->subDays(10)->toIso8601String();
+
+    $boostedOldStatus = [
+        'id' => '200',
+        'created_at' => $oldDate, // boost event is old
+        'in_reply_to_id' => null,
+        'account' => ['display_name' => 'Booster', 'acct' => 'booster', 'avatar' => 'https://fosstodon.org/booster.png', 'emojis' => []],
+        'reblog' => [
+            'id' => '100',
+            'created_at' => $oldDate, // original post is also old
+            'in_reply_to_id' => null,
+            'url' => 'https://fosstodon.org/@author/100',
+            'content' => '<p>old boosted post</p>',
+            'spoiler_text' => '',
+            'sensitive' => false,
+            'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+            'media_attachments' => [],
+            'emojis' => [],
+            'card' => null,
+            'quote' => null,
+            'quote_id' => null,
+            'tags' => [],
+        ],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$boostedOldStatus]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(0);
+});
+
+it('keeps boosted post when boosted_by_created_at is null and post is recent', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 7]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $recentDate = now()->subDays(2)->toIso8601String();
+
+    // Outer status intentionally has no created_at → boosted_by_created_at will be null
+    $boostedStatus = [
+        'id' => '300',
+        'in_reply_to_id' => null,
+        'account' => ['display_name' => 'Booster', 'acct' => 'booster', 'avatar' => 'https://fosstodon.org/booster.png', 'emojis' => []],
+        'reblog' => [
+            'id' => '150',
+            'created_at' => $recentDate,
+            'in_reply_to_id' => null,
+            'url' => 'https://fosstodon.org/@author/150',
+            'content' => '<p>recent post boosted without timestamp</p>',
+            'spoiler_text' => '',
+            'sensitive' => false,
+            'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+            'media_attachments' => [],
+            'emojis' => [],
+            'card' => null,
+            'quote' => null,
+            'quote_id' => null,
+            'tags' => [],
+        ],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$boostedStatus]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1);
+});
+
+it('filters boosted post when boosted_by_created_at is null and post is old', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 7]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $oldDate = now()->subDays(10)->toIso8601String();
+
+    // Outer status intentionally has no created_at → boosted_by_created_at will be null
+    $boostedStatus = [
+        'id' => '400',
+        'in_reply_to_id' => null,
+        'account' => ['display_name' => 'Booster', 'acct' => 'booster', 'avatar' => 'https://fosstodon.org/booster.png', 'emojis' => []],
+        'reblog' => [
+            'id' => '200',
+            'created_at' => $oldDate,
+            'in_reply_to_id' => null,
+            'url' => 'https://fosstodon.org/@author/200',
+            'content' => '<p>old post boosted without timestamp</p>',
+            'spoiler_text' => '',
+            'sensitive' => false,
+            'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+            'media_attachments' => [],
+            'emojis' => [],
+            'card' => null,
+            'quote' => null,
+            'quote_id' => null,
+            'tags' => [],
+        ],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$boostedStatus]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(0);
 });
 
 it('uses per-account max_age_days override when set, ignoring user preference', function () {

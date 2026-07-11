@@ -33,20 +33,20 @@ export interface QuotedPost {
 }
 
 export interface PollOption {
-    title: string;
+    readonly title: string;
     /** Null if per-option vote counts are hidden until the poll closes. */
-    votes_count: number | null;
+    readonly votes_count: number | null;
 }
 
 export interface Poll {
-    id: string;
-    expires_at: string | null;
-    expired: boolean;
-    multiple: boolean;
-    votes_count: number;
-    options: PollOption[];
-    voted: boolean;
-    own_votes: number[];
+    readonly id: string;
+    readonly expires_at: string | null;
+    readonly expired: boolean;
+    readonly multiple: boolean;
+    readonly votes_count: number;
+    readonly options: readonly PollOption[];
+    readonly voted: boolean;
+    readonly own_votes: readonly number[];
 }
 
 export interface Post {

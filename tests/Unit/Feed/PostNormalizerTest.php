@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Feed\PostNormalizer;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -2728,4 +2729,60 @@ it('does not throw when a mastodon poll options payload is malformed (non-array 
     expect($post['poll']['options'])->toBe([
         ['title' => 'Valid', 'votes_count' => 2],
     ]);
+});
+
+it('logs a warning when a mastodon poll payload has non-array options', function () {
+    Log::shouldReceive('warning')
+        ->once()
+        ->with('Mastodon poll payload has non-array options', Mockery::on(function (array $context) {
+            return $context['poll_id'] === '444' && $context['options_type'] === 'string';
+        }));
+
+    $status = [
+        'id' => '564',
+        'content' => '<p>Options is a string</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/564',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '444',
+            'options' => 'not-an-array',
+        ],
+    ];
+
+    (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+});
+
+it('logs a warning for each non-array entry in a mastodon poll options list', function () {
+    Log::shouldReceive('warning')
+        ->twice()
+        ->with('Mastodon poll option entry is not an array', Mockery::on(function (array $context) {
+            return $context['poll_id'] === '555' && in_array($context['entry_type'], ['string', 'null'], true);
+        }));
+
+    $status = [
+        'id' => '565',
+        'content' => '<p>Options has non-array entries</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/565',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '555',
+            'options' => [
+                ['title' => 'Valid', 'votes_count' => 2],
+                'not-an-array-entry',
+                null,
+            ],
+        ],
+    ];
+
+    (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 });

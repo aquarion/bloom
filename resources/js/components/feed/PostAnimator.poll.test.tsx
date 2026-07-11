@@ -144,4 +144,33 @@ describe('PostAnimator — poll rendering', () => {
 
         expect(onReady).toHaveBeenCalled();
     });
+
+    it('renders poll results alongside a reply context panel and a link card in the same panel stack', () => {
+        render(
+            <PostAnimator
+                post={{
+                    ...basePost,
+                    poll,
+                    link_url: 'https://example.com/article',
+                    link_title: 'An article',
+                    link_favicon: null,
+                    reply_to: {
+                        author_name: 'Reply Author',
+                        author_handle: '@reply@mastodon.example',
+                        author_avatar: '',
+                        original_url: 'https://mastodon.example/@reply/1',
+                        body: 'This is the parent post',
+                        created_at: new Date().toISOString(),
+                        chip_mentions: [],
+                    },
+                }}
+                colors={null}
+            />,
+        );
+
+        expect(screen.getByText('Yes')).toBeInTheDocument();
+        expect(screen.getByText('No')).toBeInTheDocument();
+        expect(screen.getByText('This is the parent post')).toBeInTheDocument();
+        expect(screen.getByText('An article')).toBeInTheDocument();
+    });
 });

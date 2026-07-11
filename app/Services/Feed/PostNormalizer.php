@@ -2,6 +2,8 @@
 
 namespace App\Services\Feed;
 
+use Illuminate\Support\Facades\Log;
+
 class PostNormalizer
 {
     private MentionClassifier $mentionClassifier;
@@ -230,6 +232,9 @@ class PostNormalizer
         ];
     }
 
+    /**
+     * @return array{id: string, expires_at: ?string, expired: bool, multiple: bool, votes_count: int, options: array<int, array{title: string, votes_count: ?int}>, voted: bool, own_votes: array<int, int>}|null
+     */
     private function normalizeMastodonPoll(array $source): ?array
     {
         $poll = $source['poll'] ?? null;
@@ -241,16 +246,37 @@ class PostNormalizer
         // options may be entirely absent, non-array, or contain non-array entries on a
         // malformed/federated payload — filter defensively so a bad shape degrades to an
         // empty/partial list instead of throwing a TypeError out of array_map's typed closure.
+        // Malformed entries are dropped (not placeholder-filled), matching the
+        // FeedAggregator::dedupe() convention of logging and skipping rather than
+        // silently substituting values that could look like real data.
         $rawOptions = $poll['options'] ?? [];
-        $options = is_array($rawOptions)
-            ? array_values(array_filter(array_map(
-                fn ($opt) => is_array($opt) ? [
+
+        if (! is_array($rawOptions)) {
+            Log::warning('Mastodon poll payload has non-array options', [
+                'poll_id' => $poll['id'] ?? 'unknown',
+                'options_type' => get_debug_type($rawOptions),
+            ]);
+            $rawOptions = [];
+        }
+
+        $options = array_values(array_filter(array_map(
+            function ($opt) use ($poll) {
+                if (! is_array($opt)) {
+                    Log::warning('Mastodon poll option entry is not an array', [
+                        'poll_id' => $poll['id'] ?? 'unknown',
+                        'entry_type' => get_debug_type($opt),
+                    ]);
+
+                    return null;
+                }
+
+                return [
                     'title' => $opt['title'] ?? '',
                     'votes_count' => array_key_exists('votes_count', $opt) ? $opt['votes_count'] : 0,
-                ] : null,
-                $rawOptions,
-            )))
-            : [];
+                ];
+            },
+            $rawOptions,
+        )));
 
         return [
             // 'id' is typed as a required string on the frontend Poll type — default to

@@ -146,4 +146,25 @@ describe('PollResults', () => {
         expect(link).toHaveAttribute('target', '_blank');
         expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });
+
+    it('renders a fresh poll with zero votes without NaN or a crash', () => {
+        const fresh: Poll = {
+            ...basePoll,
+            votes_count: 0,
+            options: [
+                { title: 'Vim', votes_count: 0 },
+                { title: 'Emacs', votes_count: 0 },
+            ],
+        };
+        render(
+            <PollResults
+                poll={fresh}
+                originalUrl="https://example.com/post/1"
+            />,
+        );
+
+        expect(screen.getByText(/0 votes total/)).toBeInTheDocument();
+        expect(screen.getAllByText(/0 votes \(0%\)/)).toHaveLength(2);
+        expect(screen.queryByText(/NaN/)).not.toBeInTheDocument();
+    });
 });

@@ -32,6 +32,22 @@ export interface QuotedPost {
     chip_mentions: Mention[];
 }
 
+export interface PollOption {
+    title: string;
+    votes_count: number | null;
+}
+
+export interface Poll {
+    id: string;
+    expires_at: string | null;
+    expired: boolean;
+    multiple: boolean;
+    votes_count: number;
+    options: PollOption[];
+    voted: boolean;
+    own_votes: number[];
+}
+
 export interface Post {
     id: string;
     source: 'mastodon' | 'bluesky';
@@ -64,6 +80,7 @@ export interface Post {
     /** Who applied the content warning. 'self' = author labelled their own content; 'external' = third-party labeller (Bluesky only); null = no CW (cw_text is also null). */
     cw_label_source: 'self' | 'external' | null;
     sensitive_media: boolean;
+    poll?: Poll;
 }
 
 export interface FeedResponse {

@@ -362,7 +362,7 @@ export function PostAnimator({
     useGSAP(() => {
         if (
             body ||
-            !(post.reply_to || post.quoted_post) ||
+            !(post.reply_to || post.quoted_post || post.poll) ||
             post.media.length > 0
         ) {
             return;
@@ -387,7 +387,7 @@ export function PostAnimator({
         );
 
         return () => tween.kill();
-    }, [post.id, body, post.media.length]);
+    }, [post.id, body, post.poll, post.media.length]);
 
     // Image posts: centered card matching text post layout
     if (post.media.length > 0) {

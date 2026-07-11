@@ -3,6 +3,39 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Post } from '@/types/post';
 import { PostAnimator } from './PostAnimator';
 
+// Mock GSAP so the "fade panels in" effect runs its callback synchronously,
+// mirroring the approach used in PostAnimator.test.tsx.
+vi.mock('gsap', () => ({
+    gsap: {
+        registerPlugin: vi.fn(),
+        timeline: vi.fn(() => ({
+            to: vi.fn().mockReturnThis(),
+            fromTo: vi.fn().mockReturnThis(),
+            kill: vi.fn(),
+        })),
+        set: vi.fn(),
+        fromTo: vi.fn((_target, _from, to) => {
+            to.onComplete?.();
+
+            return { kill: vi.fn() };
+        }),
+    },
+}));
+
+vi.mock('@gsap/react', () => ({
+    useGSAP: (callback: () => void | (() => void)) => {
+        callback();
+    },
+}));
+
+vi.mock('@/lib/animations', () => ({
+    pickTemplate: vi.fn(() => vi.fn()),
+    SplitText: class {
+        words: unknown[] = [];
+        revert() {}
+    },
+}));
+
 const basePost: Post = {
     id: 'p1',
     source: 'mastodon',
@@ -96,5 +129,19 @@ describe('PostAnimator — poll rendering', () => {
         );
 
         expect(container.firstChild).toBeNull();
+    });
+
+    it('calls onReady for a poll-only post', () => {
+        const onReady = vi.fn();
+
+        render(
+            <PostAnimator
+                post={{ ...basePost, poll }}
+                colors={null}
+                onReady={onReady}
+            />,
+        );
+
+        expect(onReady).toHaveBeenCalled();
     });
 });

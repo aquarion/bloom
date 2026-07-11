@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 ############################################################################
 ##### Pre-commit gate: blocks staged React Doctor regressions

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import type { Post } from '@/types/post';
 import { AuthorChip } from './AuthorChip';
 
-function timeSince(dateStr: string): string {
+export function timeSince(dateStr: string): string {
     const seconds = Math.floor(
         (Date.now() - new Date(dateStr).getTime()) / 1000,
     );

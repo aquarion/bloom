@@ -2626,3 +2626,35 @@ it('gracefully degrades a mastodon poll payload missing options entirely', funct
 
     expect($post['poll']['options'])->toBe([]);
 });
+
+it('preserves an explicit null votes_count for hidden per-option poll results', function () {
+    $status = [
+        'id' => '560',
+        'content' => '<p>Pick one</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/560',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '333',
+            'expires_at' => '2024-01-16T10:00:00.000Z',
+            'expired' => false,
+            'multiple' => true,
+            'votes_count' => 4,
+            'options' => [
+                ['title' => 'Vim', 'votes_count' => null],
+                ['title' => 'Emacs', 'votes_count' => 4],
+            ],
+            'voted' => false,
+            'own_votes' => [],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll']['options'][0]['votes_count'])->toBeNull()
+        ->and($post['poll']['options'][1]['votes_count'])->toBe(4);
+});

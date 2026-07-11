@@ -245,9 +245,13 @@ class PostNormalizer
             'multiple' => (bool) ($poll['multiple'] ?? false),
             'votes_count' => $poll['votes_count'] ?? 0,
             'options' => array_map(
+                // array_key_exists (not ??) — Mastodon sends an explicit `null` for
+                // options in an open multiple-choice poll before it closes to hide
+                // per-option counts, and that null must survive to the frontend's
+                // "votes hidden" UI. `?? 0` would collapse it to a fake zero-vote count.
                 fn (array $opt) => [
                     'title' => $opt['title'] ?? '',
-                    'votes_count' => $opt['votes_count'] ?? 0,
+                    'votes_count' => array_key_exists('votes_count', $opt) ? $opt['votes_count'] : 0,
                 ],
                 $poll['options'] ?? [],
             ),

@@ -2,6 +2,8 @@
 
 namespace App\Services\Feed;
 
+use Illuminate\Support\Facades\Log;
+
 class PostNormalizer
 {
     private MentionClassifier $mentionClassifier;
@@ -55,6 +57,7 @@ class PostNormalizer
             'link_favicon' => $this->faviconUrl($linkUrl),
             'reply_to' => $this->mastodonReplyTo($parentStatus, $host, $mentionsEnabled),
             'quoted_post' => $this->mastodonQuotedPost($source, $host, $quoteStatus, $mentionsEnabled),
+            'poll' => $this->normalizeMastodonPoll($source),
             'boosted_by' => $booster,
             'boosted_by_avatar' => $boosterAccount ? $this->safeUrl($boosterAccount['avatar'] ?? '') : null,
             'boosted_by_handle' => $boosterAccount ? '@'.$boosterAccount['acct'] : null,
@@ -226,6 +229,66 @@ class PostNormalizer
             'original_url' => $this->safeUrl($raw['url'] ?? ''),
             ...$this->buildNestedMastodonBody($raw['content'] ?? '', $raw['mentions'] ?? [], $mentionsEnabled),
             'created_at' => $raw['created_at'] ?? null,
+        ];
+    }
+
+    /**
+     * @return array{id: string, expires_at: ?string, expired: bool, multiple: bool, votes_count: int, options: array<int, array{title: string, votes_count: ?int}>, voted: bool, own_votes: array<int, int>}|null
+     */
+    private function normalizeMastodonPoll(array $source): ?array
+    {
+        $poll = $source['poll'] ?? null;
+
+        if ($poll === null) {
+            return null;
+        }
+
+        // options may be entirely absent, non-array, or contain non-array entries on a
+        // malformed/federated payload — filter defensively so a bad shape degrades to an
+        // empty/partial list instead of throwing a TypeError out of array_map's typed closure.
+        // Malformed entries are dropped (not placeholder-filled), matching the
+        // FeedAggregator::dedupe() convention of logging and skipping rather than
+        // silently substituting values that could look like real data.
+        $rawOptions = $poll['options'] ?? [];
+
+        if (! is_array($rawOptions)) {
+            Log::warning('Mastodon poll payload has non-array options', [
+                'poll_id' => $poll['id'] ?? 'unknown',
+                'options_type' => get_debug_type($rawOptions),
+            ]);
+            $rawOptions = [];
+        }
+
+        $options = array_values(array_filter(array_map(
+            function ($opt) use ($poll) {
+                if (! is_array($opt)) {
+                    Log::warning('Mastodon poll option entry is not an array', [
+                        'poll_id' => $poll['id'] ?? 'unknown',
+                        'entry_type' => get_debug_type($opt),
+                    ]);
+
+                    return null;
+                }
+
+                return [
+                    'title' => $opt['title'] ?? '',
+                    'votes_count' => array_key_exists('votes_count', $opt) ? $opt['votes_count'] : 0,
+                ];
+            },
+            $rawOptions,
+        )));
+
+        return [
+            // 'id' is typed as a required string on the frontend Poll type — default to
+            // '' rather than null so a malformed payload can't violate that contract.
+            'id' => $poll['id'] ?? '',
+            'expires_at' => $poll['expires_at'] ?? null,
+            'expired' => (bool) ($poll['expired'] ?? false),
+            'multiple' => (bool) ($poll['multiple'] ?? false),
+            'votes_count' => $poll['votes_count'] ?? 0,
+            'options' => $options,
+            'voted' => (bool) ($poll['voted'] ?? false),
+            'own_votes' => $poll['own_votes'] ?? [],
         ];
     }
 

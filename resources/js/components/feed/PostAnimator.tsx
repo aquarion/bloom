@@ -13,14 +13,14 @@ import type { Mention, Post } from '@/types/post';
 import { AuthorChip } from './AuthorChip';
 import { ImageCarousel } from './ImageCarousel';
 import { MentionChips } from './MentionChips';
+import { PollResults } from './PollResults';
+import { PANEL_CLASS } from './panel-class';
 
 gsap.registerPlugin(SplitText);
 
 const lastTemplate = { current: undefined as AnimationTemplate | undefined };
 const BASE_FONT_SIZE = 40;
 const LINE_HEIGHT = 1.1;
-const PANEL_CLASS =
-    'max-w-[40ch] rounded border border-white/20 bg-black/40 px-4 py-3 text-left text-sm text-white/70 backdrop-blur-sm';
 
 function ContextPanel({
     icon,
@@ -226,12 +226,12 @@ export function PostAnimator({
     useLayoutEffect(() => {
         if (
             !body &&
-            !(post.reply_to || post.quoted_post) &&
+            !(post.reply_to || post.quoted_post || post.poll) &&
             post.media.length === 0
         ) {
             onReadyRef.current?.();
         }
-    }, [body, post.reply_to, post.quoted_post, post.media.length]);
+    }, [body, post.reply_to, post.quoted_post, post.poll, post.media.length]);
 
     // Measure rendered line widths after DOM settle to compute per-line font sizes
     useLayoutEffect(() => {
@@ -361,7 +361,7 @@ export function PostAnimator({
     useGSAP(() => {
         if (
             body ||
-            !(post.reply_to || post.quoted_post) ||
+            !(post.reply_to || post.quoted_post || post.poll) ||
             post.media.length > 0
         ) {
             return;
@@ -386,7 +386,7 @@ export function PostAnimator({
         );
 
         return () => tween.kill();
-    }, [post.id, body, post.media.length]);
+    }, [post.id, body, post.poll, post.media.length]);
 
     // Image posts: centered card matching text post layout
     if (post.media.length > 0) {
@@ -407,6 +407,14 @@ export function PostAnimator({
                     {post.body && (
                         <div className="shrink-0 border-white/10 border-t px-4 py-3 text-sm text-white/80 leading-snug">
                             <EmojiText text={post.body} emojis={post.emojis} />
+                        </div>
+                    )}
+                    {post.poll && (
+                        <div className="shrink-0 border-white/10 border-t px-4 py-3">
+                            <PollResults
+                                poll={post.poll}
+                                originalUrl={post.original_url}
+                            />
                         </div>
                     )}
                     {(post.reply_to || post.quoted_post || post.link_url) && (
@@ -488,7 +496,7 @@ export function PostAnimator({
             }
         }
 
-        if (post.link_url || post.quoted_post || post.reply_to) {
+        if (post.link_url || post.quoted_post || post.reply_to || post.poll) {
             return (
                 <div className="flex h-full w-full items-center justify-center p-8">
                     <div
@@ -517,6 +525,12 @@ export function PostAnimator({
                                 body={post.quoted_post.body}
                                 original_url={post.quoted_post.original_url}
                                 chip_mentions={post.quoted_post.chip_mentions}
+                            />
+                        )}
+                        {post.poll && (
+                            <PollResults
+                                poll={post.poll}
+                                originalUrl={post.original_url}
                             />
                         )}
                         {post.link_url && (
@@ -602,6 +616,12 @@ export function PostAnimator({
                         </div>
                     ))}
                 </div>
+                {post.poll && (
+                    <PollResults
+                        poll={post.poll}
+                        originalUrl={post.original_url}
+                    />
+                )}
                 {post.link_url && (
                     <LinkCard
                         url={post.link_url}

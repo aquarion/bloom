@@ -32,6 +32,23 @@ export interface QuotedPost {
     chip_mentions: Mention[];
 }
 
+export interface PollOption {
+    readonly title: string;
+    /** Null if per-option vote counts are hidden until the poll closes. */
+    readonly votes_count: number | null;
+}
+
+export interface Poll {
+    readonly id: string;
+    readonly expires_at: string | null;
+    readonly expired: boolean;
+    readonly multiple: boolean;
+    readonly votes_count: number;
+    readonly options: readonly PollOption[];
+    readonly voted: boolean;
+    readonly own_votes: readonly number[];
+}
+
 export interface Post {
     id: string;
     source: 'mastodon' | 'bluesky';
@@ -64,6 +81,8 @@ export interface Post {
     /** Who applied the content warning. 'self' = author labelled their own content; 'external' = third-party labeller (Bluesky only); null = no CW (cw_text is also null). */
     cw_label_source: 'self' | 'external' | null;
     sensitive_media: boolean;
+    /** Absent on Bluesky posts (no poll concept). Explicit null on a Mastodon post with no poll. */
+    poll?: Poll | null;
 }
 
 export interface FeedResponse {

@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Feed\PostNormalizer;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -2449,4 +2450,339 @@ it('sets cw_label_source to self for mastodon posts with spoiler_text', function
     $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.social');
 
     expect($post['cw_label_source'])->toBe('self');
+});
+
+it('normalises a mastodon poll', function () {
+    $status = [
+        'id' => '555',
+        'content' => '<p>Best editor?</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/555',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '12345',
+            'expires_at' => '2024-01-16T10:00:00.000Z',
+            'expired' => false,
+            'multiple' => false,
+            'votes_count' => 30,
+            'options' => [
+                ['title' => 'Vim', 'votes_count' => 20],
+                ['title' => 'Emacs', 'votes_count' => 10],
+            ],
+            'voted' => false,
+            'own_votes' => [],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll'])->toBe([
+        'id' => '12345',
+        'expires_at' => '2024-01-16T10:00:00.000Z',
+        'expired' => false,
+        'multiple' => false,
+        'votes_count' => 30,
+        'options' => [
+            ['title' => 'Vim', 'votes_count' => 20],
+            ['title' => 'Emacs', 'votes_count' => 10],
+        ],
+        'voted' => false,
+        'own_votes' => [],
+    ]);
+});
+
+it('sets poll to null when a mastodon status has no poll', function () {
+    $status = [
+        'id' => '556',
+        'content' => '<p>No poll here</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/556',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll'])->toBeNull();
+});
+
+it('normalises an expired multiple-choice mastodon poll with own votes', function () {
+    $status = [
+        'id' => '557',
+        'content' => '<p>Pick your toppings</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/557',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '999',
+            'expires_at' => '2024-01-14T10:00:00.000Z',
+            'expired' => true,
+            'multiple' => true,
+            'votes_count' => 5,
+            'options' => [
+                ['title' => 'Cheese', 'votes_count' => 3],
+                ['title' => 'Pepperoni', 'votes_count' => 2],
+            ],
+            'voted' => true,
+            'own_votes' => [0, 1],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll']['expired'])->toBeTrue()
+        ->and($post['poll']['multiple'])->toBeTrue()
+        ->and($post['poll']['voted'])->toBeTrue()
+        ->and($post['poll']['own_votes'])->toBe([0, 1]);
+});
+
+it('sets poll to null for a bluesky post', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => [
+                'text' => 'hello bluesky',
+                'createdAt' => '2024-01-15T10:00:00.000Z',
+            ],
+            'author' => [
+                'did' => 'did:plc:abc',
+                'handle' => 'user.bsky.social',
+                'displayName' => 'Test User',
+                'avatar' => 'https://example.com/avatar.jpg',
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post)->not->toHaveKey('poll');
+});
+
+it('gracefully degrades a malformed mastodon poll payload missing fields', function () {
+    $status = [
+        'id' => '558',
+        'content' => '<p>Malformed poll</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/558',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '111',
+            // expires_at, expired, multiple, votes_count, voted, own_votes all missing.
+            'options' => [
+                ['title' => 'Only option missing votes_count'],
+                ['votes_count' => 4],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll'])->toBe([
+        'id' => '111',
+        'expires_at' => null,
+        'expired' => false,
+        'multiple' => false,
+        'votes_count' => 0,
+        'options' => [
+            ['title' => 'Only option missing votes_count', 'votes_count' => 0],
+            ['title' => '', 'votes_count' => 4],
+        ],
+        'voted' => false,
+        'own_votes' => [],
+    ]);
+});
+
+it('gracefully degrades a mastodon poll payload missing options entirely', function () {
+    $status = [
+        'id' => '559',
+        'content' => '<p>Poll missing options</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/559',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '222',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll']['options'])->toBe([]);
+});
+
+it('preserves an explicit null votes_count for hidden per-option poll results', function () {
+    $status = [
+        'id' => '560',
+        'content' => '<p>Pick one</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/560',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '333',
+            'expires_at' => '2024-01-16T10:00:00.000Z',
+            'expired' => false,
+            'multiple' => true,
+            'votes_count' => 4,
+            'options' => [
+                ['title' => 'Vim', 'votes_count' => null],
+                ['title' => 'Emacs', 'votes_count' => 4],
+            ],
+            'voted' => false,
+            'own_votes' => [],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll']['options'][0]['votes_count'])->toBeNull()
+        ->and($post['poll']['options'][1]['votes_count'])->toBe(4);
+});
+
+it('defaults poll id to an empty string rather than null when missing', function () {
+    $status = [
+        'id' => '561',
+        'content' => '<p>Poll with no id</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/561',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'options' => [
+                ['title' => 'Yes', 'votes_count' => 1],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll']['id'])->toBe('');
+});
+
+it('does not throw when a mastodon poll options payload is malformed (non-array options, non-array entries)', function () {
+    $statusWithStringOptions = [
+        'id' => '562',
+        'content' => '<p>Options is a string</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/562',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '444',
+            'options' => 'not-an-array',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($statusWithStringOptions, 'mastodon.example');
+
+    expect($post['poll']['options'])->toBe([]);
+
+    $statusWithMixedEntries = [
+        'id' => '563',
+        'content' => '<p>Options has a non-array entry</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/563',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '555',
+            'options' => [
+                ['title' => 'Valid', 'votes_count' => 2],
+                'not-an-array-entry',
+                null,
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($statusWithMixedEntries, 'mastodon.example');
+
+    expect($post['poll']['options'])->toBe([
+        ['title' => 'Valid', 'votes_count' => 2],
+    ]);
+});
+
+it('logs a warning when a mastodon poll payload has non-array options', function () {
+    Log::shouldReceive('warning')
+        ->once()
+        ->with('Mastodon poll payload has non-array options', Mockery::on(function (array $context) {
+            return $context['poll_id'] === '444' && $context['options_type'] === 'string';
+        }));
+
+    $status = [
+        'id' => '564',
+        'content' => '<p>Options is a string</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/564',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '444',
+            'options' => 'not-an-array',
+        ],
+    ];
+
+    (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+});
+
+it('logs a warning for each non-array entry in a mastodon poll options list', function () {
+    Log::shouldReceive('warning')
+        ->twice()
+        ->with('Mastodon poll option entry is not an array', Mockery::on(function (array $context) {
+            return $context['poll_id'] === '555' && in_array($context['entry_type'], ['string', 'null'], true);
+        }));
+
+    $status = [
+        'id' => '565',
+        'content' => '<p>Options has non-array entries</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/565',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '555',
+            'options' => [
+                ['title' => 'Valid', 'votes_count' => 2],
+                'not-an-array-entry',
+                null,
+            ],
+        ],
+    ];
+
+    (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 });

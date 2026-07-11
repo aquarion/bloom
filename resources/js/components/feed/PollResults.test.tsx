@@ -99,6 +99,25 @@ describe('PollResults', () => {
         );
     });
 
+    it('shows "votes hidden" instead of a fake count when votes_count is null', () => {
+        const hidden: Poll = {
+            ...basePoll,
+            options: [
+                { title: 'Vim', votes_count: null },
+                { title: 'Emacs', votes_count: 10 },
+            ],
+        };
+        render(
+            <PollResults
+                poll={hidden}
+                originalUrl="https://example.com/post/1"
+            />,
+        );
+
+        expect(screen.getByText('votes hidden')).toBeInTheDocument();
+        expect(screen.queryByText(/^0 votes/)).not.toBeInTheDocument();
+    });
+
     it('renders a vote link pointing at the original post', () => {
         render(
             <PollResults

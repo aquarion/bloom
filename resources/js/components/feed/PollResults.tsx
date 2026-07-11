@@ -1,9 +1,7 @@
 import { Check } from 'lucide-react';
 import type { Poll } from '@/types/post';
 import { timeSince } from './Attribution';
-
-const PANEL_CLASS =
-    'max-w-[40ch] rounded border border-white/20 bg-black/40 px-4 py-3 text-left text-sm text-white/70 backdrop-blur-sm';
+import { PANEL_CLASS } from './PostAnimator';
 
 function pollStatus(poll: Poll): string {
     if (poll.expired) {
@@ -34,15 +32,18 @@ export function PollResults({
             </div>
             <div className="flex flex-col gap-2">
                 {poll.options.map((option, index) => {
+                    const votesHidden = option.votes_count === null;
                     const votes = option.votes_count ?? 0;
                     const pct =
-                        total > 0 ? Math.round((votes / total) * 100) : 0;
+                        !votesHidden && total > 0
+                            ? Math.round((votes / total) * 100)
+                            : 0;
                     const isOwnVote =
                         poll.voted && poll.own_votes.includes(index);
 
                     return (
                         <div
-                            key={option.title}
+                            key={index}
                             data-testid={`poll-option-${index}`}
                             data-voted={isOwnVote}
                             className={`relative overflow-hidden rounded border px-2 py-1.5 ${
@@ -51,10 +52,12 @@ export function PollResults({
                                     : 'border-white/20'
                             }`}
                         >
-                            <div
-                                className="absolute inset-y-0 left-0 bg-white/15"
-                                style={{ width: `${pct}%` }}
-                            />
+                            {!votesHidden && (
+                                <div
+                                    className="absolute inset-y-0 left-0 bg-white/15"
+                                    style={{ width: `${pct}%` }}
+                                />
+                            )}
                             <div className="relative flex items-center justify-between gap-2">
                                 <span className="flex items-center gap-1.5">
                                     {isOwnVote && (
@@ -63,7 +66,9 @@ export function PollResults({
                                     {option.title}
                                 </span>
                                 <span className="flex-shrink-0 text-white/50">
-                                    {votes} votes ({pct}%)
+                                    {votesHidden
+                                        ? 'votes hidden'
+                                        : `${votes} votes (${pct}%)`}
                                 </span>
                             </div>
                         </div>

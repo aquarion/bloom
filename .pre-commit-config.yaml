@@ -55,7 +55,7 @@ repos:
       hooks:
           - id: react-doctor
             name: react-doctor
-            entry: bash -c 'output=$(react-doctor --staged --blocking warning 2>&1) && exit 0; printf "%s\n" "$output" "" "React Doctor found staged regressions." "Run react-doctor --staged --blocking warning to inspect." "Want them fixed? Ask your agent to run that command and resolve the findings." >&2; exit 1'
+            entry: bin/react-doctor-precommit.sh
             language: node
             additional_dependencies: ["react-doctor@0.7.4"]
             pass_filenames: false

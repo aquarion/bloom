@@ -13,6 +13,7 @@ import type { Mention, Post } from '@/types/post';
 import { AuthorChip } from './AuthorChip';
 import { ImageCarousel } from './ImageCarousel';
 import { MentionChips } from './MentionChips';
+import { PollResults } from './PollResults';
 
 gsap.registerPlugin(SplitText);
 
@@ -226,12 +227,12 @@ export function PostAnimator({
     useLayoutEffect(() => {
         if (
             !body &&
-            !(post.reply_to || post.quoted_post) &&
+            !(post.reply_to || post.quoted_post || post.poll) &&
             post.media.length === 0
         ) {
             onReadyRef.current?.();
         }
-    }, [body, post.reply_to, post.quoted_post, post.media.length]);
+    }, [body, post.reply_to, post.quoted_post, post.poll, post.media.length]);
 
     // Measure rendered line widths after DOM settle to compute per-line font sizes
     useLayoutEffect(() => {
@@ -409,6 +410,14 @@ export function PostAnimator({
                             <EmojiText text={post.body} emojis={post.emojis} />
                         </div>
                     )}
+                    {post.poll && (
+                        <div className="shrink-0 border-white/10 border-t px-4 py-3">
+                            <PollResults
+                                poll={post.poll}
+                                originalUrl={post.original_url}
+                            />
+                        </div>
+                    )}
                     {(post.reply_to || post.quoted_post || post.link_url) && (
                         <div className="flex shrink-0 flex-col gap-2 border-white/10 border-t px-4 py-3">
                             {post.reply_to && (
@@ -488,7 +497,7 @@ export function PostAnimator({
             }
         }
 
-        if (post.link_url || post.quoted_post || post.reply_to) {
+        if (post.link_url || post.quoted_post || post.reply_to || post.poll) {
             return (
                 <div className="flex h-full w-full items-center justify-center p-8">
                     <div
@@ -517,6 +526,12 @@ export function PostAnimator({
                                 body={post.quoted_post.body}
                                 original_url={post.quoted_post.original_url}
                                 chip_mentions={post.quoted_post.chip_mentions}
+                            />
+                        )}
+                        {post.poll && (
+                            <PollResults
+                                poll={post.poll}
+                                originalUrl={post.original_url}
                             />
                         )}
                         {post.link_url && (
@@ -602,6 +617,12 @@ export function PostAnimator({
                         </div>
                     ))}
                 </div>
+                {post.poll && (
+                    <PollResults
+                        poll={post.poll}
+                        originalUrl={post.original_url}
+                    />
+                )}
                 {post.link_url && (
                     <LinkCard
                         url={post.link_url}

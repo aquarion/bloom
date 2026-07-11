@@ -12,7 +12,7 @@
 		"lint:check": "eslint .",
 		"test": "vitest",
 		"types:check": "tsc --noEmit",
-		"doctor": "npx react-doctor@latest"
+		"doctor": "react-doctor"
 	},
 	"devDependencies": {
 		"@eslint-react/eslint-plugin": "^5.9.5",

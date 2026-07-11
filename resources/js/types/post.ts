@@ -34,6 +34,7 @@ export interface QuotedPost {
 
 export interface PollOption {
     title: string;
+    /** Null if per-option vote counts are hidden until the poll closes. */
     votes_count: number | null;
 }
 

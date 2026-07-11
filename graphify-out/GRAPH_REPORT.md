@@ -1,16 +1,16 @@
 # Graph Report - bloom  (2026-07-11)
 
 ## Corpus Check
-- 350 files · ~113,046 words
+- 350 files · ~113,098 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1948 nodes · 2837 edges · 313 communities (159 shown, 154 thin omitted)
+- 1949 nodes · 2838 edges · 306 communities (152 shown, 154 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 34 edges (avg confidence: 0.74)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `66356824`
+- Built from commit: `2c36ef64`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -57,6 +57,7 @@
 - Session Log (late June)
 - Feed Queue Hook
 - MatomoService
+- Delete User Dialog
 - NPM Dependencies
 - Project Root Docs
 - Dependabot Workflows
@@ -69,11 +70,9 @@
 - Passkey Recovery Controller
 - Mastodon Controller
 - Mastodon OAuth Tests
-- PasskeyRecoveryToken
 - User Info & Avatar
 - Feed Settings Controller
 - Social Connections Controller
-- Pre-commit Config
 - Registered User Controller
 - Docs Controller & Markdown
 - Composer Dependencies
@@ -87,16 +86,13 @@
 - Release Workflow
 - Session Log (now/today)
 - Feed Debug Panel
-- Mention Chips Tests
 - card.tsx
 - Clipboard Hook
 - JSON Preferences Concern
 - DatabaseSeeder.php
 - Docker Compose
-- InstanceCombobox.tsx
 - NPM Dependencies
 - Attribution.tsx
-- MastodonFeedService
 - Dev Server Script
 - Composer Dependencies
 - Composer Dependencies
@@ -147,7 +143,6 @@
 - Community 145
 - graphify reference: query, path, explain
 - Community 147
-- MatomoService
 - graphify reference: add a URL and watch a folder
 - Community 150
 - Community 151
@@ -196,7 +191,6 @@
 - today-2026-06-26.done.md
 - today-2026-07-01.done.md
 - today-2026-07-04.done.md
-- feed.test.tsx
 - Archive
 - CLAUDE.md
 - today-2026-07-08.done.md
@@ -318,19 +312,19 @@
 - **Public Mastodon/Bluesky feed implementation flow** — remember_migration_social_account_feed_type, remember_service_mastodonfeedservice, remember_service_blueskyfeedservice, remember_concept_feedaggregator_branches, remember_pr_156 [EXTRACTED 1.00]
 - **Milestone 1.6 feature bundle merged via PR #142** — remember_pr_142, remember_pr_158, remember_pr_161, remember_pr_162, remember_pr_170 [EXTRACTED 1.00]
 
-## Communities (313 total, 154 thin omitted)
+## Communities (306 total, 154 thin omitted)
 
 ### Community 0 - "Passkey Auth & Recovery"
 Cohesion: 0.26
 Nodes (5): WebAuthnService, CredentialRecord, PublicKeyCredential, PublicKeyCredentialCreationOptions, PublicKeyCredentialRequestOptions
 
 ### Community 1 - "App Shell & Sidebar Header"
-Cohesion: 0.08
-Nodes (26): AppLogo(), AppLogoIcon(), AppearanceToggleTab(), ErrorBoundary, Props, State, Toaster(), TooltipProvider() (+18 more)
+Cohesion: 0.06
+Nodes (30): AppLogo(), AppLogoIcon(), ErrorBoundary, Props, State, Toaster(), TooltipProvider(), Appearance (+22 more)
 
 ### Community 2 - "UI Form Primitives"
-Cohesion: 0.17
-Nodes (12): AppContent(), Props, AppShell(), Props, AppSidebarHeader(), SidebarInset(), AppSidebarLayout(), AppLayout() (+4 more)
+Cohesion: 0.25
+Nodes (7): AppContent(), Props, AppShell(), Props, AppSidebar(), SidebarInset(), AppVariant
 
 ### Community 3 - "Sidebar Navigation Components"
 Cohesion: 0.08
@@ -346,7 +340,7 @@ Nodes (23): EnsurePasskeyConfirmed, Closure, Request, Response, EnsurePasskeyExi
 
 ### Community 6 - "Matomo & Passkey Delete UI"
 Cohesion: 0.10
-Nodes (26): DeleteUser(), MatomoInit(), config, base64urlToBuffer(), bufferToBase64url(), getXsrfToken(), PublicKeyCredentialWithResponse, serializeCredential() (+18 more)
+Nodes (27): DeleteUser(), MatomoInit(), config, PasskeyList(), base64urlToBuffer(), bufferToBase64url(), getXsrfToken(), PublicKeyCredentialWithResponse (+19 more)
 
 ### Community 7 - "Composer Dependencies"
 Cohesion: 0.06
@@ -356,21 +350,17 @@ Nodes (36): scripts, ci:check, dev, lint, lint:check, post-autoload-dump, post-c
 Cohesion: 0.14
 Nodes (12): Commands, Config shape, Decision guide, Educating the user, Explaining and configuring rules, Workflow, After making React code changes:, Command (+4 more)
 
-### Community 10 - "Auth Form Inputs & Buttons"
-Cohesion: 0.19
-Nodes (8): InputError(), Props, TextLink(), Spinner(), trackEvent(), Props, Register(), FormRenderProps
-
 ### Community 11 - "Roles & Service Providers"
-Cohesion: 0.14
-Nodes (5): BaseTestCase, RemoteWebDriver, DuskTestCase, TestCase, callFetchMastodonStatuses()
+Cohesion: 0.15
+Nodes (4): BaseTestCase, RemoteWebDriver, DuskTestCase, TestCase
 
 ### Community 12 - "Biome Config"
 Cohesion: 0.06
 Nodes (31): css, parser, files, includes, formatter, indentStyle, indentWidth, lineWidth (+23 more)
 
 ### Community 13 - "Feed Progress & Welcome Queue"
-Cohesion: 0.15
-Nodes (11): ProgressBar(), ProgressBarProps, ICONS, SourceBadge(), useAutoAdvance(), makeReducer(), State, posts (+3 more)
+Cohesion: 0.14
+Nodes (13): ProgressBar(), ProgressBarProps, ICONS, SourceBadge(), makeReducer(), State, posts, useWelcomeQueue() (+5 more)
 
 ### Community 14 - "TypeScript Config"
 Cohesion: 0.08
@@ -381,20 +371,20 @@ Cohesion: 0.10
 Nodes (26): AppSidebarContents(), docsNavLinks, footerNavItems, platformNavItems, settingsNavItems, NavFooter(), NavMain(), SidebarContent() (+18 more)
 
 ### Community 16 - "Keyboard Shortcuts & Wake Lock"
-Cohesion: 0.13
-Nodes (12): KeyboardShortcutsOverlay(), SHORTCUTS, FORM_TAGS, ShortcutMap, useKeyboardShortcuts(), useWakeLock(), DebugFeedStore, DebugWindow (+4 more)
+Cohesion: 0.12
+Nodes (13): KeyboardShortcutsOverlay(), SHORTCUTS, useAutoAdvance(), FORM_TAGS, ShortcutMap, useKeyboardShortcuts(), useWakeLock(), DebugFeedStore (+5 more)
 
 ### Community 17 - "Session Log (late June/early July)"
 Cohesion: 0.18
 Nodes (10): 18:05-18:56 | release/milestone1.6, 18:29-19:15 | release/milestone1.6, 19:22 | release/milestone1.6, 19:24 | release/milestone1.6, 19:30-22:45 | fix/cw-blur-labels, 22:48 | fix/cw-blur-labels, 23:38 | release/milestone1.6, 23:45 | feature/issue-86-feed-sidebar-panel (+2 more)
 
 ### Community 18 - "Settings Pages Layout"
-Cohesion: 0.10
-Nodes (16): Heading(), InstanceComboboxProps, Suggestion, PasskeyData, PasskeyList(), Props, Button(), buttonVariants (+8 more)
+Cohesion: 0.13
+Nodes (13): InputError(), PasskeyData, Props, Props, TextLink(), Button(), buttonVariants, Checkbox() (+5 more)
 
 ### Community 20 - "Mention Chips & Layout"
-Cohesion: 0.22
-Nodes (8): MentionAvatarChip(), mention, dedupeByProfileUrl(), MentionChips(), Mention, PollOption, QuotedPost, ReplyTo
+Cohesion: 0.13
+Nodes (11): MentionAvatarChip(), mention, dedupeByProfileUrl(), MentionChips(), CapturingResizeObserver, ChipLayoutInput, ChipLayoutResult, ChipMode (+3 more)
 
 ### Community 21 - "shadcn Components Config"
 Cohesion: 0.11
@@ -421,15 +411,15 @@ Cohesion: 0.25
 Nodes (9): PasskeyInvalidated, Content, Envelope, PasskeyRecovery, Content, Envelope, Mailable, Queueable (+1 more)
 
 ### Community 27 - "Auth/Dashboard/Welcome Controllers"
-Cohesion: 0.16
-Nodes (8): FeedController, Request, FeedAggregator, Configuration Best Practices, `env()` Only in Config Files, Use `App::environment()` for Environment Checks, Use Constants and Language Files, Use Encrypted Env or External Secrets
+Cohesion: 0.06
+Nodes (16): FeedController, Request, BlueskyController, Request, SocialAccount, BlueskyAuthService, BlueskyFeedService, FeedAggregator (+8 more)
 
 ### Community 28 - "Settings Controllers & Inertia Config"
-Cohesion: 0.24
-Nodes (7): Controller, BetaTesterController, RedirectResponse, Request, Request, Response, SecurityController
+Cohesion: 0.22
+Nodes (8): Controller, BetaTesterController, RedirectResponse, Request, Request, Response, SecurityController, JsonResponse
 
 ### Community 29 - "Model Factories"
-Cohesion: 0.18
+Cohesion: 0.17
 Nodes (6): PasskeyFactory, static, SocialAccountFactory, static, UserFactory, Factory
 
 ### Community 30 - "Post Animation Templates"
@@ -437,24 +427,20 @@ Cohesion: 0.27
 Nodes (6): templates, arc(), blockTilt(), spiral(), stackFlip(), AnimationTemplate
 
 ### Community 31 - "Session Log (recent)"
-Cohesion: 0.24
-Nodes (6): PostBackground(), PostContent(), hashString(), postColors, postDisplayColors(), ContentBehavior
+Cohesion: 0.22
+Nodes (7): PostBackground(), PostContent(), hashString(), postColors, postDisplayColors(), ContentBehavior, FeedPreferences
 
 ### Community 32 - "Image Carousel & Media"
 Cohesion: 0.14
 Nodes (9): User, SocialAccountPolicy, Attribute, Authenticatable, DatabaseSeeder, HasMany, HasRoles, Notifiable (+1 more)
 
 ### Community 33 - "Post Background & Preferences"
-Cohesion: 0.15
-Nodes (19): Breadcrumbs(), Breadcrumb(), BreadcrumbEllipsis(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage(), BreadcrumbSeparator() (+11 more)
+Cohesion: 0.24
+Nodes (10): AppSidebarHeader(), Breadcrumbs(), Breadcrumb(), BreadcrumbEllipsis(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage() (+2 more)
 
 ### Community 34 - "utils.ts"
 Cohesion: 0.20
 Nodes (9): 05:15 | main, 05:22 | main, 09:51-11:44 | feature/boost-age-filter → main, 10:43 | feature/boost-age-filter, 12:06 | ci/dependabot-auto-merge, 12:30 | ci/image-descriptions, 15:00 | feature/docs-section, 18:32 | ci/image-descriptions (+1 more)
-
-### Community 35 - "BlueskyController"
-Cohesion: 0.29
-Nodes (3): BelongsTo, SocialAccount, BlueskyFeedService
 
 ### Community 36 - "Composer Dependencies"
 Cohesion: 0.15
@@ -473,8 +459,12 @@ Cohesion: 0.19
 Nodes (9): FeedSidebarPanel(), Props, Sheet(), SheetContent(), SheetDescription(), SheetFooter(), SheetHeader(), SheetOverlay() (+1 more)
 
 ### Community 41 - "MatomoService"
-Cohesion: 0.48
-Nodes (4): AuthenticatedSessionController, RedirectResponse, Request, Response
+Cohesion: 0.25
+Nodes (6): AuthenticatedSessionController, RedirectResponse, Request, Response, vite, vite
+
+### Community 42 - "Delete User Dialog"
+Cohesion: 0.70
+Nodes (4): getServerSnapshot(), isSmallerThanBreakpoint(), mediaQueryListener(), useIsMobile()
 
 ### Community 43 - "NPM Dependencies"
 Cohesion: 0.18
@@ -516,17 +506,9 @@ Nodes (10): 01:49 | branch/fix-eslint-conflict, 01:55-02:01 | branch/fix-eslint-
 Cohesion: 0.39
 Nodes (4): PasskeyRecoveryController, RedirectResponse, Request, Response
 
-### Community 53 - "Mastodon Controller"
-Cohesion: 0.19
-Nodes (4): MastodonController, JsonResponse, Request, MastodonOAuthService
-
 ### Community 54 - "Mastodon OAuth Tests"
 Cohesion: 0.33
 Nodes (5): PasskeyController, JsonResponse, RedirectResponse, Request, Response
-
-### Community 55 - "PasskeyRecoveryToken"
-Cohesion: 0.27
-Nodes (3): BlueskyController, Request, BlueskyAuthService
 
 ### Community 56 - "User Info & Avatar"
 Cohesion: 0.06
@@ -535,10 +517,6 @@ Nodes (31): APIs & Eloquent Resources, Application Structure & Architecture, Art
 ### Community 57 - "Feed Settings Controller"
 Cohesion: 0.46
 Nodes (4): FeedSettingsController, RedirectResponse, Request, Response
-
-### Community 59 - "Pre-commit Config"
-Cohesion: 0.43
-Nodes (5): ChipLayoutInput, ChipLayoutResult, ChipMode, computeChipLayout(), computeLayout()
 
 ### Community 60 - "Registered User Controller"
 Cohesion: 0.43
@@ -565,8 +543,8 @@ Cohesion: 0.07
 Nodes (27): Basic Link Component, Basic Usage, Client-Side Navigation, Common Pitfalls, Deferred Props, Documentation, Form Component (Recommended), Form Component Reset Props (+19 more)
 
 ### Community 67 - "CLAUDE.md"
-Cohesion: 0.31
-Nodes (4): Passkey, BelongsTo, HasUlids, Model
+Cohesion: 0.14
+Nodes (8): Passkey, BelongsTo, PasskeyRecoveryToken, BelongsTo, HasFactory, HasUlids, Model, self
 
 ### Community 69 - "Composer Dependencies"
 Cohesion: 0.40
@@ -586,11 +564,7 @@ Nodes (3): getPreference(), getPreferences(), setPreference()
 
 ### Community 77 - "DatabaseSeeder.php"
 Cohesion: 0.11
-Nodes (25): react, react, AppSidebar(), Sidebar(), SidebarContext, SidebarGroupAction(), SidebarInput(), SidebarMenuAction() (+17 more)
-
-### Community 79 - "InstanceCombobox.tsx"
-Cohesion: 0.25
-Nodes (3): PasskeyRecoveryToken, BelongsTo, self
+Nodes (30): react, react, AppearanceToggleTab(), SelectContent(), SelectItem(), SelectLabel(), SelectScrollDownButton(), SelectScrollUpButton() (+22 more)
 
 ### Community 80 - "NPM Dependencies"
 Cohesion: 0.50
@@ -617,8 +591,8 @@ Cohesion: 0.22
 Nodes (8): graphify reference: extra exports and benchmark, Step 6b - Wiki (only if --wiki flag), Step 7 - Neo4j export (only if --neo4j or --neo4j-push flag), Step 7a - FalkorDB export (only if --falkordb or --falkordb-push flag), Step 7b - SVG export (only if --svg flag), Step 7c - GraphML export (only if --graphml flag), Step 7d - MCP server (only if --mcp flag), Step 8 - Token reduction benchmark (only if total_words > 5000)
 
 ### Community 103 - "PostAnimator.test.tsx"
-Cohesion: 0.28
-Nodes (3): ImageCarousel(), defaultProps, MediaAttachment
+Cohesion: 0.17
+Nodes (7): ImageCarousel(), defaultProps, defaultProps, MediaAttachment, PollOption, QuotedPost, ReplyTo
 
 ### Community 112 - "user-info.tsx"
 Cohesion: 0.36
@@ -633,8 +607,8 @@ Cohesion: 0.50
 Nodes (3): For /graphify add, For --watch, graphify reference: add a URL and watch a folder
 
 ### Community 186 - "app-header.tsx"
-Cohesion: 0.33
-Nodes (5): 09:54 | feature/poll-display, 17:47 | feature/poll-display, 18:16 | feature/poll-display, 18:32 | fix/react-doctor, 18:49 | fix/react-doctor
+Cohesion: 0.29
+Nodes (6): 09:54 | feature/poll-display, 17:47 | feature/poll-display, 18:16 | feature/poll-display, 18:32 | fix/react-doctor, 18:49 | fix/react-doctor, 22:23 | fix/graphify
 
 ### Community 187 - "Quick Reference"
 Cohesion: 0.08
@@ -653,8 +627,8 @@ Cohesion: 0.14
 Nodes (13): Basic Usage, Common Patterns, Common Pitfalls, CSS-First Configuration, Dark Mode, Documentation, Flexbox Layout, Grid Layout (+5 more)
 
 ### Community 191 - "delete-user.tsx"
-Cohesion: 0.27
-Nodes (9): Dialog(), DialogClose(), DialogContent(), DialogDescription(), DialogFooter(), DialogHeader(), DialogOverlay(), DialogTitle() (+1 more)
+Cohesion: 0.13
+Nodes (14): Heading(), Dialog(), DialogClose(), DialogContent(), DialogDescription(), DialogFooter(), DialogHeader(), DialogOverlay() (+6 more)
 
 ### Community 192 - "Architecture Best Practices"
 Cohesion: 0.17
@@ -732,10 +706,6 @@ Nodes (7): Call `Event::fake()` After Factory Setup, Testing Best Practices, Use
 Cohesion: 0.25
 Nodes (7): 12:09-13:15 | main, 13:28-17:39 | feature/docs-section, 18:06-18:15 | feature/docs-section, 18:21 | fix/MCP_updates, 18:23 | feature/docs-section, 18:29-19:19 | feature/docs-section, 21:41-22:15 | feature/moderation-label-overlay
 
-### Community 212 - "AuthenticatedSessionController.php"
-Cohesion: 0.29
-Nodes (4): DashboardController, RedirectResponse, vite, vite
-
 ### Community 213 - "Collection Best Practices"
 Cohesion: 0.29
 Nodes (6): Choose `cursor()` vs. `lazy()` Correctly, Collection Best Practices, Use `#[CollectedBy]` for Custom Collection Classes, Use Higher-Order Messages for Simple Operations, Use `lazyById()` When Updating Records While Iterating, Use `toQuery()` for Bulk Operations on Collections
@@ -777,24 +747,24 @@ Cohesion: 0.40
 Nodes (4): Archive, Week of 2026-06-16, Week of 2026-06-23, Week of 2026-06-30
 
 ## Knowledge Gaps
-- **760 isolated node(s):** `graphify`, `Usage`, `What graphify is for`, `Step 0 - GitHub repos and multi-path merge (only if a URL or several paths)`, `Step 1 - Ensure graphify is installed` (+755 more)
+- **761 isolated node(s):** `deploy.sh script`, `dev-server.sh script`, `OVERMIND_CAN_DIE`, `SRGB_TO_XYZ`, `XYZ_TO_P3` (+756 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **154 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `dependencies` connect `NPM Dependencies` to `Community 128`, `Community 129`, `Community 130`, `Community 131`, `Community 132`, `Community 133`, `Community 134`, `Community 135`, `Community 136`, `Community 137`, `Community 138`, `Community 139`, `Community 140`, `Community 141`, `Community 142`, `Community 143`, `Community 144`, `Community 145`, `DatabaseSeeder.php`, `NPM Dependencies`, `AuthenticatedSessionController.php`, `Community 107`, `Community 108`, `Community 109`, `Community 114`, `Community 115`, `Community 116`, `Community 117`, `Community 118`, `Community 119`, `Community 120`, `Community 122`, `Community 124`, `Community 125`, `Community 126`, `Community 127`?**
-  _High betweenness centrality (0.164) - this node is a cross-community bridge._
-- **Why does `react` connect `DatabaseSeeder.php` to `NPM Dependencies`?**
-  _High betweenness centrality (0.129) - this node is a cross-community bridge._
-- **Why does `vite` connect `AuthenticatedSessionController.php` to `NPM Dependencies`?**
-  _High betweenness centrality (0.128) - this node is a cross-community bridge._
-- **What connects `graphify`, `Usage`, `What graphify is for` to the rest of the system?**
-  _772 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `dependencies` connect `NPM Dependencies` to `Community 128`, `Community 129`, `Community 130`, `Community 131`, `Community 132`, `Community 133`, `Community 134`, `Community 135`, `Community 136`, `Community 137`, `Community 138`, `Community 139`, `Community 140`, `Community 141`, `Community 142`, `Community 143`, `Community 144`, `Community 145`, `MatomoService`, `DatabaseSeeder.php`, `NPM Dependencies`, `Community 107`, `Community 108`, `Community 109`, `Community 114`, `Community 115`, `Community 116`, `Community 117`, `Community 118`, `Community 119`, `Community 120`, `Community 122`, `Community 124`, `Community 125`, `Community 126`, `Community 127`?**
+  _High betweenness centrality (0.175) - this node is a cross-community bridge._
+- **Why does `vite` connect `MatomoService` to `NPM Dependencies`?**
+  _High betweenness centrality (0.139) - this node is a cross-community bridge._
+- **What connects `deploy.sh script`, `dev-server.sh script`, `OVERMIND_CAN_DIE` to the rest of the system?**
+  _773 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `App Shell & Sidebar Header` be split into smaller, more focused modules?**
-  _Cohesion score 0.07505285412262157 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06448979591836734 - nodes in this community are weakly interconnected._
 - **Should `Sidebar Navigation Components` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
 - **Should `Icon Generation Scripts` be split into smaller, more focused modules?**
   _Cohesion score 0.08233117483811286 - nodes in this community are weakly interconnected._
+- **Should `HTTP Middleware Stack` be split into smaller, more focused modules?**
+  _Cohesion score 0.07804878048780488 - nodes in this community are weakly interconnected._

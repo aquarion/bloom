@@ -42,6 +42,14 @@ repos:
             language: system
             files: composer\.(json|lock)$
             pass_filenames: false
+          - id: graphify
+            name: Graphify (rebuild knowledge graph)
+            entry: bash -c 'PYTHONHASHSEED=0 graphify update .'
+            language: python
+            additional_dependencies: ["graphifyy==0.9.12"]
+            types_or: [javascript, ts, tsx, jsx, php]
+            exclude: ^graphify-out/
+            pass_filenames: false
     - repo: https://github.com/rhysd/actionlint
       rev: v1.7.11
       hooks:

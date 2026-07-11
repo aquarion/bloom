@@ -925,13 +925,13 @@
     "semantic_hash": "8ef51f8bdec89dceb1d9bd7c1ad8c15a"
   },
   ".remember/tmp/last-ndc.ts": {
-    "mtime": 1783792199.2832727,
-    "ast_hash": "7f0c3262f90e00a12b97f0710895f69b",
+    "mtime": 1783805030.1833403,
+    "ast_hash": "95bdb324d8936788706f3e7a0d0aa9c3",
     "semantic_hash": ""
   },
   ".remember/tmp/last-save.json": {
-    "mtime": 1783792199.1989026,
-    "ast_hash": "b7ba9a924eee6965aef3fd5edd91a24d",
+    "mtime": 1783805030.1019518,
+    "ast_hash": "42a80a54043a8af1530f72b495a73fe3",
     "semantic_hash": ""
   },
   "artisan": {
@@ -1620,8 +1620,8 @@
     "semantic_hash": "43e34995a24e9c53469bffd3253d6b8e"
   },
   ".pre-commit-config.yaml": {
-    "mtime": 1783793035.0737433,
-    "ast_hash": "fc9355e2d896e915c0b06287b63c842c",
+    "mtime": 1783805194.8066282,
+    "ast_hash": "7dbf98c117ce90b21985047cc6d99cc5",
     "semantic_hash": ""
   },
   ".remember/archive.md": {
@@ -1630,7 +1630,7 @@
     "semantic_hash": ""
   },
   ".remember/now.md": {
-    "mtime": 1783792227.7952693,
+    "mtime": 1783805043.1953382,
     "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
     "semantic_hash": ""
   },
@@ -1735,8 +1735,8 @@
     "semantic_hash": "fd503215b91c451ef63ccdba9bccc3f3"
   },
   ".remember/today-2026-07-11.md": {
-    "mtime": 1783792227.7952693,
-    "ast_hash": "1c47e3df4a3b1e7956e4017e83f5161e",
+    "mtime": 1783805043.1953382,
+    "ast_hash": "8b1491c6fbf4af71cda8affe118bd80b",
     "semantic_hash": ""
   },
   "resources/js/components/feed/Attribution.test.tsx": {

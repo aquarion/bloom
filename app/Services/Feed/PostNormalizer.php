@@ -239,17 +239,17 @@ class PostNormalizer
         }
 
         return [
-            'id' => $poll['id'],
-            'expires_at' => $poll['expires_at'],
-            'expired' => (bool) $poll['expired'],
-            'multiple' => (bool) $poll['multiple'],
-            'votes_count' => $poll['votes_count'],
+            'id' => $poll['id'] ?? null,
+            'expires_at' => $poll['expires_at'] ?? null,
+            'expired' => (bool) ($poll['expired'] ?? false),
+            'multiple' => (bool) ($poll['multiple'] ?? false),
+            'votes_count' => $poll['votes_count'] ?? 0,
             'options' => array_map(
                 fn (array $opt) => [
-                    'title' => $opt['title'],
-                    'votes_count' => $opt['votes_count'],
+                    'title' => $opt['title'] ?? '',
+                    'votes_count' => $opt['votes_count'] ?? 0,
                 ],
-                $poll['options'],
+                $poll['options'] ?? [],
             ),
             'voted' => (bool) ($poll['voted'] ?? false),
             'own_votes' => $poll['own_votes'] ?? [],

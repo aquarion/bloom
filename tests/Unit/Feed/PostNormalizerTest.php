@@ -2567,3 +2567,62 @@ it('sets poll to null for a bluesky post', function () {
 
     expect($post)->not->toHaveKey('poll');
 });
+
+it('gracefully degrades a malformed mastodon poll payload missing fields', function () {
+    $status = [
+        'id' => '558',
+        'content' => '<p>Malformed poll</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/558',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '111',
+            // expires_at, expired, multiple, votes_count, voted, own_votes all missing.
+            'options' => [
+                ['title' => 'Only option missing votes_count'],
+                ['votes_count' => 4],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll'])->toBe([
+        'id' => '111',
+        'expires_at' => null,
+        'expired' => false,
+        'multiple' => false,
+        'votes_count' => 0,
+        'options' => [
+            ['title' => 'Only option missing votes_count', 'votes_count' => 0],
+            ['title' => '', 'votes_count' => 4],
+        ],
+        'voted' => false,
+        'own_votes' => [],
+    ]);
+});
+
+it('gracefully degrades a mastodon poll payload missing options entirely', function () {
+    $status = [
+        'id' => '559',
+        'content' => '<p>Poll missing options</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/559',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '222',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll']['options'])->toBe([]);
+});

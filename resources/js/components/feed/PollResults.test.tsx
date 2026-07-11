@@ -68,6 +68,21 @@ describe('PollResults', () => {
         expect(screen.queryByText('Poll closed')).not.toBeInTheDocument();
     });
 
+    it('shows a future-relative "Closes in" time for an open poll, not "just now"', () => {
+        // basePoll expires 1 hour from now — far enough that a bug treating
+        // any future date as "just now" (regression: negative seconds < 60)
+        // would be caught here.
+        render(
+            <PollResults
+                poll={basePoll}
+                originalUrl="https://example.com/post/1"
+            />,
+        );
+
+        expect(screen.getByText(/Closes in 1h/)).toBeInTheDocument();
+        expect(screen.queryByText(/Closes just now/)).not.toBeInTheDocument();
+    });
+
     it('shows a multiple-choice label when the poll allows multiple selections', () => {
         const multi: Poll = { ...basePoll, multiple: true };
         render(

@@ -81,7 +81,8 @@ export interface Post {
     /** Who applied the content warning. 'self' = author labelled their own content; 'external' = third-party labeller (Bluesky only); null = no CW (cw_text is also null). */
     cw_label_source: 'self' | 'external' | null;
     sensitive_media: boolean;
-    poll?: Poll;
+    /** Absent on Bluesky posts (no poll concept). Explicit null on a Mastodon post with no poll. */
+    poll?: Poll | null;
 }
 
 export interface FeedResponse {

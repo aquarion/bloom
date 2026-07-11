@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react';
 import type { Poll } from '@/types/post';
 import { timeSince } from './Attribution';
-import { PANEL_CLASS } from './PostAnimator';
+import { PANEL_CLASS } from './panel-class';
 
 function pollStatus(poll: Poll): string {
     if (poll.expired) {

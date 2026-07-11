@@ -238,23 +238,29 @@ class PostNormalizer
             return null;
         }
 
+        // options may be entirely absent, non-array, or contain non-array entries on a
+        // malformed/federated payload — filter defensively so a bad shape degrades to an
+        // empty/partial list instead of throwing a TypeError out of array_map's typed closure.
+        $rawOptions = $poll['options'] ?? [];
+        $options = is_array($rawOptions)
+            ? array_values(array_filter(array_map(
+                fn ($opt) => is_array($opt) ? [
+                    'title' => $opt['title'] ?? '',
+                    'votes_count' => array_key_exists('votes_count', $opt) ? $opt['votes_count'] : 0,
+                ] : null,
+                $rawOptions,
+            )))
+            : [];
+
         return [
-            'id' => $poll['id'] ?? null,
+            // 'id' is typed as a required string on the frontend Poll type — default to
+            // '' rather than null so a malformed payload can't violate that contract.
+            'id' => $poll['id'] ?? '',
             'expires_at' => $poll['expires_at'] ?? null,
             'expired' => (bool) ($poll['expired'] ?? false),
             'multiple' => (bool) ($poll['multiple'] ?? false),
             'votes_count' => $poll['votes_count'] ?? 0,
-            'options' => array_map(
-                // array_key_exists (not ??) — Mastodon sends an explicit `null` for
-                // options in an open multiple-choice poll before it closes to hide
-                // per-option counts, and that null must survive to the frontend's
-                // "votes hidden" UI. `?? 0` would collapse it to a fake zero-vote count.
-                fn (array $opt) => [
-                    'title' => $opt['title'] ?? '',
-                    'votes_count' => array_key_exists('votes_count', $opt) ? $opt['votes_count'] : 0,
-                ],
-                $poll['options'] ?? [],
-            ),
+            'options' => $options,
             'voted' => (bool) ($poll['voted'] ?? false),
             'own_votes' => $poll['own_votes'] ?? [],
         ];

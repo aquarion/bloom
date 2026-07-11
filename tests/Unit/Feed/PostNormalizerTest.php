@@ -2658,3 +2658,74 @@ it('preserves an explicit null votes_count for hidden per-option poll results', 
     expect($post['poll']['options'][0]['votes_count'])->toBeNull()
         ->and($post['poll']['options'][1]['votes_count'])->toBe(4);
 });
+
+it('defaults poll id to an empty string rather than null when missing', function () {
+    $status = [
+        'id' => '561',
+        'content' => '<p>Poll with no id</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/561',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'options' => [
+                ['title' => 'Yes', 'votes_count' => 1],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['poll']['id'])->toBe('');
+});
+
+it('does not throw when a mastodon poll options payload is malformed (non-array options, non-array entries)', function () {
+    $statusWithStringOptions = [
+        'id' => '562',
+        'content' => '<p>Options is a string</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/562',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '444',
+            'options' => 'not-an-array',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($statusWithStringOptions, 'mastodon.example');
+
+    expect($post['poll']['options'])->toBe([]);
+
+    $statusWithMixedEntries = [
+        'id' => '563',
+        'content' => '<p>Options has a non-array entry</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/563',
+        'account' => [
+            'display_name' => 'Test User',
+            'acct' => 'user',
+            'avatar' => 'https://mastodon.example/avatars/original/user.jpg',
+        ],
+        'poll' => [
+            'id' => '555',
+            'options' => [
+                ['title' => 'Valid', 'votes_count' => 2],
+                'not-an-array-entry',
+                null,
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($statusWithMixedEntries, 'mastodon.example');
+
+    expect($post['poll']['options'])->toBe([
+        ['title' => 'Valid', 'votes_count' => 2],
+    ]);
+});

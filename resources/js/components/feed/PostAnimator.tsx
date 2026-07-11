@@ -14,14 +14,13 @@ import { AuthorChip } from './AuthorChip';
 import { ImageCarousel } from './ImageCarousel';
 import { MentionChips } from './MentionChips';
 import { PollResults } from './PollResults';
+import { PANEL_CLASS } from './panel-class';
 
 gsap.registerPlugin(SplitText);
 
 const lastTemplate = { current: undefined as AnimationTemplate | undefined };
 const BASE_FONT_SIZE = 40;
 const LINE_HEIGHT = 1.1;
-export const PANEL_CLASS =
-    'max-w-[40ch] rounded border border-white/20 bg-black/40 px-4 py-3 text-left text-sm text-white/70 backdrop-blur-sm';
 
 function ContextPanel({
     icon,

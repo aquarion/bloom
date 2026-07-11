@@ -8,6 +8,7 @@ repos:
           - id: end-of-file-fixer
           - id: check-yaml
           - id: check-added-large-files
+            exclude: ^graphify-out/graph.json$
     - repo: local
       hooks:
           - id: biome
@@ -40,6 +41,14 @@ repos:
             entry: bash -c 'if command -v composer >/dev/null 2>&1; then composer validate --no-check-publish; else vendor/bin/sail composer validate --no-check-publish; fi'
             language: system
             files: composer\.(json|lock)$
+            pass_filenames: false
+          - id: graphify
+            name: Graphify (rebuild knowledge graph)
+            entry: bash -c 'PYTHONHASHSEED=0 graphify update .'
+            language: python
+            additional_dependencies: ["graphifyy==0.9.12"]
+            types_or: [javascript, ts, tsx, jsx, php]
+            exclude: ^graphify-out/
             pass_filenames: false
     - repo: https://github.com/rhysd/actionlint
       rev: v1.7.11

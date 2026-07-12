@@ -49,8 +49,4 @@ resources/icons/bloom-on-white.png
 .mcp.json
 
 # Graphify
-graphify-out/cost.json
-graphify-out/cache
-graphify-out/*-*-*
-graphify-out/.*
-graphify-out/graph.html
+graphify-out

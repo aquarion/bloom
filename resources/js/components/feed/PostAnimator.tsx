@@ -31,6 +31,7 @@ function ContextPanel({
     body,
     original_url,
     chip_mentions,
+    fullWidth = false,
 }: {
     icon: React.ReactNode;
     author_name: string;
@@ -40,6 +41,7 @@ function ContextPanel({
     body: string;
     original_url: string;
     chip_mentions: Mention[];
+    fullWidth?: boolean;
 }) {
     const content = (
         <>
@@ -62,20 +64,24 @@ function ContextPanel({
         </>
     );
 
+    const panelClass = fullWidth
+        ? PANEL_CLASS.replace('max-w-[40ch]', 'w-full')
+        : PANEL_CLASS;
+
     if (original_url) {
         return (
             <a
                 href={original_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`${PANEL_CLASS} hover:bg-white/20`}
+                className={`${panelClass} hover:bg-white/20`}
             >
                 {content}
             </a>
         );
     }
 
-    return <div className={PANEL_CLASS}>{content}</div>;
+    return <div className={panelClass}>{content}</div>;
 }
 
 const FAVICON_404_KEY = 'bloom:favicon404s:v1';
@@ -98,10 +104,12 @@ function LinkCard({
     url,
     title,
     favicon,
+    fullWidth = false,
 }: {
     url: string;
     title: string | null;
     favicon: string | null;
+    fullWidth?: boolean;
 }) {
     const [faviconFailed, setFaviconFailed] = useState(false);
     let hostname = url;
@@ -113,13 +121,16 @@ function LinkCard({
     }
 
     const showFavicon = favicon && !favicon404s.has(favicon) && !faviconFailed;
+    const panelClass = fullWidth
+        ? PANEL_CLASS.replace('max-w-[40ch]', 'w-full')
+        : PANEL_CLASS;
 
     return (
         <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`${PANEL_CLASS} hover:bg-white/20`}
+            className={`${panelClass} hover:bg-white/20`}
         >
             <div className="flex items-center gap-3">
                 {showFavicon && (
@@ -429,6 +440,7 @@ export function PostAnimator({
                                     body={post.reply_to.body}
                                     original_url={post.reply_to.original_url}
                                     chip_mentions={post.reply_to.chip_mentions}
+                                    fullWidth
                                 />
                             )}
                             {post.quoted_post && (
@@ -447,12 +459,14 @@ export function PostAnimator({
                                     chip_mentions={
                                         post.quoted_post.chip_mentions
                                     }
+                                    fullWidth
                                 />
                             )}
                             {post.link_url && (
                                 <LinkCard
                                     url={post.link_url}
                                     title={post.link_title}
+                                    fullWidth
                                     favicon={post.link_favicon}
                                 />
                             )}

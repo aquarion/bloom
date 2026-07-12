@@ -14,7 +14,7 @@ import { AuthorChip } from './AuthorChip';
 import { ImageCarousel } from './ImageCarousel';
 import { MentionChips } from './MentionChips';
 import { PollResults } from './PollResults';
-import { PANEL_CLASS } from './panel-class';
+import { getPanelClass } from './panel-class';
 
 gsap.registerPlugin(SplitText);
 
@@ -64,9 +64,7 @@ function ContextPanel({
         </>
     );
 
-    const panelClass = fullWidth
-        ? PANEL_CLASS.replace('max-w-[40ch]', 'w-full')
-        : PANEL_CLASS;
+    const panelClass = getPanelClass({ fullWidth });
 
     if (original_url) {
         return (
@@ -121,9 +119,7 @@ function LinkCard({
     }
 
     const showFavicon = favicon && !favicon404s.has(favicon) && !faviconFailed;
-    const panelClass = fullWidth
-        ? PANEL_CLASS.replace('max-w-[40ch]', 'w-full')
-        : PANEL_CLASS;
+    const panelClass = getPanelClass({ fullWidth });
 
     return (
         <a

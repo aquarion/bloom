@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { postDisplayColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
@@ -128,16 +128,16 @@ export function PostContent({
         onCwOverlayActiveRef.current?.(showCwOverlay);
     }, [showCwOverlay]);
 
-    const handleReady = useCallback(() => {
+    const handleReady = () => {
         onReadyRef.current?.();
-    }, []);
+    };
 
     const onRevealAuthorRef = useRef(onRevealAuthor);
     useLayoutEffect(() => {
         onRevealAuthorRef.current = onRevealAuthor;
     });
 
-    const revealCw = useCallback(() => {
+    const revealCw = () => {
         if (revealInProgressRef.current) {
             return;
         }
@@ -146,7 +146,7 @@ export function PostContent({
 
         setCwRevealed(true);
         onRevealAuthorRef.current?.();
-    }, []);
+    };
 
     return (
         <div className="relative flex h-full w-full items-center justify-center">

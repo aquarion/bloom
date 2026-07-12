@@ -102,6 +102,8 @@ export function useFeedQueue({
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
 }) {
+    'use no memo';
+
     const filterPost = useCallback(
         (post: Post) =>
             !shouldSkipPost(post, cwBehavior, sensitiveMediaBehavior),

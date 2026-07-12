@@ -31,8 +31,6 @@ export function ImageCarousel({
         onProgressRef.current = onProgress;
     }, [onComplete, onProgress]);
 
-    const isPaused = paused;
-
     // Run the per-image timer; reset elapsed only when activeIndex changes, not on pause/unpause
     useEffect(() => {
         if (lastIndexRef.current !== activeIndex) {
@@ -41,7 +39,7 @@ export function ImageCarousel({
             onProgressRef.current?.(activeIndex, 0);
         }
 
-        if (isPaused) {
+        if (paused) {
             return;
         }
 
@@ -63,7 +61,7 @@ export function ImageCarousel({
         }, TICK_MS);
 
         return () => clearInterval(intervalId);
-    }, [isPaused, duration, activeIndex, media.length]);
+    }, [paused, duration, activeIndex, media.length]);
 
     const handleNext = () => {
         if (activeIndex < media.length - 1) {

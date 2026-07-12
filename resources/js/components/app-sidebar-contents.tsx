@@ -22,7 +22,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { UserInfo } from '@/components/user-info';
-import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
+import { cleanupMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { feed, logout } from '@/routes';
 import { edit as appearanceEdit } from '@/routes/appearance';
 import { edit as connectionsEdit } from '@/routes/connections';
@@ -88,14 +88,13 @@ const settingsNavItems: NavItem[] = [
     },
 ];
 
+const handleLogout = () => {
+    cleanupMobileNavigation();
+    router.flushAll();
+};
+
 export function AppSidebarContents() {
     const { auth, appVersion } = usePage().props;
-    const cleanup = useMobileNavigation();
-
-    const handleLogout = () => {
-        cleanup();
-        router.flushAll();
-    };
 
     return (
         <>

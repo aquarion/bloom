@@ -3,10 +3,13 @@ import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import type { AppLayoutProps } from '@/types';
+import type { BreadcrumbItem } from '@/types/navigation';
+
+const EMPTY_BREADCRUMBS: BreadcrumbItem[] = [];
 
 export default function AppSidebarLayout({
     children,
-    breadcrumbs = [],
+    breadcrumbs = EMPTY_BREADCRUMBS,
 }: AppLayoutProps) {
     return (
         <AppShell variant="sidebar">

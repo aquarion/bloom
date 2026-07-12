@@ -1,6 +1,6 @@
 const SHORTCODE_RE = /:([a-zA-Z0-9_]+):/g;
 
-export function renderEmojiText(
+function renderEmojiText(
     text: string,
     emojis: Record<string, string>,
 ): React.ReactNode[] {

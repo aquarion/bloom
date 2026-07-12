@@ -4,16 +4,20 @@ import PasskeyList from '@/components/passkey-list';
 import SettingsPageLayout from '@/layouts/settings-page-layout';
 import { edit } from '@/routes/security';
 
-type Props = {
-    passkeys?: Array<{
-        id: string;
-        name: string;
-        last_used_at: string | null;
-        created_at: string;
-    }>;
+type Passkey = {
+    id: string;
+    name: string;
+    last_used_at: string | null;
+    created_at: string;
 };
 
-export default function Security({ passkeys = [] }: Props) {
+type Props = {
+    passkeys?: Passkey[];
+};
+
+const EMPTY_PASSKEYS: Passkey[] = [];
+
+export default function Security({ passkeys = EMPTY_PASSKEYS }: Props) {
     return (
         <SettingsPageLayout>
             <Head title="Security settings" />

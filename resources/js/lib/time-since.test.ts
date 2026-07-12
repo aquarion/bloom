@@ -39,9 +39,9 @@ describe('timeSince', () => {
         expect(timeSince(dateStr)).toBe('2d ago');
     });
 
-    it('returns "just now" for a timestamp a few seconds in the future', () => {
+    it('returns "shortly" for a timestamp a few seconds in the future', () => {
         const dateStr = new Date(NOW.getTime() + 5_000).toISOString();
-        expect(timeSince(dateStr)).toBe('just now');
+        expect(timeSince(dateStr)).toBe('shortly');
     });
 
     it('returns future minutes for a future timestamp under an hour away', () => {

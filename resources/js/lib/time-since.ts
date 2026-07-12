@@ -9,7 +9,7 @@ export function timeSince(dateStr: string): string {
     const abs = Math.abs(seconds);
 
     if (abs < 60) {
-        return 'just now';
+        return future ? 'shortly' : 'just now';
     }
 
     const minutes = Math.floor(abs / 60);

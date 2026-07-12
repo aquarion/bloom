@@ -78,7 +78,7 @@ function ContextPanel({
     return <div className={PANEL_CLASS}>{content}</div>;
 }
 
-const FAVICON_404_KEY = 'bloom:favicon404s';
+const FAVICON_404_KEY = 'bloom:favicon404s:v1';
 const favicon404s: Set<string> = (() => {
     try {
         return new Set<string>(

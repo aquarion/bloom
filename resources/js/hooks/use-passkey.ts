@@ -120,6 +120,8 @@ export type UsePasskeyReturn = {
 };
 
 export function usePasskey(): UsePasskeyReturn {
+    'use no memo';
+
     const isSupported =
         typeof window !== 'undefined' && !!window.PublicKeyCredential;
     const [loading, setLoading] = useState(false);

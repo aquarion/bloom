@@ -138,7 +138,3 @@ export function splitIntoLinesWithBoundaries(text: string): {
 
     return { lines, paragraphStarts };
 }
-
-export function splitIntoLines(text: string): string[] {
-    return splitIntoLinesWithBoundaries(text).lines;
-}

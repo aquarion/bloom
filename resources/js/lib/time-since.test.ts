@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { timeSince } from './Attribution';
+import { timeSince } from './time-since';
 
 const NOW = new Date('2026-01-15T12:00:00.000Z');
 

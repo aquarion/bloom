@@ -6,13 +6,13 @@ describe('ProgressBar — linear mode', () => {
     it('renders a bar at the given progress fraction', () => {
         const { container } = render(<ProgressBar progress={0.5} />);
         const bar = container.querySelector('.bg-white\\/60') as HTMLElement;
-        expect(bar.style.width).toBe('50%');
+        expect(bar.style.transform).toBe('scaleX(0.5)');
     });
 
     it('defaults to full width when progress is 1', () => {
         const { container } = render(<ProgressBar progress={1} />);
         const bar = container.querySelector('.bg-white\\/60') as HTMLElement;
-        expect(bar.style.width).toBe('100%');
+        expect(bar.style.transform).toBe('scaleX(1)');
     });
 });
 
@@ -32,8 +32,8 @@ describe('ProgressBar — segments mode', () => {
             />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[0].style.width).toBe('0%');
-        expect(bars[1].style.width).toBe('0%');
+        expect(bars[0].style.transform).toBe('scaleX(0)');
+        expect(bars[1].style.transform).toBe('scaleX(0)');
     });
 
     it('active segment shows countdown width: (1 - elapsed) * 100%', () => {
@@ -43,7 +43,7 @@ describe('ProgressBar — segments mode', () => {
             />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[1].style.width).toBe('60%');
+        expect(bars[1].style.transform).toBe('scaleX(0.6)');
     });
 
     it('future segments show 100% width', () => {
@@ -53,8 +53,8 @@ describe('ProgressBar — segments mode', () => {
             />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[1].style.width).toBe('100%');
-        expect(bars[2].style.width).toBe('100%');
+        expect(bars[1].style.transform).toBe('scaleX(1)');
+        expect(bars[2].style.transform).toBe('scaleX(1)');
     });
 
     it('first segment at elapsed=0 shows full width (nothing elapsed)', () => {
@@ -62,7 +62,7 @@ describe('ProgressBar — segments mode', () => {
             <ProgressBar segments={{ count: 2, activeIndex: 0, elapsed: 0 }} />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[0].style.width).toBe('100%');
+        expect(bars[0].style.transform).toBe('scaleX(1)');
     });
 
     it('first segment at elapsed=1 shows 0% (fully elapsed)', () => {
@@ -70,6 +70,6 @@ describe('ProgressBar — segments mode', () => {
             <ProgressBar segments={{ count: 2, activeIndex: 0, elapsed: 1 }} />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[0].style.width).toBe('0%');
+        expect(bars[0].style.transform).toBe('scaleX(0)');
     });
 });

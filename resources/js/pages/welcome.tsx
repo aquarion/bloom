@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { gsap } from 'gsap';
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Attribution } from '@/components/feed/Attribution';
@@ -32,7 +32,7 @@ export default function Welcome({
         () => initialPosts[1] ?? initialPosts[0] ?? null,
     );
 
-    const handleAdvance = useCallback(() => {
+    const handleAdvance = () => {
         const bg = bgRef.current;
         const content = contentRef.current;
 
@@ -95,7 +95,7 @@ export default function Welcome({
                 },
                 0.3,
             );
-    }, [advance, current, queue]);
+    };
 
     const { progress } = useAutoAdvance({
         duration: 8000,

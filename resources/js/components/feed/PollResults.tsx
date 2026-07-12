@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react';
+import { timeSince } from '@/lib/time-since';
 import type { Poll } from '@/types/post';
-import { timeSince } from './Attribution';
 import { PANEL_CLASS } from './panel-class';
 
 function pollStatus(poll: Poll): string {

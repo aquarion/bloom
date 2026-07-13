@@ -49,7 +49,7 @@ Mirrors the existing `passkey_recovery_tokens` table: hashed `token`, `tombstone
 
 ## Scheduled Jobs
 
-Both registered in `routes/console.php` via `Schedule::command(...)->daily()`. This is the first scheduled work in the project — **deployment needs a cron entry running `php artisan schedule:run` every minute**, which doesn't exist yet. Flagging as an explicit deploy checklist item.
+Both registered in `routes/console.php` via `Schedule::command(...)->daily()`. This is the first scheduled work in the project, so it also needs a scheduler process running in production — **done separately in the `autopelago` ansible repo** ([PR #253](https://github.com/aquarion/autopelago/pull/253)), which adds `scheduler: true` support to the shared `firth_laravel_app` role and enables it for bloom (prod + staging). That PR runs `php artisan schedule:work` in its own container; it's a no-op until this feature actually registers scheduled commands. Bloom's own PR should merge after (or alongside) that ansible PR, not before — the scheduler container is harmless to have running early, but the reverse (commands registered with no scheduler process) means the warning/tombstoning would silently never run in production.
 
 The 83/90-day thresholds are config values, not magic numbers, following the existing pattern in `config/feed.php`:
 

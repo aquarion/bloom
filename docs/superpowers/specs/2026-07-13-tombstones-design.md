@@ -31,6 +31,7 @@ After 83 days of inactivity, warn the user by email. After 90 days, archive ("to
 - `id`
 - `email` (unique, indexed — required for the recovery-path lookup)
 - `name`
+- `schema_version` (integer, default `1`) — tags the shape of `archived_passkeys`/`archived_social_accounts` at write time. Both JSON columns are written together in the same tombstoning pass, so one version per record is enough; no per-entry versioning needed. Any code that reads these columns (`rehydrate()`, the login-path passkey-verification fallback) must switch on this before trusting the JSON shape, and refuse gracefully rather than guess if it encounters a version newer than it understands. Same reasoning as the `bloom:favicon404s:v1` localStorage-key fix — data written now may be read back an arbitrary amount of time later, after the writing code has moved on.
 - `archived_passkeys` (JSON array of `{credential_id, public_key, sign_count, transports, name}` — enough to run real WebAuthn verification against later)
 - `archived_social_accounts` (JSON array; shape is whatever `SocialAccount::toArchive()` returns — see below. **Access/refresh tokens are dropped, not archived**; keeping live credentials in cold storage is a needless liability and they're likely stale/revoked by the time anyone resurrects)
 - `original_user_id` (nullable, unconstrained int — a breadcrumb for support/debugging only, not a real FK since the user row is gone by the time this is set)
@@ -41,7 +42,7 @@ After 83 days of inactivity, warn the user by email. After 90 days, archive ("to
 Provider-specific archive/restore logic lives on the model itself, not in the tombstoning command or resurrection controller — `SocialAccount` already owns the fields that vary by provider (`provider`, `feed_type`, `instance_url`, `handle`), so it's the natural place for a future provider to hook in special-cased behavior.
 
 - `toArchive(): array` — returns the metadata-only shape to store in `Tombstone::archived_social_accounts` (`provider`, `feed_type`, `instance_url`, `handle`). No tokens.
-- `static rehydrate(array $archived): array` — returns fillable attributes for a fresh `SocialAccount::create()` call: the archived metadata plus `auth_failed_at` set to `now()` and no token. This reuses the *existing* `auth_failed_at`-driven "reconnect this account" UI in `connections.tsx` (today used when a live token silently expires) — a resurrected user lands directly in that flow with zero new UI.
+- `static rehydrate(array $archived, int $schemaVersion): array` — returns fillable attributes for a fresh `SocialAccount::create()` call: the archived metadata plus `auth_failed_at` set to `now()` and no token. Takes the owning `Tombstone`'s `schema_version` so it knows how to interpret `$archived`'s shape if it's ever changed since that record was written. This reuses the *existing* `auth_failed_at`-driven "reconnect this account" UI in `connections.tsx` (today used when a live token silently expires) — a resurrected user lands directly in that flow with zero new UI.
 
 ### `tombstone_recovery_tokens` table (new `TombstoneRecoveryToken` model)
 Mirrors the existing `passkey_recovery_tokens` table: hashed `token`, `tombstone_id` (FK, cascade delete), `used_at`, `created_at`. Used only by the email-recovery path.
@@ -70,7 +71,7 @@ return [
   1. Build `archived_passkeys` from the user's `passkeys` relation.
   2. Build `archived_social_accounts` by calling `->toArchive()` on each of the user's `socialAccounts`.
   3. Call `$user->cancelSubscription()`.
-  4. Create the `Tombstone` row.
+  4. Create the `Tombstone` row, stamping `schema_version` with `Tombstone::CURRENT_SCHEMA_VERSION` (a class constant, bumped whenever the archive shape changes).
   5. Send `AccountTombstoned` mailable (`mail.account-tombstoned`) to the plain email string (not tied to the `User` model, since it's about to be deleted).
   6. Delete the `User` row. Passkeys, social accounts, and passkey recovery tokens cascade-delete automatically — the existing FK constraints already have `cascadeOnDelete()`.
 
@@ -78,7 +79,7 @@ return [
 
 In `PasskeyAuthController::resolveVerifiedPasskey()`, when the live `Passkey::where('credential_id', ...)` lookup misses, fall back to searching `Tombstone::archived_passkeys` for a matching `credential_id` via `whereJsonContains('archived_passkeys', ['credential_id' => $credentialId])`. Verify SQLite (the test DB driver) supports this JSON containment query the same way as MySQL/Postgres in production; if it's flaky across drivers, fall back to a PHP-side scan (acceptable at Bloom's scale — tombstone volume is inherently small and this path only runs on a failed live lookup).
 
-On a match, build an **unsaved, transient `Passkey` instance** from the archived fields and pass it straight into the existing `WebAuthnService::verifyAuthentication()` unchanged — that method only reads properties off the model and never persists it, so no changes to `WebAuthnService` are needed.
+On a match, build an **unsaved, transient `Passkey` instance** from the archived fields and pass it straight into the existing `WebAuthnService::verifyAuthentication()` unchanged — that method only reads properties off the model and never persists it, so no changes to `WebAuthnService` are needed. Building that transient instance switches on `$tombstone->schema_version` first, since a version this code doesn't recognize means the archived shape can't be trusted blindly.
 
 - **Verification succeeds** → genuine owner. Stash `session(['tombstone_id' => $tombstone->id])` and redirect to `/account/archived` instead of `Auth::login()` (there's no live user to log into).
 - **Verification fails** → identical generic "Passkey verification failed" response as any other bad attempt. A leaked/observed `credential_id` alone must not be able to confirm tombstone existence.
@@ -99,14 +100,14 @@ In `setup()`, branch on which token type was consumed:
 
 - `show()` — Inertia page (`auth/tombstone`) reading `session('tombstone_id')`. No session value → redirect to login. Renders the archived message with **Delete Entirely** / **Resurrect** actions.
 - `destroy()` — hard-deletes the `Tombstone` row (cascades its recovery tokens). Mirrors the existing `ProfileController::destroy` pattern.
-- `resurrect()` — creates a **brand-new** `User` row (new id, restored `email`/`name`), re-adds the one passkey that was just cryptographically verified as a live `Passkey`, recreates a `SocialAccount` row for each archived entry via `SocialAccount::rehydrate()` (no tokens, pre-flagged via `auth_failed_at` to surface in the existing reconnect UI), deletes the `Tombstone`, then `Auth::login($newUser)` and redirects to the feed with a "welcome back — reconnect your accounts" notice.
+- `resurrect()` — creates a **brand-new** `User` row (new id, restored `email`/`name`), re-adds the one passkey that was just cryptographically verified as a live `Passkey`, recreates a `SocialAccount` row for each archived entry via `SocialAccount::rehydrate($entry, $tombstone->schema_version)` (no tokens, pre-flagged via `auth_failed_at` to surface in the existing reconnect UI), deletes the `Tombstone`, then `Auth::login($newUser)` and redirects to the feed with a "welcome back — reconnect your accounts" notice.
 
 Routes: `tombstone.show`, `tombstone.destroy`, `tombstone.resurrect`, mounted under `/account/archived`.
 
 ## Testing Plan
 
 - **`accounts:warn-inactive`** — sends only within the 83–90 day window; doesn't resend once `inactivity_warning_sent_at` is set; boundary days (exactly 83, exactly 90) behave correctly; a user who logs in between warning and tombstoning drops out of the query and has their warning flag cleared.
-- **`SocialAccount::toArchive()` / `::rehydrate()`** — round-trips metadata correctly per provider; confirms tokens never appear in either direction; `rehydrate()` output always sets `auth_failed_at`.
+- **`SocialAccount::toArchive()` / `::rehydrate()`** — round-trips metadata correctly per provider; confirms tokens never appear in either direction; `rehydrate()` output always sets `auth_failed_at`; `rehydrate()` given an unrecognized `schema_version` fails clearly rather than misreading the shape.
 - **`accounts:tombstone-inactive`** — archives passkeys/social accounts correctly (via `toArchive()`); confirms access/refresh tokens are *not* archived; calls `cancelSubscription()`; sends the final notice; deletes the user; confirms cascade-delete cleaned up passkeys, social accounts, and recovery tokens.
 - **`PasskeyAuthController`** — tombstoned credential with a valid signature redirects to the interstitial; tombstoned credential with an invalid signature gets the identical generic failure as a normal bad attempt (no enumeration leak).
 - **`PasskeyRecoveryController`** — tombstoned email produces an HTTP response identical to an unknown/live email; `setup()` correctly branches on token type.

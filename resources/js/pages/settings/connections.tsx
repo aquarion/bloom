@@ -4,6 +4,8 @@ import Heading from '@/components/heading';
 import InstanceCombobox from '@/components/InstanceCombobox';
 import InputError from '@/components/input-error';
 import type {
+    BlueskyConnection,
+    MastodonConnection,
     ProviderSectionConfig,
     SocialConnection,
 } from '@/components/settings/provider-section';
@@ -84,21 +86,25 @@ export default function Connections({
     status?: string;
 }) {
     const mastodonHome = connections.filter(
-        (c) => c.provider === 'mastodon' && c.feed_type === 'home',
+        (c): c is MastodonConnection =>
+            c.provider === 'mastodon' && c.feed_type === 'home',
     );
     const mastodonPublic = connections.filter(
-        (c) => c.provider === 'mastodon' && c.feed_type === 'public_mastodon',
+        (c): c is MastodonConnection =>
+            c.provider === 'mastodon' && c.feed_type === 'public_mastodon',
     );
     const blueskyHome = connections.filter(
-        (c) => c.provider === 'bluesky' && c.feed_type === 'home',
+        (c): c is BlueskyConnection =>
+            c.provider === 'bluesky' && c.feed_type === 'home',
     );
     const blueskyFeeds = connections.filter(
-        (c) => c.provider === 'bluesky' && c.feed_type === 'bluesky_feed',
+        (c): c is BlueskyConnection =>
+            c.provider === 'bluesky' && c.feed_type === 'bluesky_feed',
     );
 
     const hasBlueskyHomeAccount = blueskyHome.length > 0;
 
-    const mastodonConfig: ProviderSectionConfig = {
+    const mastodonConfig: ProviderSectionConfig<MastodonConnection> = {
         icon: <SiMastodon className="size-4" />,
         label: 'Mastodon',
         primary: {
@@ -193,7 +199,7 @@ export default function Connections({
         ),
     };
 
-    const blueskyConfig: ProviderSectionConfig = {
+    const blueskyConfig: ProviderSectionConfig<BlueskyConnection> = {
         icon: <SiBluesky className="size-4" />,
         label: 'Bluesky',
         primary: {

@@ -10,13 +10,27 @@ import bluesky from '@/routes/bluesky';
 import { destroy as disconnectAccount } from '@/routes/connections';
 import mastodon from '@/routes/mastodon';
 
-export interface SocialConnection {
+interface BaseConnection {
     id: number;
-    provider: 'mastodon' | 'bluesky';
-    feed_type: 'home' | 'public_mastodon' | 'bluesky_feed';
     handle: string | null;
-    instance_url: string | null;
     auth_failed_at: string | null;
+    feed_settings: {
+        max_posts?: number;
+        max_age_days?: number | null;
+    } | null;
+}
+
+export interface MastodonConnection extends BaseConnection {
+    provider: 'mastodon';
+    feed_type: 'home' | 'public_mastodon';
+    instance_url: string | null;
+}
+
+export interface BlueskyConnection
+    extends Omit<BaseConnection, 'feed_settings'> {
+    provider: 'bluesky';
+    feed_type: 'home' | 'bluesky_feed';
+    instance_url: null;
     feed_settings: {
         max_posts?: number;
         max_age_days?: number | null;
@@ -24,20 +38,24 @@ export interface SocialConnection {
     } | null;
 }
 
-export interface ProviderSectionConfig {
+export type SocialConnection = MastodonConnection | BlueskyConnection;
+
+export interface ProviderSectionConfig<
+    C extends SocialConnection = SocialConnection,
+> {
     icon: ReactNode;
     label: string;
     primary?: {
         heading: string;
-        connections: SocialConnection[];
-        ReauthForm: ComponentType<{ connection: SocialConnection }>;
-        renderLabel: (connection: SocialConnection) => ReactNode;
+        connections: C[];
+        ReauthForm: ComponentType<{ connection: C }>;
+        renderLabel: (connection: C) => ReactNode;
         showFeedSettings?: boolean;
     };
     secondary?: {
         heading: string;
-        connections: SocialConnection[];
-        renderLabel: (connection: SocialConnection) => ReactNode;
+        connections: C[];
+        renderLabel: (connection: C) => ReactNode;
     };
     addForms: ReactNode;
 }
@@ -148,7 +166,7 @@ export function AccountFeedSettings({
 export function BlueskyReauthForm({
     connection,
 }: {
-    connection: SocialConnection;
+    connection: BlueskyConnection;
 }) {
     return (
         <div className="space-y-2">
@@ -199,7 +217,7 @@ export function BlueskyReauthForm({
 export function MastodonReauthForm({
     connection,
 }: {
-    connection: SocialConnection;
+    connection: MastodonConnection;
 }) {
     return (
         <div className="flex items-center justify-between gap-2">
@@ -252,7 +270,11 @@ export function DisconnectButton({
     );
 }
 
-export function ProviderSection({ config }: { config: ProviderSectionConfig }) {
+export function ProviderSection<C extends SocialConnection>({
+    config,
+}: {
+    config: ProviderSectionConfig<C>;
+}) {
     const { primary, secondary } = config;
 
     return (

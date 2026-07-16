@@ -73,7 +73,7 @@ function PostRow({ post, isCurrent }: { post: Post; isCurrent: boolean }) {
                 )}
                 {post.hashtags.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
-                        {[...new Set(post.hashtags)].map((tag) => (
+                        {post.hashtags.map(({ tag }) => (
                             <span
                                 key={tag}
                                 className="rounded bg-white/10 px-1 py-0.5 text-[10px] text-white/50"

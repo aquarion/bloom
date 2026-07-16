@@ -63,10 +63,10 @@ class PostNormalizer
             'boosted_by_handle' => $boosterAccount ? '@'.$boosterAccount['acct'] : null,
             'boosted_by_created_at' => $boosterAccount ? ($status['created_at'] ?? null) : null,
             'emojis' => $emojis,
-            'hashtags' => array_values(array_unique(array_map(
+            'hashtags' => $this->hashtagLinks(array_values(array_unique(array_map(
                 fn ($t) => mb_strtolower($t['name'] ?? '', 'UTF-8'),
                 $source['tags'] ?? []
-            ))),
+            ))), 'mastodon', $host),
             'cw_text' => ($hasSpoilerText = isset($source['spoiler_text']) && $source['spoiler_text'] !== '') ? $source['spoiler_text'] : null,
             'cw_is_author_level' => false,
             'cw_label_source' => $hasSpoilerText ? 'self' : null,
@@ -132,7 +132,7 @@ class PostNormalizer
             'boosted_by_handle' => $repostBy ? '@'.($repostBy['handle'] ?? '') : null,
             'boosted_by_created_at' => $repostBy ? ($reason['indexedAt'] ?? null) : null,
             'emojis' => [],
-            'hashtags' => $hashtags,
+            'hashtags' => $this->hashtagLinks($hashtags, 'bluesky', null),
             'cw_text' => $labelData['cw_text'],
             'cw_is_author_level' => $labelData['cw_is_author_level'],
             'cw_label_source' => $labelData['cw_label_source'],
@@ -798,6 +798,27 @@ class PostNormalizer
         $domain = parse_url($linkUrl, PHP_URL_HOST);
 
         return $domain ? "https://favicone.com/{$domain}" : null;
+    }
+
+    /**
+     * @param  array<int, string>  $tags
+     * @return array<int, array{tag: string, url: string}>
+     */
+    private function hashtagLinks(array $tags, string $source, ?string $sourceInstance): array
+    {
+        return array_map(
+            fn ($tag) => ['tag' => $tag, 'url' => $this->hashtagUrl($tag, $source, $sourceInstance)],
+            $tags,
+        );
+    }
+
+    private function hashtagUrl(string $tag, string $source, ?string $sourceInstance): string
+    {
+        if ($source === 'mastodon' && $sourceInstance) {
+            return "https://{$sourceInstance}/tags/".rawurlencode($tag);
+        }
+
+        return 'https://bsky.app/search?q=%23'.rawurlencode($tag);
     }
 
     private function safeUrl(?string $url): string

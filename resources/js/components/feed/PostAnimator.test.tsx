@@ -229,3 +229,27 @@ describe('PostAnimator — image branch', () => {
         );
     });
 });
+
+describe('PostAnimator — text branch', () => {
+    it('renders hashtag links using the precomputed url', () => {
+        render(
+            <PostAnimator
+                post={makePost({
+                    body: 'Hello world',
+                    hashtags: [
+                        {
+                            tag: 'sunny',
+                            url: 'https://mastodon.example/tags/sunny',
+                        },
+                    ],
+                })}
+                colors={null}
+            />,
+        );
+
+        expect(screen.getByRole('link', { name: '#sunny' })).toHaveAttribute(
+            'href',
+            'https://mastodon.example/tags/sunny',
+        );
+    });
+});

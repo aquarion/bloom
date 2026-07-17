@@ -6,12 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\SocialAccount;
 use App\Models\Tombstone;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * SECURITY INVARIANT: `tombstone_id` and `tombstone_credential_id` must only ever be set in
+ * session after genuine identity verification — e.g. a successful WebAuthn assertion against
+ * an archived account's passkey (PasskeyAuthController), or consuming a single-use
+ * TombstoneRecoveryToken. This controller trusts those session values as already-verified;
+ * it does not re-verify identity itself. Any code that sets these session keys MUST verify
+ * identity first.
+ */
 class TombstoneController extends Controller
 {
     public function show(Request $request): RedirectResponse|Response
@@ -44,41 +54,63 @@ class TombstoneController extends Controller
 
     public function resurrect(Request $request): RedirectResponse
     {
-        $tombstone = $this->resolveSessionTombstone($request);
+        $id = $request->session()->get('tombstone_id');
 
-        if (! $tombstone) {
+        if (! $id) {
             return redirect()->route('login');
         }
 
-        $user = User::create([
-            'name' => $tombstone->name,
-            'email' => $tombstone->email,
-            'last_active_at' => now(),
-        ]);
-
         $verifiedCredentialId = $request->session()->get('tombstone_credential_id');
-        $archivedPasskey = $verifiedCredentialId
-            ? $tombstone->findArchivedPasskey($verifiedCredentialId)
-            : null;
 
-        if ($archivedPasskey) {
-            $user->passkeys()->create([
-                'name' => $archivedPasskey['name'],
-                'credential_id' => $archivedPasskey['credential_id'],
-                'public_key' => $archivedPasskey['public_key'],
-                'sign_count' => $archivedPasskey['sign_count'],
-                'transports' => $archivedPasskey['transports'],
-            ]);
+        try {
+            $user = DB::transaction(function () use ($id, $verifiedCredentialId) {
+                $tombstone = Tombstone::whereKey($id)->lockForUpdate()->first();
+
+                if (! $tombstone) {
+                    return null;
+                }
+
+                $user = User::create([
+                    'name' => $tombstone->name,
+                    'email' => $tombstone->email,
+                    'last_active_at' => now(),
+                ]);
+
+                $archivedPasskey = $verifiedCredentialId
+                    ? $tombstone->findArchivedPasskey($verifiedCredentialId)
+                    : null;
+
+                if ($archivedPasskey) {
+                    $user->passkeys()->create([
+                        'name' => $archivedPasskey['name'],
+                        'credential_id' => $archivedPasskey['credential_id'],
+                        'public_key' => $archivedPasskey['public_key'],
+                        'sign_count' => $archivedPasskey['sign_count'],
+                        'transports' => $archivedPasskey['transports'],
+                    ]);
+                }
+
+                foreach ($tombstone->archivedSocialAccounts() as $archivedAccount) {
+                    $user->socialAccounts()->create(
+                        SocialAccount::rehydrate($archivedAccount, $tombstone->schema_version)
+                    );
+                }
+
+                $tombstone->delete();
+
+                return $user;
+            });
+        } catch (QueryException $e) {
+            $request->session()->forget(['tombstone_id', 'tombstone_credential_id']);
+
+            return redirect()->route('login')->with('status', 'account-already-exists');
         }
 
-        foreach ($tombstone->archivedSocialAccounts() as $archivedAccount) {
-            $user->socialAccounts()->create(
-                SocialAccount::rehydrate($archivedAccount, $tombstone->schema_version)
-            );
-        }
-
-        $tombstone->delete();
         $request->session()->forget(['tombstone_id', 'tombstone_credential_id']);
+
+        if (! $user) {
+            return redirect()->route('login');
+        }
 
         Auth::login($user);
 

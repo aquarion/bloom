@@ -84,6 +84,26 @@ test('resurrect recreates the verified passkey and flags social accounts for rec
     expect($socialAccount->access_token)->toBeNull();
 });
 
+test('resurrect redirects gracefully when a user already exists with the tombstone email', function () {
+    $tombstone = Tombstone::factory()->create([
+        'email' => 'ada@example.com',
+        'name' => 'Ada Lovelace',
+        'archived_passkeys' => [],
+        'archived_social_accounts' => [],
+    ]);
+
+    User::factory()->create(['email' => 'ada@example.com']);
+
+    $this->withSession(['tombstone_id' => $tombstone->id])
+        ->post(route('tombstone.resurrect'))
+        ->assertRedirect(route('login'))
+        ->assertSessionHas('status', 'account-already-exists');
+
+    $this->assertGuest();
+    $this->assertDatabaseHas('tombstones', ['id' => $tombstone->id]);
+    $this->assertSame(1, User::where('email', 'ada@example.com')->count());
+});
+
 test('resurrect via the email-recovery path (no verified credential) creates a user with no passkey', function () {
     $tombstone = Tombstone::factory()->create([
         'email' => 'bob@example.com',

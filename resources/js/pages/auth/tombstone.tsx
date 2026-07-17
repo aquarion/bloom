@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import TombstoneController from '@/actions/App/Http/Controllers/Auth/TombstoneController';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -18,16 +19,22 @@ type TombstoneProps = {
     email: string;
 };
 
+const GENERIC_ERROR_MESSAGE =
+    'Something went wrong. Your session may have expired — please refresh the page and try again.';
+
 export default function Tombstone({ name, email }: TombstoneProps) {
     const [resurrecting, setResurrecting] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleResurrect = () => {
         setResurrecting(true);
+        setError(null);
         router.post(
             TombstoneController.resurrect.url(),
             {},
             {
+                onError: () => setError(GENERIC_ERROR_MESSAGE),
                 onFinish: () => setResurrecting(false),
             },
         );
@@ -35,7 +42,9 @@ export default function Tombstone({ name, email }: TombstoneProps) {
 
     const handleDelete = () => {
         setDeleting(true);
+        setError(null);
         router.delete(TombstoneController.destroy.url(), {
+            onError: () => setError(GENERIC_ERROR_MESSAGE),
             onFinish: () => setDeleting(false),
         });
     };
@@ -50,6 +59,8 @@ export default function Tombstone({ name, email }: TombstoneProps) {
                     you'll need to reconnect your social feeds — or delete it
                     for good.
                 </p>
+
+                {error && <InputError message={error} />}
 
                 <Button
                     onClick={handleResurrect}

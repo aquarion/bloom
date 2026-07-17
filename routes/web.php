@@ -80,9 +80,15 @@ Route::middleware('guest')->group(function () {
         ->middleware('throttle:10,1')
         ->name('passkey.auth.authenticate');
 
-    Route::get('account/archived', [TombstoneController::class, 'show'])->name('tombstone.show');
-    Route::delete('account/archived', [TombstoneController::class, 'destroy'])->name('tombstone.destroy');
-    Route::post('account/archived/resurrect', [TombstoneController::class, 'resurrect'])->name('tombstone.resurrect');
+    Route::get('account/archived', [TombstoneController::class, 'show'])
+        ->middleware('throttle:10,1')
+        ->name('tombstone.show');
+    Route::delete('account/archived', [TombstoneController::class, 'destroy'])
+        ->middleware('throttle:10,1')
+        ->name('tombstone.destroy');
+    Route::post('account/archived/resurrect', [TombstoneController::class, 'resurrect'])
+        ->middleware('throttle:10,1')
+        ->name('tombstone.resurrect');
 });
 
 Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])

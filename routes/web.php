@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\PasskeyAuthController;
 use App\Http\Controllers\Auth\PasskeyRecoveryController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\TombstoneController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\FeedController;
@@ -78,6 +79,10 @@ Route::middleware('guest')->group(function () {
     Route::post('auth/passkey/authenticate', [PasskeyAuthController::class, 'authenticate'])
         ->middleware('throttle:10,1')
         ->name('passkey.auth.authenticate');
+
+    Route::get('account/archived', [TombstoneController::class, 'show'])->name('tombstone.show');
+    Route::delete('account/archived', [TombstoneController::class, 'destroy'])->name('tombstone.destroy');
+    Route::post('account/archived/resurrect', [TombstoneController::class, 'resurrect'])->name('tombstone.resurrect');
 });
 
 Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])

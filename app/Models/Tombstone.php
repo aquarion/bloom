@@ -44,4 +44,37 @@ class Tombstone extends Model
     {
         return $this->hasMany(TombstoneRecoveryToken::class);
     }
+
+    /**
+     * Type-safe accessor for the archived_passkeys JSON column, so callers
+     * don't have to work with the loosely-typed `array` cast directly.
+     *
+     * @return array<int, array{credential_id: string, public_key: string, sign_count: int, transports: array<int, string>, name: string}>
+     */
+    public function archivedPasskeys(): array
+    {
+        /** @var array<int, array{credential_id: string, public_key: string, sign_count: int, transports: array<int, string>, name: string}> */
+        return $this->archived_passkeys;
+    }
+
+    /**
+     * Find a single archived passkey by its credential ID.
+     *
+     * @return array{credential_id: string, public_key: string, sign_count: int, transports: array<int, string>, name: string}|null
+     */
+    public function findArchivedPasskey(string $credentialId): ?array
+    {
+        return collect($this->archivedPasskeys())->firstWhere('credential_id', $credentialId);
+    }
+
+    /**
+     * Type-safe accessor for the archived_social_accounts JSON column.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function archivedSocialAccounts(): array
+    {
+        /** @var array<int, array<string, mixed>> */
+        return $this->archived_social_accounts;
+    }
 }

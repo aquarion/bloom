@@ -2,6 +2,7 @@ import { Form, useForm } from '@inertiajs/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 import { useState } from 'react';
+import FeedSettingsController from '@/actions/App/Http/Controllers/Settings/FeedSettingsController';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,7 +74,11 @@ export function AccountFeedSettings({
 
     function submit(e: React.FormEvent) {
         e.preventDefault();
-        put(`/settings/connections/${connection.id}/feed`);
+        put(
+            FeedSettingsController.updateAccount.url({
+                account: connection.id,
+            }),
+        );
     }
 
     return (

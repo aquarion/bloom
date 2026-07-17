@@ -92,8 +92,28 @@ vi.mock('@/routes/connections/public-mastodon', () => ({
     },
 }));
 
+vi.mock(
+    '@/actions/App/Http/Controllers/Settings/FeedSettingsController',
+    () => ({
+        default: {
+            updateAccount: {
+                url: ({ account }: { account: number }) =>
+                    `/settings/connections/${account}/feed`,
+            },
+        },
+    }),
+);
+
 vi.mock('@/components/InstanceCombobox', () => ({
-    default: () => null,
+    default: ({
+        id,
+        name,
+        placeholder,
+    }: {
+        id: string;
+        name: string;
+        placeholder?: string;
+    }) => <input id={id} name={name} placeholder={placeholder} />,
 }));
 
 const makeConnection = (
@@ -210,9 +230,18 @@ describe('Connections', () => {
     it('renders the mastodon add-account and add-timeline forms', () => {
         render(<Connections connections={[]} />);
 
-        expect(screen.getByLabelText('Instance URL')).toBeInTheDocument();
+        expect(
+            screen.getByLabelText('Instance URL', {
+                selector: '#instance_url',
+            }),
+        ).toBeInTheDocument();
         expect(screen.getByText('Connect Mastodon')).toBeInTheDocument();
         expect(screen.getByText('Add public timeline')).toBeInTheDocument();
+        expect(
+            screen.getByLabelText('Instance URL', {
+                selector: '#public_instance_url',
+            }),
+        ).toBeInTheDocument();
         expect(screen.getByText('Add timeline')).toBeInTheDocument();
     });
 

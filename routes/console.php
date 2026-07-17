@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\TombstoneInactiveAccounts;
 use App\Console\Commands\WarnInactiveAccounts;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -10,3 +11,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command(WarnInactiveAccounts::class)->daily();
+Schedule::command(TombstoneInactiveAccounts::class)->daily();

@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\TombstoneFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Tombstone extends Model
 {
@@ -38,6 +39,9 @@ class Tombstone extends Model
         ];
     }
 
-    // recoveryTokens() relation is added in the TombstoneRecoveryToken task,
-    // once that model exists (Larastan can't resolve a forward reference).
+    /** @return HasMany<TombstoneRecoveryToken, $this> */
+    public function recoveryTokens(): HasMany
+    {
+        return $this->hasMany(TombstoneRecoveryToken::class);
+    }
 }

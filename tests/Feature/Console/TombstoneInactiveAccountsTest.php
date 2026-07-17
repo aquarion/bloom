@@ -80,7 +80,34 @@ test('tombstones exactly at the 90-day boundary', function () {
     expect(Tombstone::where('email', $user->email)->exists())->toBeTrue();
 });
 
-test('a failure for one user is logged and does not block the rest of the batch', function () {
+test('tombstones multiple eligible inactive users in a single run', function () {
+    Mail::fake();
+
+    $userOne = User::factory()->create([
+        'name' => 'Ada Lovelace',
+        'email' => 'ada@example.com',
+        'last_active_at' => now()->subDays(91),
+    ]);
+    $userTwo = User::factory()->create([
+        'name' => 'Grace Hopper',
+        'email' => 'grace@example.com',
+        'last_active_at' => now()->subDays(120),
+    ]);
+
+    $this->artisan('accounts:tombstone-inactive')->assertExitCode(0);
+
+    $this->assertDatabaseMissing('users', ['id' => $userOne->id]);
+    $this->assertDatabaseMissing('users', ['id' => $userTwo->id]);
+
+    expect(Tombstone::where('email', 'ada@example.com')->exists())->toBeTrue();
+    expect(Tombstone::where('email', 'grace@example.com')->exists())->toBeTrue();
+
+    Mail::assertSent(AccountTombstoned::class, fn ($mail) => $mail->name === 'Ada Lovelace');
+    Mail::assertSent(AccountTombstoned::class, fn ($mail) => $mail->name === 'Grace Hopper');
+    Mail::assertSent(AccountTombstoned::class, 2);
+});
+
+test('a mail failure for one user is logged but the already-committed archive is not rolled back', function () {
     Mail::fake();
     Mail::shouldReceive('to')->andThrow(new RuntimeException('SMTP down'));
 
@@ -88,7 +115,8 @@ test('a failure for one user is logged and does not block the rest of the batch'
 
     $this->artisan('accounts:tombstone-inactive')->assertExitCode(0);
 
-    // Transaction rolled back for this user — nothing partially committed.
-    $this->assertDatabaseHas('users', ['id' => $user->id]);
-    expect(Tombstone::where('email', $user->email)->exists())->toBeFalse();
+    // The archive+delete already committed before the mail send was attempted,
+    // so the failure to send mail must not undo the tombstone.
+    $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    expect(Tombstone::where('email', $user->email)->exists())->toBeTrue();
 });

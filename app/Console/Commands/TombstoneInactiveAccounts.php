@@ -25,7 +25,7 @@ class TombstoneInactiveAccounts extends Command
             ->whereNotNull('last_active_at')
             ->where('last_active_at', '<=', $cutoff)
             ->with(['passkeys', 'socialAccounts'])
-            ->each(function (User $user) {
+            ->eachById(function (User $user) {
                 try {
                     $this->tombstone($user);
                 } catch (Throwable $e) {
@@ -41,6 +41,9 @@ class TombstoneInactiveAccounts extends Command
 
     private function tombstone(User $user): void
     {
+        $name = $user->name;
+        $email = $user->email;
+
         DB::transaction(function () use ($user) {
             $archivedPasskeys = $user->passkeys->map(fn ($passkey) => [
                 'credential_id' => $passkey->credential_id,
@@ -66,9 +69,9 @@ class TombstoneInactiveAccounts extends Command
                 'tombstoned_at' => now(),
             ]);
 
-            Mail::to($user->email)->send(new AccountTombstoned($user->name));
-
             $user->delete();
         });
+
+        Mail::to($email)->send(new AccountTombstoned($name));
     }
 }

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { PostColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
 import { MediaPost } from './MediaPost';
@@ -30,15 +30,11 @@ export function PostAnimator({
         onReadyRef.current = onReady;
     });
 
-    const body = useMemo(
-        () =>
-            (post.body || post.media[0]?.alt_text || '')
-                .split('\n')
-                .map((p) => p.trim())
-                .filter(Boolean)
-                .join('\n'),
-        [post.body, post.media],
-    );
+    const body = (post.body || post.media[0]?.alt_text || '')
+        .split('\n')
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .join('\n');
 
     const hasPanels = Boolean(
         post.link_url || post.quoted_post || post.reply_to || post.poll,

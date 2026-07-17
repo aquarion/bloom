@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\SocialAccount;
+use App\Models\Tombstone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -36,7 +37,7 @@ test('rehydrate builds fillable attributes flagged for reconnect, with no token'
         'handle' => '@nick.bsky.social',
     ];
 
-    $attributes = SocialAccount::rehydrate($archived, schemaVersion: 1);
+    $attributes = SocialAccount::rehydrate($archived, schemaVersion: Tombstone::CURRENT_SCHEMA_VERSION);
 
     expect($attributes['provider'])->toBe('bluesky');
     expect($attributes['feed_type'])->toBe('home');

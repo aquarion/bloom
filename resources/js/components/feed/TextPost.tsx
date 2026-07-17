@@ -148,7 +148,7 @@ export function TextPost({
                 <div
                     key={post.id}
                     ref={textRef}
-                    className={`w-full font-extrabold leading-none tracking-tight${post.reply_to || post.quoted_post ? 'min-w-[40ch]' : ''}`}
+                    className={`w-full font-extrabold leading-none tracking-tight ${post.reply_to || post.quoted_post ? 'min-w-[40ch]' : ''}`}
                     style={{
                         visibility: fontSizes ? 'visible' : 'hidden',
                         color: textColor,

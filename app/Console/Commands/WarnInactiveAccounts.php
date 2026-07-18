@@ -5,7 +5,9 @@ namespace App\Console\Commands;
 use App\Mail\InactivityWarning;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class WarnInactiveAccounts extends Command
 {
@@ -23,9 +25,16 @@ class WarnInactiveAccounts extends Command
             ->where('last_active_at', '<=', $warningCutoff)
             ->where('last_active_at', '>', $tombstoneCutoff)
             ->whereNull('inactivity_warning_sent_at')
-            ->each(function (User $user) {
-                Mail::to($user->email)->send(new InactivityWarning($user));
-                $user->update(['inactivity_warning_sent_at' => now()]);
+            ->eachById(function (User $user) {
+                try {
+                    Mail::to($user->email)->send(new InactivityWarning($user));
+                    $user->update(['inactivity_warning_sent_at' => now()]);
+                } catch (Throwable $e) {
+                    Log::error('Failed to send inactivity warning email', [
+                        'user_id' => $user->id,
+                        'exception' => $e->getMessage(),
+                    ]);
+                }
             });
 
         return self::SUCCESS;

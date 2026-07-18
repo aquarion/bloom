@@ -6,6 +6,7 @@ use App\Models\PasskeyRecoveryToken;
 use App\Models\SocialAccount;
 use App\Models\Tombstone;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 test('archives passkeys and social accounts, cancels subscription, emails, and deletes the user', function () {
@@ -108,15 +109,105 @@ test('tombstones multiple eligible inactive users in a single run', function () 
 });
 
 test('a mail failure for one user is logged but the already-committed archive is not rolled back', function () {
+    Log::spy();
     Mail::fake();
     Mail::shouldReceive('to')->andThrow(new RuntimeException('SMTP down'));
 
     $user = User::factory()->create(['last_active_at' => now()->subDays(95)]);
 
+    // A mail-only failure is not a tombstoning failure — the exit code must stay success.
     $this->artisan('accounts:tombstone-inactive')->assertExitCode(0);
 
     // The archive+delete already committed before the mail send was attempted,
     // so the failure to send mail must not undo the tombstone.
     $this->assertDatabaseMissing('users', ['id' => $user->id]);
     expect(Tombstone::where('email', $user->email)->exists())->toBeTrue();
+
+    // The log message must correctly attribute the failure to the notification email,
+    // not to the archive/tombstone process itself.
+    Log::shouldHaveReceived('error')
+        ->with('Account tombstoned but notification email failed to send', Mockery::on(fn ($context) => $context['user_id'] === $user->id))
+        ->once();
+    Log::shouldNotHaveReceived('error', [Mockery::on(fn ($message) => $message === 'Failed to tombstone inactive account')]);
+});
+
+test('prints a success summary and exit code 0 when nothing fails', function () {
+    Mail::fake();
+
+    $user = User::factory()->create(['last_active_at' => now()->subDays(95)]);
+
+    $this->artisan('accounts:tombstone-inactive')
+        ->expectsOutputToContain('Tombstoned 1 account(s), 0 failure(s).')
+        ->assertExitCode(0);
+
+    $this->assertDatabaseMissing('users', ['id' => $user->id]);
+});
+
+test('returns a failure exit code and reports counts when an archive genuinely fails', function () {
+    Mail::fake();
+    Log::spy();
+
+    // Simulate a real archive failure (not a mail failure) via a model event that throws
+    // only for one specific email, so the transaction for that user rolls back.
+    Tombstone::creating(function (Tombstone $tombstone) {
+        if ($tombstone->email === 'boom@example.com') {
+            throw new RuntimeException('simulated archive failure');
+        }
+    });
+
+    $failingUser = User::factory()->create([
+        'email' => 'boom@example.com',
+        'last_active_at' => now()->subDays(95),
+    ]);
+    $okUser = User::factory()->create([
+        'email' => 'fine@example.com',
+        'last_active_at' => now()->subDays(95),
+    ]);
+
+    $this->artisan('accounts:tombstone-inactive')
+        ->expectsOutputToContain('Tombstoned 1 account(s), 1 failure(s).')
+        ->assertExitCode(1);
+
+    // The failing user's archive transaction rolled back — user still exists, no tombstone.
+    $this->assertDatabaseHas('users', ['id' => $failingUser->id]);
+    expect(Tombstone::where('email', 'boom@example.com')->exists())->toBeFalse();
+
+    // The unrelated user still succeeded.
+    $this->assertDatabaseMissing('users', ['id' => $okUser->id]);
+    expect(Tombstone::where('email', 'fine@example.com')->exists())->toBeTrue();
+
+    Log::shouldHaveReceived('error')
+        ->with('Failed to tombstone inactive account', Mockery::on(fn ($context) => $context['user_id'] === $failingUser->id))
+        ->once();
+
+    Tombstone::flushEventListeners();
+});
+
+test('a stale, never-resurrected tombstone for the same email is replaced rather than blocking re-tombstoning', function () {
+    Mail::fake();
+
+    Tombstone::create([
+        'email' => 'returning@example.com',
+        'name' => 'Old Name',
+        'schema_version' => Tombstone::CURRENT_SCHEMA_VERSION,
+        'archived_passkeys' => [],
+        'archived_social_accounts' => [],
+        'original_user_id' => 999,
+        'tombstoned_at' => now()->subDays(200),
+    ]);
+
+    $user = User::factory()->create([
+        'name' => 'New Name',
+        'email' => 'returning@example.com',
+        'last_active_at' => now()->subDays(95),
+    ]);
+
+    $this->artisan('accounts:tombstone-inactive')->assertExitCode(0);
+
+    $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    expect(Tombstone::where('email', 'returning@example.com')->count())->toBe(1);
+
+    $tombstone = Tombstone::where('email', 'returning@example.com')->first();
+    expect($tombstone->name)->toBe('New Name');
+    expect($tombstone->original_user_id)->toBe($user->id);
 });

@@ -119,3 +119,64 @@ test('resurrect via the email-recovery path (no verified credential) creates a u
     $newUser = User::where('email', 'bob@example.com')->first();
     expect($newUser->passkeys()->count())->toBe(0);
 });
+
+test('resurrect redirects gracefully instead of crashing when the schema_version is unrecognised', function () {
+    $tombstone = Tombstone::factory()->create([
+        'email' => 'carol@example.com',
+        'name' => 'Carol',
+        'schema_version' => Tombstone::CURRENT_SCHEMA_VERSION + 1,
+        'archived_passkeys' => [],
+        'archived_social_accounts' => [],
+    ]);
+
+    $this->withSession(['tombstone_id' => $tombstone->id])
+        ->post(route('tombstone.resurrect'))
+        ->assertRedirect(route('login'))
+        ->assertSessionHas('status', 'account-archive-error');
+
+    $this->assertGuest();
+    $this->assertDatabaseHas('tombstones', ['id' => $tombstone->id]);
+    $this->assertDatabaseMissing('users', ['email' => 'carol@example.com']);
+});
+
+test('resurrect redirects gracefully when the tombstone was already consumed by a concurrent request', function () {
+    $tombstone = Tombstone::factory()->create([
+        'email' => 'dana@example.com',
+        'name' => 'Dana',
+        'archived_passkeys' => [],
+        'archived_social_accounts' => [],
+    ]);
+
+    $this->withSession(['tombstone_id' => $tombstone->id])
+        ->post(route('tombstone.resurrect'))
+        ->assertRedirect(route('feed'));
+
+    $this->assertDatabaseMissing('tombstones', ['id' => $tombstone->id]);
+
+    // Simulate a second, double-submitted request racing in with the same stashed
+    // session data after the tombstone row has already been consumed and deleted.
+    $this->app['auth']->guard()->logout();
+
+    $this->withSession(['tombstone_id' => $tombstone->id])
+        ->post(route('tombstone.resurrect'))
+        ->assertRedirect(route('login'));
+
+    $this->assertGuest();
+    $this->assertSame(1, User::where('email', 'dana@example.com')->count());
+});
+
+test('tombstone.show is rate limited to 10 requests per minute', function () {
+    $tombstone = Tombstone::factory()->create();
+
+    for ($i = 0; $i < 10; $i++) {
+        $this->withoutVite()
+            ->withSession(['tombstone_id' => $tombstone->id])
+            ->get(route('tombstone.show'))
+            ->assertOk();
+    }
+
+    $this->withoutVite()
+        ->withSession(['tombstone_id' => $tombstone->id])
+        ->get(route('tombstone.show'))
+        ->assertStatus(429);
+});

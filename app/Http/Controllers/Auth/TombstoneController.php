@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Exceptions\TombstoneSchemaMismatchException;
 use App\Http\Controllers\Controller;
 use App\Models\SocialAccount;
 use App\Models\Tombstone;
 use App\Models\User;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -70,6 +73,15 @@ class TombstoneController extends Controller
                     return null;
                 }
 
+                if ($tombstone->schema_version !== Tombstone::CURRENT_SCHEMA_VERSION) {
+                    Log::warning('Tombstone resurrect hit an unrecognised schema version', [
+                        'tombstone_id' => $tombstone->id,
+                        'schema_version' => $tombstone->schema_version,
+                    ]);
+
+                    throw new TombstoneSchemaMismatchException;
+                }
+
                 $user = User::create([
                     'name' => $tombstone->name,
                     'email' => $tombstone->email,
@@ -100,10 +112,28 @@ class TombstoneController extends Controller
 
                 return $user;
             });
-        } catch (QueryException $e) {
+        } catch (TombstoneSchemaMismatchException) {
+            $request->session()->forget(['tombstone_id', 'tombstone_credential_id']);
+
+            return redirect()->route('login')->with('status', 'account-archive-error');
+        } catch (UniqueConstraintViolationException $e) {
+            Log::error('Tombstone resurrect failed: unique constraint violation', [
+                'tombstone_id' => $id,
+                'exception' => $e->getMessage(),
+            ]);
+
             $request->session()->forget(['tombstone_id', 'tombstone_credential_id']);
 
             return redirect()->route('login')->with('status', 'account-already-exists');
+        } catch (QueryException $e) {
+            Log::error('Tombstone resurrect failed', [
+                'tombstone_id' => $id,
+                'exception' => $e->getMessage(),
+            ]);
+
+            $request->session()->forget(['tombstone_id', 'tombstone_credential_id']);
+
+            return redirect()->route('login')->with('status', 'account-archive-error');
         }
 
         $request->session()->forget(['tombstone_id', 'tombstone_credential_id']);

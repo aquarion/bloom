@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { splitIntoLinesWithBoundaries } from '@/lib/block-text';
 
 const BASE_FONT_SIZE = 40;
@@ -15,21 +15,29 @@ export function useAutoFitText(body: string) {
         sizes: number[];
     } | null>(null);
 
-    const { lines, paragraphStarts } = body
-        ? splitIntoLinesWithBoundaries(body)
-        : { lines: [] as string[], paragraphStarts: new Set<number>() };
+    const { lines, paragraphStarts } = useMemo(
+        () =>
+            body
+                ? splitIntoLinesWithBoundaries(body)
+                : { lines: [] as string[], paragraphStarts: new Set<number>() },
+        [body],
+    );
 
     // Pre-compute a unique key per line using sequential character offsets so
     // identical lines in different positions still get distinct keys.
-    const lineKeys: number[] = [];
-    let lineKeySearch = 0;
+    const lineKeys = useMemo(() => {
+        const keys: number[] = [];
+        let search = 0;
 
-    for (const line of lines) {
-        const pos = body.indexOf(line, lineKeySearch);
-        const key = pos >= 0 ? pos : lineKeySearch;
-        lineKeys.push(key);
-        lineKeySearch = key + line.length;
-    }
+        for (const line of lines) {
+            const pos = body.indexOf(line, search);
+            const key = pos >= 0 ? pos : search;
+            keys.push(key);
+            search = key + line.length;
+        }
+
+        return keys;
+    }, [lines, body]);
 
     // Font sizes are only valid for the current body; treat as null when body changes.
     const fontSizes = fontSizeState?.body === body ? fontSizeState.sizes : null;
@@ -47,6 +55,11 @@ export function useAutoFitText(body: string) {
         }
 
         const { width, height } = containerRef.current.getBoundingClientRect();
+
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
         const targetWidth = width * 0.9;
 
         const widths = els.map((el) => el?.getBoundingClientRect().width ?? 0);
@@ -88,6 +101,13 @@ export function useAutoFitText(body: string) {
         if (totalHeight > heightBudget) {
             const scale = heightBudget / totalHeight;
             sizes = sizes.map((s) => s * scale);
+        }
+
+        // Guards against a degenerate measurement (e.g. a line reporting non-zero
+        // width while the container measures zero) propagating NaN/Infinity through
+        // the disparity-clamp division above into committed, rendered font sizes.
+        if (!sizes.every(Number.isFinite)) {
+            return;
         }
 
         // eslint-disable-next-line @eslint-react/set-state-in-effect

@@ -72,8 +72,9 @@ export function TextPost({
 
         // Apply highlight colour to the longest content word — must happen after SplitText
         // rewrites the DOM, as it strips any inline colour spans.
-        // Exclude @mentions and #hashtags (which are stripped from body but may appear
-        // in posts that haven't been re-fetched since the hashtag-strip was deployed).
+        // Exclude @mentions (PostNormalizer keeps inline mentions in the body by
+        // design — see MentionClassifier::ROLE_INLINE) and #hashtags (PostNormalizer
+        // always strips these; any that appear are from posts not yet re-normalized).
         const highlight =
             colors?.highlight ?? postColors(post.author_handle).highlight;
         const contentWords = [...split.words].filter(

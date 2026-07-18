@@ -39,8 +39,9 @@ export interface PollOption {
 }
 
 export interface HashtagLink {
-    tag: string;
-    url: string;
+    readonly tag: string;
+    /** Derived from `tag` server-side (PostNormalizer::hashtagUrl) — not independently settable. */
+    readonly url: string;
 }
 
 export interface Poll {

@@ -1605,6 +1605,45 @@ it('lowercases mastodon hashtags', function () {
     ])->and($post['body'])->toBe('post');
 });
 
+it('falls back to bluesky-style hashtag urls when the mastodon host is empty', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>post #FooBar</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'tags' => [['name' => 'FooBar', 'url' => 'https://mastodon.example/tags/FooBar']],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, '');
+
+    expect($post['hashtags'])->toBe([
+        ['tag' => 'foobar', 'url' => 'https://bsky.app/search?q=%23foobar'],
+    ]);
+});
+
+it('drops hashtags with an empty tag name', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>post #FooBar</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'tags' => [
+            ['name' => 'FooBar', 'url' => 'https://mastodon.example/tags/FooBar'],
+            ['name' => '', 'url' => 'https://mastodon.example/tags/'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['hashtags'])->toBe([
+        ['tag' => 'foobar', 'url' => 'https://mastodon.example/tags/foobar'],
+    ]);
+});
+
 it('lowercases bluesky hashtags', function () {
     $feedPost = [
         'post' => [

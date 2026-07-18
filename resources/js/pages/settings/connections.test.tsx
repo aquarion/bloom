@@ -17,10 +17,22 @@ type FormRenderProps = {
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Form: ({
+        action,
+        method,
         children,
     }: {
+        action?: string;
+        method?: string;
         children: (props: FormRenderProps) => ReactNode;
-    }) => <form>{children({ processing: false, errors: {} })}</form>,
+    }) => (
+        <form
+            action={action}
+            method={method}
+            onSubmit={(e) => e.preventDefault()}
+        >
+            {children({ processing: false, errors: {} })}
+        </form>
+    ),
     useForm: (initial: Record<string, unknown>) => {
         const [data, setData] = useState(initial);
 
@@ -38,8 +50,8 @@ vi.mock('@/routes/bluesky', () => ({
     default: {
         store: { form: () => ({ action: '/auth/bluesky', method: 'post' }) },
         update: {
-            form: () => ({
-                action: '/auth/connections/1/bluesky',
+            form: ({ id }: { id: number }) => ({
+                action: `/auth/connections/${id}/bluesky`,
                 method: 'patch',
             }),
         },
@@ -52,8 +64,8 @@ vi.mock('@/routes/mastodon', () => ({
             form: () => ({ action: '/auth/mastodon', method: 'post' }),
         },
         reauth: {
-            form: () => ({
-                action: '/auth/connections/1/mastodon',
+            form: ({ id }: { id: number }) => ({
+                action: `/auth/connections/${id}/mastodon`,
                 method: 'post',
             }),
         },
@@ -277,5 +289,72 @@ describe('Connections', () => {
         expect(
             within(row).getByText('at://did:plc:abc/feed/whats-hot'),
         ).toBeInTheDocument();
+    });
+
+    it('submits the disconnect form for the correct primary account', async () => {
+        const user = userEvent.setup();
+        const connection = makeConnection({ id: 7 });
+        render(<Connections connections={[connection]} />);
+
+        const button = screen.getByText('Disconnect');
+        const form = button.closest('form');
+        expect(form).toHaveAttribute('action', '/auth/connections/7');
+        expect(form).toHaveAttribute('method', 'delete');
+
+        await user.click(button);
+    });
+
+    it('submits the remove form for the correct secondary account', async () => {
+        const user = userEvent.setup();
+        const connection = makeConnection({
+            id: 2,
+            feed_type: 'public_mastodon',
+            handle: null,
+        });
+        render(<Connections connections={[connection]} />);
+
+        const button = screen.getByText('Remove');
+        const form = button.closest('form');
+        expect(form).toHaveAttribute('action', '/auth/connections/2');
+        expect(form).toHaveAttribute('method', 'delete');
+
+        await user.click(button);
+    });
+
+    it('submits the mastodon reauth form for the correct account', async () => {
+        const user = userEvent.setup();
+        const connection = makeConnection({
+            id: 5,
+            auth_failed_at: '2024-01-01',
+        });
+        render(<Connections connections={[connection]} />);
+
+        const reconnect = screen.getByText('Reconnect');
+        const form = reconnect.closest('form');
+        expect(form).toHaveAttribute('action', '/auth/connections/5/mastodon');
+        expect(form).toHaveAttribute('method', 'post');
+
+        await user.click(reconnect);
+    });
+
+    it('submits the bluesky reauth form with the app password for the correct account', async () => {
+        const user = userEvent.setup();
+        const connection = makeBlueskyConnection({
+            id: 12,
+            auth_failed_at: '2024-01-01',
+        });
+        render(<Connections connections={[connection]} />);
+
+        await user.type(
+            screen.getByLabelText('New app password'),
+            'xxxx-xxxx-xxxx-xxxx',
+        );
+
+        const reconnect = screen.getByText('Reconnect');
+        const form = reconnect.closest('form');
+        expect(form).toHaveAttribute('action', '/auth/connections/12/bluesky');
+        expect(form).toHaveAttribute('method', 'patch');
+
+        await user.click(reconnect);
     });
 });

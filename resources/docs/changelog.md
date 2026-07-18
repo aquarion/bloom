@@ -1,6 +1,6 @@
 ---
 title: Changelog
-last_updated: "2026-07-05"
+last_updated: "2026-07-18"
 ---
 
 Notable changes to the Bloom application, newest first.
@@ -12,6 +12,12 @@ These features are available now but require opting in to beta testing via your 
 - **Mention chips** — @-mentions in posts appear as interactive avatar chips linking to the mentioned account.
 
 ---
+
+## 2026-07-18 — Milestone 1.7
+
+- **Poll results** — posts with a Mastodon poll show live results: option bars with vote counts and percentages, total votes, open/closed status, and your own vote highlighted. Voting itself still happens on Mastodon via a "Vote →" link. Bluesky has no native poll concept, so Bluesky posts are unaffected.
+- **Fixed** — boosted posts were exempt from your feed's age cutoff entirely, so a years-old post could always resurface via a recent boost. Boosts are now filtered by when they were boosted, not the original post's age.
+- **Fixed** — quote, reply, and link preview cards in image posts left empty space instead of filling the card width.
 
 ## 2026-07-05 — Milestone 1.6
 

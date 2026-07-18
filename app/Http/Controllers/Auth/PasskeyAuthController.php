@@ -223,13 +223,25 @@ class PasskeyAuthController extends Controller
         ]);
 
         try {
-            $this->webAuthn->verifyAuthentication(
+            $source = $this->webAuthn->verifyAuthentication(
                 json_encode($request->all()),
                 $options,
                 $transientPasskey,
             );
         } catch (Throwable $e) {
             Log::warning('Tombstoned passkey verification failed', ['exception' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Passkey verification failed.'], 401);
+        }
+
+        // A counter of 0 means the authenticator doesn't implement counters; only check for
+        // equal-or-lower counters when the authenticator tracks them, per WebAuthn §6.1. There
+        // is no live Passkey/User to invalidate or notify for a tombstoned credential, so we
+        // just log and return the same generic failure as any other bad attempt.
+        if ($source->counter !== 0 && $source->counter <= $archived['sign_count']) {
+            Log::warning('Tombstoned passkey verification detected a replayed counter', [
+                'tombstone_id' => $tombstone->id,
+            ]);
 
             return response()->json(['message' => 'Passkey verification failed.'], 401);
         }

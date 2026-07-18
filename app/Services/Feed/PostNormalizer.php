@@ -806,10 +806,22 @@ class PostNormalizer
      */
     private function hashtagLinks(array $tags, string $source, ?string $sourceInstance): array
     {
-        return array_map(
+        // A tag object missing its name (e.g. a malformed/federated Mastodon payload)
+        // normalises to an empty string upstream — drop it rather than emit a hashtag
+        // chip with no label linking to a broken URL, matching the defensive-filter
+        // convention in normalizeMastodonPoll() above.
+        $validTags = array_filter($tags, fn ($tag) => $tag !== '');
+
+        if (count($validTags) !== count($tags)) {
+            Log::warning('Dropped malformed hashtag entries with an empty tag name', [
+                'source' => $source,
+            ]);
+        }
+
+        return array_values(array_map(
             fn ($tag) => ['tag' => $tag, 'url' => $this->hashtagUrl($tag, $source, $sourceInstance)],
-            $tags,
-        );
+            $validTags,
+        ));
     }
 
     private function hashtagUrl(string $tag, string $source, ?string $sourceInstance): string

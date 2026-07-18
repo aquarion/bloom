@@ -82,6 +82,11 @@ export function useFeedTransition({
             )
             .call(
                 () => {
+                    // No `finally` here — React Compiler can't yet lower a
+                    // TryStatement with a finalizer clause and bails out of
+                    // optimizing the whole hook. Neither branch below
+                    // returns or throws, so falling through to gsap.set
+                    // after the try/catch is equivalent.
                     try {
                         flushSync(() => advance());
                         advanceSucceeded = true;
@@ -96,12 +101,12 @@ export function useFeedTransition({
                             '[useFeedTransition] Failed to advance the feed queue',
                             error,
                         );
-                    } finally {
-                        // Always restore bg opacity, even on failure —
-                        // otherwise the background layer is left invisible
-                        // until the user manually retries.
-                        gsap.set(bg, { opacity: 1 });
                     }
+
+                    // Always restore bg opacity, even on failure — otherwise
+                    // the background layer is left invisible until the user
+                    // manually retries.
+                    gsap.set(bg, { opacity: 1 });
                 },
                 undefined,
                 0.3,

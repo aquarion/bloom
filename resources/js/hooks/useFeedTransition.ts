@@ -16,8 +16,10 @@ export function useFeedTransition({
 }) {
     const bgRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
-    // Stores the timestamp when the transition is expected to finish; prevents
-    // double-firing and self-heals if GSAP ever fails to fire onComplete.
+    // The timeline itself only runs 600ms (two sequential 300ms tweens); this
+    // adds a 100ms safety buffer so a slightly-late onComplete can't be
+    // mistaken for a stuck transition. Don't tighten this to 600 — prevents
+    // double-firing and self-heals if GSAP ever fails to fire onComplete at all.
     const transitionEndRef = useRef(0);
 
     // Bottom background layer shows this post. Updated only in onComplete (after
@@ -80,9 +82,26 @@ export function useFeedTransition({
             )
             .call(
                 () => {
-                    flushSync(() => advance());
-                    advanceSucceeded = true;
-                    gsap.set(bg, { opacity: 1 });
+                    try {
+                        flushSync(() => advance());
+                        advanceSucceeded = true;
+                    } catch (error) {
+                        // GSAP swallows exceptions thrown inside .call()
+                        // callbacks, so without this the failure vanishes
+                        // with no trace. advanceSucceeded stays false —
+                        // the queue never actually shifted, so nextNext
+                        // (computed from the pre-failure queue) would be
+                        // wrong to commit as the new background.
+                        console.error(
+                            '[useFeedTransition] Failed to advance the feed queue',
+                            error,
+                        );
+                    } finally {
+                        // Always restore bg opacity, even on failure —
+                        // otherwise the background layer is left invisible
+                        // until the user manually retries.
+                        gsap.set(bg, { opacity: 1 });
+                    }
                 },
                 undefined,
                 0.3,

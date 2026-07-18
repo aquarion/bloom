@@ -175,7 +175,11 @@ describe('useFeedTransition', () => {
         expect(screen.getByTestId('next-background')).toHaveTextContent('c');
     });
 
-    it('does not update nextBackground if advance() throws inside the call step', () => {
+    it('logs and recovers if advance() throws inside the call step', async () => {
+        const { gsap } = await import('gsap');
+        const consoleError = vi
+            .spyOn(console, 'error')
+            .mockImplementation(() => {});
         const postA = makePost('a');
         const postB = makePost('b');
         const postC = makePost('c');
@@ -194,15 +198,65 @@ describe('useFeedTransition', () => {
         fireEvent.click(screen.getByText('advance'));
 
         // GSAP swallows exceptions thrown inside .call() callbacks in
-        // production; here we just need the throw not to stop the guard
-        // from doing its job, so catch it the way GSAP would.
-        expect(() => act(() => lastCallFn?.())).toThrow('boom');
+        // production, and so does the hook now — the throw shouldn't
+        // escape, but it must be logged rather than vanishing silently.
+        expect(() => act(() => lastCallFn?.())).not.toThrow();
         expect(advance).toHaveBeenCalledOnce();
+        expect(consoleError).toHaveBeenCalledWith(
+            '[useFeedTransition] Failed to advance the feed queue',
+            expect.any(Error),
+        );
+        // The background layer must still be restored to visible even
+        // though advance() failed, or it's stuck invisible forever.
+        expect(gsap.set).toHaveBeenCalledWith(expect.anything(), {
+            opacity: 1,
+        });
 
         // advanceSucceeded was never set — the throw happened first — so
         // onComplete must not commit the queue[1]-derived nextBackground.
         act(() => lastTimelineConfig?.onComplete?.());
         expect(screen.getByTestId('next-background')).toHaveTextContent('b');
+
+        consoleError.mockRestore();
+    });
+
+    it('falls back to queue[0] as nextBackground when only one item remains queued', () => {
+        const postA = makePost('a');
+        const postB = makePost('b');
+        const postX = makePost('x');
+        render(
+            <Harness
+                current={postA}
+                queue={[postB]}
+                advance={vi.fn()}
+                initialPosts={[postA, postX]}
+            />,
+        );
+
+        fireEvent.click(screen.getByText('advance'));
+        act(() => lastCallFn?.());
+        act(() => lastTimelineConfig?.onComplete?.());
+
+        expect(screen.getByTestId('next-background')).toHaveTextContent('b');
+    });
+
+    it('falls back to current as nextBackground when the queue is empty', () => {
+        const postA = makePost('a');
+        const postX = makePost('x');
+        render(
+            <Harness
+                current={postA}
+                queue={[]}
+                advance={vi.fn()}
+                initialPosts={[postA, postX]}
+            />,
+        );
+
+        fireEvent.click(screen.getByText('advance'));
+        act(() => lastCallFn?.());
+        act(() => lastTimelineConfig?.onComplete?.());
+
+        expect(screen.getByTestId('next-background')).toHaveTextContent('a');
     });
 
     it('ignores a second advance call inside the debounce window', async () => {
@@ -222,5 +276,30 @@ describe('useFeedTransition', () => {
         fireEvent.click(screen.getByText('advance'));
 
         expect(gsap.timeline).toHaveBeenCalledOnce();
+    });
+
+    it('re-arms once the debounce buffer elapses', async () => {
+        const { gsap } = await import('gsap');
+        vi.mocked(gsap.timeline).mockClear();
+        vi.useFakeTimers();
+        const postA = makePost('a');
+        render(
+            <Harness
+                current={postA}
+                queue={[]}
+                advance={vi.fn()}
+                initialPosts={[postA]}
+            />,
+        );
+
+        fireEvent.click(screen.getByText('advance'));
+        expect(gsap.timeline).toHaveBeenCalledOnce();
+
+        vi.advanceTimersByTime(700);
+        fireEvent.click(screen.getByText('advance'));
+
+        expect(gsap.timeline).toHaveBeenCalledTimes(2);
+
+        vi.useRealTimers();
     });
 });

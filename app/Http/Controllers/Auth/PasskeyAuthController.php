@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -179,9 +180,25 @@ class PasskeyAuthController extends Controller
     }
 
     /** @return array{tombstone: Tombstone, archived_passkey: array<string, mixed>}|null */
+    /**
+     * Drivers whose query grammar supports partial-object JSON containment
+     * (i.e. `whereJsonContains` can match an array element by a single key),
+     * letting us narrow the scan to candidate rows in the database instead
+     * of pulling every tombstone into PHP.
+     *
+     * @var array<int, string>
+     */
+    private const JSON_CONTAINS_DRIVERS = ['mysql', 'pgsql'];
+
     private function findTombstoneByCredentialId(string $credentialId): ?array
     {
-        foreach (Tombstone::select(['id', 'schema_version', 'archived_passkeys'])->cursor() as $tombstone) {
+        $query = Tombstone::select(['id', 'schema_version', 'archived_passkeys']);
+
+        if (in_array(DB::connection()->getDriverName(), self::JSON_CONTAINS_DRIVERS, true)) {
+            $query->whereJsonContains('archived_passkeys', ['credential_id' => $credentialId]);
+        }
+
+        foreach ($query->cursor() as $tombstone) {
             $match = $tombstone->findArchivedPasskey($credentialId);
 
             if ($match) {

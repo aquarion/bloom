@@ -10,5 +10,5 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command(WarnInactiveAccounts::class)->daily();
-Schedule::command(TombstoneInactiveAccounts::class)->daily();
+Schedule::command(WarnInactiveAccounts::class)->daily()->withoutOverlapping()->onOneServer();
+Schedule::command(TombstoneInactiveAccounts::class)->daily()->withoutOverlapping()->onOneServer();

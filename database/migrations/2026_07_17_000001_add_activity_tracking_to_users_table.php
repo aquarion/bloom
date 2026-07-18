@@ -8,13 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasColumn('users', 'last_active_at')) {
-            return;
-        }
-
         Schema::table('users', function (Blueprint $table) {
-            $table->timestamp('last_active_at')->nullable()->after('email');
-            $table->timestamp('inactivity_warning_sent_at')->nullable()->after('last_active_at');
+            if (! Schema::hasColumn('users', 'last_active_at')) {
+                $table->timestamp('last_active_at')->nullable()->after('email');
+            }
+
+            if (! Schema::hasColumn('users', 'inactivity_warning_sent_at')) {
+                $table->timestamp('inactivity_warning_sent_at')->nullable()->after('last_active_at');
+            }
         });
     }
 

@@ -15,6 +15,16 @@ export function useAutoFitText(body: string) {
         sizes: number[];
     } | null>(null);
 
+    // Keep this useMemo — do not remove it because a lint rule or reviewer says
+    // React Compiler already caches it. It doesn't, reliably, for this pattern:
+    // an object/array feeding the measuring useLayoutEffect's deps below, which
+    // calls setFontSizeState. Without memoization here, lines/paragraphStarts
+    // are new references every render, the effect's deps never stabilize, and
+    // each setFontSizeState call re-triggers it — an infinite render loop that
+    // reproduces reliably with realistic (non-zero) DOM measurements. See
+    // AGENTS.md and PR #210 for the full story, including why the existing
+    // tests didn't originally catch this (jsdom's default zero-size
+    // getBoundingClientRect() short-circuits the effect before it matters).
     const { lines, paragraphStarts } = useMemo(
         () =>
             body
@@ -25,6 +35,7 @@ export function useAutoFitText(body: string) {
 
     // Pre-compute a unique key per line using sequential character offsets so
     // identical lines in different positions still get distinct keys.
+    // Same "keep this useMemo" note as above applies here.
     const lineKeys = useMemo(() => {
         const keys: number[] = [];
         let search = 0;

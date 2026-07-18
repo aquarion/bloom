@@ -33,7 +33,7 @@ test('archives passkeys and social accounts, cancels subscription, emails, and d
 
     $this->artisan('accounts:tombstone-inactive')->assertExitCode(0);
 
-    $tombstone = Tombstone::where('email', 'ada@example.com')->first();
+    $tombstone = Tombstone::where('email_hash', Tombstone::hashEmail('ada@example.com'))->first();
     expect($tombstone)->not->toBeNull();
     expect($tombstone->name)->toBe('Ada Lovelace');
     expect($tombstone->schema_version)->toBe(Tombstone::CURRENT_SCHEMA_VERSION);
@@ -78,7 +78,7 @@ test('tombstones exactly at the 90-day boundary', function () {
     $this->artisan('accounts:tombstone-inactive');
 
     $this->assertDatabaseMissing('users', ['id' => $user->id]);
-    expect(Tombstone::where('email', $user->email)->exists())->toBeTrue();
+    expect(Tombstone::where('email_hash', Tombstone::hashEmail($user->email))->exists())->toBeTrue();
 });
 
 test('tombstones multiple eligible inactive users in a single run', function () {
@@ -100,8 +100,8 @@ test('tombstones multiple eligible inactive users in a single run', function () 
     $this->assertDatabaseMissing('users', ['id' => $userOne->id]);
     $this->assertDatabaseMissing('users', ['id' => $userTwo->id]);
 
-    expect(Tombstone::where('email', 'ada@example.com')->exists())->toBeTrue();
-    expect(Tombstone::where('email', 'grace@example.com')->exists())->toBeTrue();
+    expect(Tombstone::where('email_hash', Tombstone::hashEmail('ada@example.com'))->exists())->toBeTrue();
+    expect(Tombstone::where('email_hash', Tombstone::hashEmail('grace@example.com'))->exists())->toBeTrue();
 
     Mail::assertSent(AccountTombstoned::class, fn ($mail) => $mail->name === 'Ada Lovelace');
     Mail::assertSent(AccountTombstoned::class, fn ($mail) => $mail->name === 'Grace Hopper');
@@ -121,7 +121,7 @@ test('a mail failure for one user is logged but the already-committed archive is
     // The archive+delete already committed before the mail send was attempted,
     // so the failure to send mail must not undo the tombstone.
     $this->assertDatabaseMissing('users', ['id' => $user->id]);
-    expect(Tombstone::where('email', $user->email)->exists())->toBeTrue();
+    expect(Tombstone::where('email_hash', Tombstone::hashEmail($user->email))->exists())->toBeTrue();
 
     // The log message must correctly attribute the failure to the notification email,
     // not to the archive/tombstone process itself.
@@ -150,7 +150,7 @@ test('returns a failure exit code and reports counts when an archive genuinely f
     // Simulate a real archive failure (not a mail failure) via a model event that throws
     // only for one specific email, so the transaction for that user rolls back.
     Tombstone::creating(function (Tombstone $tombstone) {
-        if ($tombstone->email === 'boom@example.com') {
+        if ($tombstone->email_hash === Tombstone::hashEmail('boom@example.com')) {
             throw new RuntimeException('simulated archive failure');
         }
     });
@@ -170,11 +170,11 @@ test('returns a failure exit code and reports counts when an archive genuinely f
 
     // The failing user's archive transaction rolled back — user still exists, no tombstone.
     $this->assertDatabaseHas('users', ['id' => $failingUser->id]);
-    expect(Tombstone::where('email', 'boom@example.com')->exists())->toBeFalse();
+    expect(Tombstone::where('email_hash', Tombstone::hashEmail('boom@example.com'))->exists())->toBeFalse();
 
     // The unrelated user still succeeded.
     $this->assertDatabaseMissing('users', ['id' => $okUser->id]);
-    expect(Tombstone::where('email', 'fine@example.com')->exists())->toBeTrue();
+    expect(Tombstone::where('email_hash', Tombstone::hashEmail('fine@example.com'))->exists())->toBeTrue();
 
     Log::shouldHaveReceived('error')
         ->with('Failed to tombstone inactive account', Mockery::on(fn ($context) => $context['user_id'] === $failingUser->id))
@@ -187,7 +187,7 @@ test('a stale, never-resurrected tombstone for the same email is replaced rather
     Mail::fake();
 
     Tombstone::create([
-        'email' => 'returning@example.com',
+        'email_hash' => Tombstone::hashEmail('returning@example.com'),
         'name' => 'Old Name',
         'schema_version' => Tombstone::CURRENT_SCHEMA_VERSION,
         'archived_passkeys' => [],
@@ -205,9 +205,9 @@ test('a stale, never-resurrected tombstone for the same email is replaced rather
     $this->artisan('accounts:tombstone-inactive')->assertExitCode(0);
 
     $this->assertDatabaseMissing('users', ['id' => $user->id]);
-    expect(Tombstone::where('email', 'returning@example.com')->count())->toBe(1);
+    expect(Tombstone::where('email_hash', Tombstone::hashEmail('returning@example.com'))->count())->toBe(1);
 
-    $tombstone = Tombstone::where('email', 'returning@example.com')->first();
+    $tombstone = Tombstone::where('email_hash', Tombstone::hashEmail('returning@example.com'))->first();
     expect($tombstone->name)->toBe('New Name');
     expect($tombstone->original_user_id)->toBe($user->id);
 });

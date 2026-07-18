@@ -36,10 +36,10 @@ class PasskeyRecoveryController extends Controller
         if ($user) {
             $this->sendUserRecovery($user);
         } else {
-            $tombstone = Tombstone::where('email', $email)->first();
+            $tombstone = Tombstone::findByEmail($email);
 
             if ($tombstone) {
-                $this->sendTombstoneRecovery($tombstone);
+                $this->sendTombstoneRecovery($tombstone, $email);
             }
         }
 
@@ -122,7 +122,7 @@ class PasskeyRecoveryController extends Controller
         }
     }
 
-    private function sendTombstoneRecovery(Tombstone $tombstone): void
+    private function sendTombstoneRecovery(Tombstone $tombstone, string $email): void
     {
         TombstoneRecoveryToken::where('tombstone_id', $tombstone->id)
             ->whereNull('used_at')
@@ -135,7 +135,7 @@ class PasskeyRecoveryController extends Controller
         $url = route('passkey.recover.setup', ['token' => $token]);
 
         try {
-            Mail::to($tombstone->email)->send(new TombstoneRecovery($tombstone, $url));
+            Mail::to($email)->send(new TombstoneRecovery($tombstone, $url));
         } catch (Throwable $e) {
             // Log but do not re-throw — a mail failure must not reveal whether the tombstone exists,
             // and the token is in the DB so the user can request a new one.

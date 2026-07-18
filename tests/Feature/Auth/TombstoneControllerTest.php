@@ -7,7 +7,7 @@ use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('show renders the archived interstitial when session has a tombstone_id', function () {
-    $tombstone = Tombstone::factory()->create(['name' => 'Ada Lovelace', 'email' => 'ada@example.com']);
+    $tombstone = Tombstone::factory()->forEmail('ada@example.com')->create(['name' => 'Ada Lovelace']);
 
     $this->withoutVite()
         ->withSession(['tombstone_id' => $tombstone->id])
@@ -16,7 +16,6 @@ test('show renders the archived interstitial when session has a tombstone_id', f
         ->assertInertia(fn (Assert $page) => $page
             ->component('auth/tombstone')
             ->where('name', 'Ada Lovelace')
-            ->where('email', 'ada@example.com')
         );
 });
 
@@ -47,8 +46,7 @@ test('destroy without a session tombstone_id redirects to login without deleting
 });
 
 test('resurrect recreates the verified passkey and flags social accounts for reconnect', function () {
-    $tombstone = Tombstone::factory()->create([
-        'email' => 'ada@example.com',
+    $tombstone = Tombstone::factory()->forEmail('ada@example.com')->create([
         'name' => 'Ada Lovelace',
         'archived_passkeys' => [[
             'credential_id' => 'cred-abc',
@@ -65,7 +63,7 @@ test('resurrect recreates the verified passkey and flags social accounts for rec
     $this->withSession([
         'tombstone_id' => $tombstone->id,
         'tombstone_credential_id' => 'cred-abc',
-    ])->post(route('tombstone.resurrect'))
+    ])->post(route('tombstone.resurrect'), ['email' => 'ada@example.com'])
         ->assertRedirect(route('feed'));
 
     $this->assertDatabaseMissing('tombstones', ['id' => $tombstone->id]);
@@ -85,8 +83,7 @@ test('resurrect recreates the verified passkey and flags social accounts for rec
 });
 
 test('resurrect redirects gracefully when a user already exists with the tombstone email', function () {
-    $tombstone = Tombstone::factory()->create([
-        'email' => 'ada@example.com',
+    $tombstone = Tombstone::factory()->forEmail('ada@example.com')->create([
         'name' => 'Ada Lovelace',
         'archived_passkeys' => [],
         'archived_social_accounts' => [],
@@ -95,7 +92,7 @@ test('resurrect redirects gracefully when a user already exists with the tombsto
     User::factory()->create(['email' => 'ada@example.com']);
 
     $this->withSession(['tombstone_id' => $tombstone->id])
-        ->post(route('tombstone.resurrect'))
+        ->post(route('tombstone.resurrect'), ['email' => 'ada@example.com'])
         ->assertRedirect(route('login'))
         ->assertSessionHas('status', 'account-already-exists');
 
@@ -105,15 +102,14 @@ test('resurrect redirects gracefully when a user already exists with the tombsto
 });
 
 test('resurrect via the email-recovery path (no verified credential) creates a user with no passkey', function () {
-    $tombstone = Tombstone::factory()->create([
-        'email' => 'bob@example.com',
+    $tombstone = Tombstone::factory()->forEmail('bob@example.com')->create([
         'name' => 'Bob',
         'archived_passkeys' => [['credential_id' => 'cred-xyz', 'public_key' => 'k', 'sign_count' => 0, 'transports' => [], 'name' => 'Phone']],
         'archived_social_accounts' => [],
     ]);
 
     $this->withSession(['tombstone_id' => $tombstone->id])
-        ->post(route('tombstone.resurrect'))
+        ->post(route('tombstone.resurrect'), ['email' => 'bob@example.com'])
         ->assertRedirect(route('feed'));
 
     $newUser = User::where('email', 'bob@example.com')->first();
@@ -121,8 +117,7 @@ test('resurrect via the email-recovery path (no verified credential) creates a u
 });
 
 test('resurrect redirects gracefully instead of crashing when the schema_version is unrecognised', function () {
-    $tombstone = Tombstone::factory()->create([
-        'email' => 'carol@example.com',
+    $tombstone = Tombstone::factory()->forEmail('carol@example.com')->create([
         'name' => 'Carol',
         'schema_version' => Tombstone::CURRENT_SCHEMA_VERSION + 1,
         'archived_passkeys' => [],
@@ -130,7 +125,7 @@ test('resurrect redirects gracefully instead of crashing when the schema_version
     ]);
 
     $this->withSession(['tombstone_id' => $tombstone->id])
-        ->post(route('tombstone.resurrect'))
+        ->post(route('tombstone.resurrect'), ['email' => 'carol@example.com'])
         ->assertRedirect(route('login'))
         ->assertSessionHas('status', 'account-archive-error');
 
@@ -140,15 +135,14 @@ test('resurrect redirects gracefully instead of crashing when the schema_version
 });
 
 test('resurrect redirects gracefully when the tombstone was already consumed by a concurrent request', function () {
-    $tombstone = Tombstone::factory()->create([
-        'email' => 'dana@example.com',
+    $tombstone = Tombstone::factory()->forEmail('dana@example.com')->create([
         'name' => 'Dana',
         'archived_passkeys' => [],
         'archived_social_accounts' => [],
     ]);
 
     $this->withSession(['tombstone_id' => $tombstone->id])
-        ->post(route('tombstone.resurrect'))
+        ->post(route('tombstone.resurrect'), ['email' => 'dana@example.com'])
         ->assertRedirect(route('feed'));
 
     $this->assertDatabaseMissing('tombstones', ['id' => $tombstone->id]);
@@ -158,11 +152,28 @@ test('resurrect redirects gracefully when the tombstone was already consumed by 
     $this->app['auth']->guard()->logout();
 
     $this->withSession(['tombstone_id' => $tombstone->id])
-        ->post(route('tombstone.resurrect'))
+        ->post(route('tombstone.resurrect'), ['email' => 'dana@example.com'])
         ->assertRedirect(route('login'));
 
     $this->assertGuest();
     $this->assertSame(1, User::where('email', 'dana@example.com')->count());
+});
+
+test('resurrect returns a field validation error on email mismatch without creating a user or deleting the tombstone', function () {
+    $tombstone = Tombstone::factory()->forEmail('erin@example.com')->create([
+        'name' => 'Erin',
+        'archived_passkeys' => [],
+        'archived_social_accounts' => [],
+    ]);
+
+    $this->withSession(['tombstone_id' => $tombstone->id])
+        ->post(route('tombstone.resurrect'), ['email' => 'wrong@example.com'])
+        ->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+    $this->assertDatabaseHas('tombstones', ['id' => $tombstone->id]);
+    $this->assertDatabaseMissing('users', ['email' => 'erin@example.com']);
+    $this->assertDatabaseMissing('users', ['email' => 'wrong@example.com']);
 });
 
 test('tombstone.show is rate limited to 10 requests per minute', function () {

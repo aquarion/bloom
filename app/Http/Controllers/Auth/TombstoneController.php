@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Exceptions\TombstoneEmailMismatchException;
 use App\Exceptions\TombstoneSchemaMismatchException;
 use App\Http\Controllers\Controller;
 use App\Models\SocialAccount;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,7 +39,6 @@ class TombstoneController extends Controller
 
         return Inertia::render('auth/tombstone', [
             'name' => $tombstone->name,
-            'email' => $tombstone->email,
         ]);
     }
 
@@ -63,10 +64,14 @@ class TombstoneController extends Controller
             return redirect()->route('login');
         }
 
+        $request->validate(['email' => ['required', 'email']]);
+
+        $submittedEmail = strtolower($request->input('email'));
+
         $verifiedCredentialId = $request->session()->get('tombstone_credential_id');
 
         try {
-            $user = DB::transaction(function () use ($id, $verifiedCredentialId) {
+            $user = DB::transaction(function () use ($id, $verifiedCredentialId, $submittedEmail) {
                 $tombstone = Tombstone::whereKey($id)->lockForUpdate()->first();
 
                 if (! $tombstone) {
@@ -82,9 +87,13 @@ class TombstoneController extends Controller
                     throw new TombstoneSchemaMismatchException;
                 }
 
+                if (! hash_equals($tombstone->email_hash, Tombstone::hashEmail($submittedEmail))) {
+                    throw new TombstoneEmailMismatchException;
+                }
+
                 $user = User::create([
                     'name' => $tombstone->name,
-                    'email' => $tombstone->email,
+                    'email' => $submittedEmail,
                     'last_active_at' => now(),
                 ]);
 
@@ -116,6 +125,10 @@ class TombstoneController extends Controller
             $request->session()->forget(['tombstone_id', 'tombstone_credential_id']);
 
             return redirect()->route('login')->with('status', 'account-archive-error');
+        } catch (TombstoneEmailMismatchException) {
+            throw ValidationException::withMessages([
+                'email' => __('That email doesn\'t match our records.'),
+            ]);
         } catch (UniqueConstraintViolationException $e) {
             Log::error('Tombstone resurrect failed: unique constraint violation', [
                 'tombstone_id' => $id,

@@ -72,7 +72,7 @@ class TombstoneInactiveAccounts extends Command
 
             $user->cancelSubscription();
 
-            Tombstone::updateOrCreate(['email' => $user->email], [
+            Tombstone::updateOrCreate(['email_hash' => Tombstone::hashEmail($user->email)], [
                 'name' => $user->name,
                 'schema_version' => Tombstone::CURRENT_SCHEMA_VERSION,
                 'archived_passkeys' => $archivedPasskeys,

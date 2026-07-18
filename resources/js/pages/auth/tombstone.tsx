@@ -12,29 +12,39 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 
 type TombstoneProps = {
     name: string;
-    email: string;
 };
 
 const GENERIC_ERROR_MESSAGE =
     'Something went wrong. Your session may have expired — please refresh the page and try again.';
 
-export default function Tombstone({ name, email }: TombstoneProps) {
+export default function Tombstone({ name }: TombstoneProps) {
     const [resurrecting, setResurrecting] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [email, setEmail] = useState('');
+    const [emailError, setEmailError] = useState<string | null>(null);
 
     const handleResurrect = () => {
         setResurrecting(true);
         setError(null);
+        setEmailError(null);
         router.post(
             TombstoneController.resurrect.url(),
-            {},
+            { email },
             {
-                onError: () => setError(GENERIC_ERROR_MESSAGE),
+                onError: (errors: Record<string, string>) => {
+                    if (errors.email) {
+                        setEmailError(errors.email);
+                    } else {
+                        setError(GENERIC_ERROR_MESSAGE);
+                    }
+                },
                 onFinish: () => setResurrecting(false),
             },
         );
@@ -54,13 +64,30 @@ export default function Tombstone({ name, email }: TombstoneProps) {
             <Head title="Account archived" />
             <div className="flex flex-col gap-6 text-center">
                 <p className="text-muted-foreground text-sm">
-                    {name}'s account ({email}) was archived after a long period
-                    of inactivity. You can bring it back as a fresh account —
+                    {name}'s account was archived after a long period of
+                    inactivity. You can bring it back as a fresh account —
                     you'll need to reconnect your social feeds — or delete it
                     for good.
                 </p>
 
                 {error && <InputError message={error} />}
+
+                <div className="grid gap-2 text-left">
+                    <Label htmlFor="email">Confirm your email address</Label>
+                    <Input
+                        id="email"
+                        type="email"
+                        name="email"
+                        required
+                        autoComplete="email"
+                        placeholder="email@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={resurrecting || deleting}
+                        data-test="resurrect-email-input"
+                    />
+                    <InputError message={emailError ?? undefined} />
+                </div>
 
                 <Button
                     onClick={handleResurrect}

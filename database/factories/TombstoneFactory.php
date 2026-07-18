@@ -15,7 +15,7 @@ class TombstoneFactory extends Factory
     public function definition(): array
     {
         return [
-            'email' => fake()->unique()->safeEmail(),
+            'email_hash' => Tombstone::hashEmail(fake()->unique()->safeEmail()),
             'name' => fake()->name(),
             'schema_version' => Tombstone::CURRENT_SCHEMA_VERSION,
             'archived_passkeys' => [],
@@ -23,5 +23,10 @@ class TombstoneFactory extends Factory
             'original_user_id' => null,
             'tombstoned_at' => now(),
         ];
+    }
+
+    public function forEmail(string $email): static
+    {
+        return $this->state(fn () => ['email_hash' => Tombstone::hashEmail($email)]);
     }
 }

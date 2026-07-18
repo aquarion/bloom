@@ -9,7 +9,7 @@ use Inertia\Testing\AssertableInertia;
 test('recovery for a tombstoned email sends a tombstone-recovery email and redirects identically to a live account', function () {
     Mail::fake();
 
-    $tombstone = Tombstone::factory()->create(['email' => 'ada@example.com']);
+    $tombstone = Tombstone::factory()->forEmail('ada@example.com')->create();
 
     $this->post(route('passkey.recover.store'), ['email' => 'ada@example.com'])
         ->assertRedirect(route('passkey.recover.sent'));

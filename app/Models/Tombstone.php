@@ -20,7 +20,7 @@ class Tombstone extends Model
     public const CURRENT_SCHEMA_VERSION = 1;
 
     protected $fillable = [
-        'email',
+        'email_hash',
         'name',
         'schema_version',
         'archived_passkeys',
@@ -28,6 +28,16 @@ class Tombstone extends Model
         'original_user_id',
         'tombstoned_at',
     ];
+
+    public static function hashEmail(string $email): string
+    {
+        return sha1(strtolower($email));
+    }
+
+    public static function findByEmail(string $email): ?self
+    {
+        return static::where('email_hash', static::hashEmail($email))->first();
+    }
 
     protected function casts(): array
     {

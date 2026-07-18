@@ -175,6 +175,36 @@ describe('useFeedTransition', () => {
         expect(screen.getByTestId('next-background')).toHaveTextContent('c');
     });
 
+    it('does not update nextBackground if advance() throws inside the call step', () => {
+        const postA = makePost('a');
+        const postB = makePost('b');
+        const postC = makePost('c');
+        const advance = vi.fn(() => {
+            throw new Error('boom');
+        });
+        render(
+            <Harness
+                current={postA}
+                queue={[postB, postC]}
+                advance={advance}
+                initialPosts={[postA, postB]}
+            />,
+        );
+
+        fireEvent.click(screen.getByText('advance'));
+
+        // GSAP swallows exceptions thrown inside .call() callbacks in
+        // production; here we just need the throw not to stop the guard
+        // from doing its job, so catch it the way GSAP would.
+        expect(() => act(() => lastCallFn?.())).toThrow('boom');
+        expect(advance).toHaveBeenCalledOnce();
+
+        // advanceSucceeded was never set — the throw happened first — so
+        // onComplete must not commit the queue[1]-derived nextBackground.
+        act(() => lastTimelineConfig?.onComplete?.());
+        expect(screen.getByTestId('next-background')).toHaveTextContent('b');
+    });
+
     it('ignores a second advance call inside the debounce window', async () => {
         const { gsap } = await import('gsap');
         vi.mocked(gsap.timeline).mockClear();

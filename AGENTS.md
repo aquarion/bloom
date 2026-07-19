@@ -1,0 +1,12 @@
+Guidance here applies to any coding agent working in this repo (Claude, Copilot, etc.). See `CLAUDE.md` for the full project conventions; this file collects cross-agent lessons that are easy to relearn the hard way.
+
+## React Compiler: verify `no-manual-memoization` suggestions, don't just apply them
+
+This project runs React Compiler (`babel-plugin-react-compiler`, see `vite.config.ts`). React Doctor's `react-compiler-no-manual-memoization` rule (and reviewers, including Copilot, echoing the same assumption) flags `useMemo`/`useCallback` as redundant on the premise that the compiler already caches the same value automatically.
+
+That assumption doesn't always hold in practice. It produced a real, reproducible infinite render loop (`resources/js/hooks/useAutoFitText.ts`, PR #210): a `useMemo`'d object/array feeding a `useLayoutEffect` dependency array (which calls `setState`) was removed on the rule's suggestion. In the real build pipeline the compiler did not memoize it the same way `useMemo` would have, so the effect's dependencies never stabilized between renders, and each `setState` call re-triggered the effect — forever, in production. Every existing test still passed, because jsdom's default `getBoundingClientRect()` returns all-zero, which made the effect return early before the un-memoized value ever mattered — a silent test blind spot on top of the silent code bug. A hand-rolled `babel-plugin-react-compiler` repro (run manually against the file's source, outside the project's actual Vite/babel pipeline) also looked correctly memoized and was misleading for the same reason: it didn't reproduce the real pipeline.
+
+**Before removing a `useMemo`/`useCallback` because of this rule:**
+- If the memoized value is a **primitive** (string, number, boolean), it's safe to remove — primitives compare by value, so a fresh-but-equal primitive doesn't destabilize a dependency array or cause extra effect runs.
+- If the memoized value is an **object, array, or Set/Map** that feeds a `useEffect`/`useLayoutEffect` dependency array — especially one that calls `setState` — don't just trust the rule. Add or run a test that exercises the effect with realistic inputs (not jsdom's default zero-size DOM measurements, which mask this exact class of bug) and confirm no infinite-loop / "Maximum update depth exceeded" error occurs.
+- Verify against the actual project test suite, not a standalone reproduction of the compiler — a manual babel/compiler invocation is not guaranteed to match this project's real build pipeline.

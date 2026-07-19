@@ -1540,8 +1540,10 @@ it('extracts mastodon hashtags into hashtags array and strips them from body', f
 
     $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
-    expect($post['hashtags'])->toBe(['sunny', 'outdoors'])
-        ->and($post['body'])->toBe('Loving the weather today');
+    expect($post['hashtags'])->toBe([
+        ['tag' => 'sunny', 'url' => 'https://mastodon.example/tags/sunny'],
+        ['tag' => 'outdoors', 'url' => 'https://mastodon.example/tags/outdoors'],
+    ])->and($post['body'])->toBe('Loving the weather today');
 });
 
 it('returns empty hashtags array when mastodon post has no tags', function () {
@@ -1579,8 +1581,10 @@ it('extracts bluesky hashtags from post text and strips them from body', functio
 
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
-    expect($post['hashtags'])->toBe(['hiking', 'nature'])
-        ->and($post['body'])->toBe('Great hike today');
+    expect($post['hashtags'])->toBe([
+        ['tag' => 'hiking', 'url' => 'https://bsky.app/search?q=%23hiking'],
+        ['tag' => 'nature', 'url' => 'https://bsky.app/search?q=%23nature'],
+    ])->and($post['body'])->toBe('Great hike today');
 });
 
 it('lowercases mastodon hashtags', function () {
@@ -1596,8 +1600,48 @@ it('lowercases mastodon hashtags', function () {
 
     $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
-    expect($post['hashtags'])->toBe(['foobar'])
-        ->and($post['body'])->toBe('post');
+    expect($post['hashtags'])->toBe([
+        ['tag' => 'foobar', 'url' => 'https://mastodon.example/tags/foobar'],
+    ])->and($post['body'])->toBe('post');
+});
+
+it('falls back to bluesky-style hashtag urls when the mastodon host is empty', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>post #FooBar</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'tags' => [['name' => 'FooBar', 'url' => 'https://mastodon.example/tags/FooBar']],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, '');
+
+    expect($post['hashtags'])->toBe([
+        ['tag' => 'foobar', 'url' => 'https://bsky.app/search?q=%23foobar'],
+    ]);
+});
+
+it('drops hashtags with an empty tag name', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>post #FooBar</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'tags' => [
+            ['name' => 'FooBar', 'url' => 'https://mastodon.example/tags/FooBar'],
+            ['name' => '', 'url' => 'https://mastodon.example/tags/'],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['hashtags'])->toBe([
+        ['tag' => 'foobar', 'url' => 'https://mastodon.example/tags/foobar'],
+    ]);
 });
 
 it('lowercases bluesky hashtags', function () {
@@ -1615,8 +1659,9 @@ it('lowercases bluesky hashtags', function () {
 
     $post = (new PostNormalizer)->fromBluesky($feedPost);
 
-    expect($post['hashtags'])->toBe(['foobar'])
-        ->and($post['body'])->toBe('post');
+    expect($post['hashtags'])->toBe([
+        ['tag' => 'foobar', 'url' => 'https://bsky.app/search?q=%23foobar'],
+    ])->and($post['body'])->toBe('post');
 });
 
 it('strips bare domain urls with paths from mastodon post body', function () {

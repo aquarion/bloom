@@ -38,6 +38,12 @@ export interface PollOption {
     readonly votes_count: number | null;
 }
 
+export interface HashtagLink {
+    readonly tag: string;
+    /** Derived from `tag` server-side (PostNormalizer::hashtagUrl) — not independently settable. */
+    readonly url: string;
+}
+
 export interface Poll {
     readonly id: string;
     readonly expires_at: string | null;
@@ -72,8 +78,8 @@ export interface Post {
     boosted_by_handle: string | null;
     boosted_by_created_at: string | null;
     emojis: Record<string, string>;
-    /** Normalised hashtags: lowercase, no leading '#', deduplicated. e.g. ["rust", "programming"] */
-    hashtags: string[];
+    /** Normalised hashtags: lowercase, no leading '#', deduplicated, with a precomputed provider link. */
+    hashtags: HashtagLink[];
     /** Mentions classified as incidental — stripped from `body`, shown as chips. Empty if none, or if disabled for this viewer. */
     chip_mentions: Mention[];
     cw_text: string | null;

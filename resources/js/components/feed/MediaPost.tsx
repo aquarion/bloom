@@ -67,47 +67,19 @@ export function MediaPost({
                         {post.reply_to && (
                             <ContextPanel
                                 icon={<Reply className="size-3.5" />}
-                                author_name={post.reply_to.author_name}
-                                author_avatar={post.reply_to.author_avatar}
-                                author_handle={post.reply_to.author_handle}
                                 emojis={post.emojis}
-                                body={post.reply_to.body}
-                                original_url={post.reply_to.original_url}
-                                chip_mentions={post.reply_to.chip_mentions}
-                                cw_text={post.reply_to.cw_text}
-                                cw_is_author_level={
-                                    post.reply_to.cw_is_author_level
-                                }
-                                cw_label_source={post.reply_to.cw_label_source}
-                                sensitive_media={
-                                    post.reply_to.sensitive_media
-                                }
                                 cwBehavior={cwBehavior}
                                 fullWidth
+                                {...post.reply_to}
                             />
                         )}
                         {post.quoted_post && (
                             <ContextPanel
                                 icon={<Quote className="size-3.5" />}
-                                author_name={post.quoted_post.author_name}
-                                author_avatar={post.quoted_post.author_avatar}
-                                author_handle={post.quoted_post.author_handle}
                                 emojis={post.emojis}
-                                body={post.quoted_post.body}
-                                original_url={post.quoted_post.original_url}
-                                chip_mentions={post.quoted_post.chip_mentions}
-                                cw_text={post.quoted_post.cw_text}
-                                cw_is_author_level={
-                                    post.quoted_post.cw_is_author_level
-                                }
-                                cw_label_source={
-                                    post.quoted_post.cw_label_source
-                                }
-                                sensitive_media={
-                                    post.quoted_post.sensitive_media
-                                }
                                 cwBehavior={cwBehavior}
                                 fullWidth
+                                {...post.quoted_post}
                             />
                         )}
                         {post.link_url && (

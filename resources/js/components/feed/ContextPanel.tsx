@@ -1,6 +1,6 @@
 import { AtSign } from 'lucide-react';
 import type React from 'react';
-import { shouldShowCwOverlay, useCwState } from '@/hooks/useCwState';
+import { nestedCwLike, shouldShowCwOverlay, useCwState } from '@/hooks/useCwState';
 import type { Mention } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 import { AuthorChip } from './AuthorChip';
@@ -40,15 +40,13 @@ export function ContextPanel({
 }) {
     const { isRevealed, reveal } = useCwState();
 
-    // Nested reply/quote posts have no id of their own — original_url uniquely
-    // identifies the underlying post, so it doubles as the reveal-tracking key.
-    const cwPost = {
-        id: original_url,
+    const cwPost = nestedCwLike({
+        original_url,
         author_handle,
         cw_text,
         cw_is_author_level,
         sensitive_media,
-    };
+    });
     const showCwGate = shouldShowCwOverlay(
         cwPost,
         cwBehavior,

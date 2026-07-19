@@ -208,6 +208,7 @@ function FeedView({
                     carouselProgress={carouselProgress}
                     progress={progress}
                     showHelp={showHelp}
+                    cwBehavior={cwBehavior}
                 />
             </div>
         </>

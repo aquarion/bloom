@@ -347,27 +347,32 @@ class FeedAggregator
 
     private function suppressWhitelistedCw(array $post, array $whitelist): array
     {
-        if (in_array($post['cw_category'] ?? null, $whitelist, true)) {
-            $post = array_merge($post, [
-                'cw_text' => null,
-                'cw_is_author_level' => false,
-                'cw_label_source' => null,
-                'cw_category' => null,
-            ]);
-        }
+        $post = $this->clearCwFieldsIfWhitelisted($post, $whitelist);
 
         foreach (['reply_to', 'quoted_post'] as $nestedKey) {
-            if (is_array($post[$nestedKey] ?? null) && in_array($post[$nestedKey]['cw_category'] ?? null, $whitelist, true)) {
-                $post[$nestedKey] = array_merge($post[$nestedKey], [
-                    'cw_text' => null,
-                    'cw_is_author_level' => false,
-                    'cw_label_source' => null,
-                    'cw_category' => null,
-                ]);
+            if (is_array($post[$nestedKey] ?? null)) {
+                $post[$nestedKey] = $this->clearCwFieldsIfWhitelisted($post[$nestedKey], $whitelist);
             }
         }
 
         return $post;
+    }
+
+    /**
+     * @param  array<int, string>  $whitelist
+     */
+    private function clearCwFieldsIfWhitelisted(array $node, array $whitelist): array
+    {
+        if (! in_array($node['cw_category'] ?? null, $whitelist, true)) {
+            return $node;
+        }
+
+        return array_merge($node, [
+            'cw_text' => null,
+            'cw_is_author_level' => false,
+            'cw_label_source' => null,
+            'cw_category' => null,
+        ]);
     }
 
     private function fetchMastodonStatuses(SocialAccount $account, array $statuses, callable $idExtractor): array

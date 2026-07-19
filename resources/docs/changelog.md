@@ -16,6 +16,8 @@ These features are available now but require opting in to beta testing via your 
 ## 2026-07-19 — Milestone 1.10
 
 - **Gravatar profile icon** — your Bloom sidebar profile icon now uses your Gravatar image (based on your account email), falling back to your initials if you don't have one.
+- **Content warnings stay visible after you accept them** — previously, accepting a content warning hid all trace that the post had been flagged. Now a warning icon and label stay next to the author's name, on the original post and on any quoted or replied-to post it carries.
+- **Content warning whitelist** — in Feed settings, choose specific warning types (adult content, graphic media, self-harm & threats, or general warnings) to always show without the blur overlay.
 
 ## 2026-07-19 — Milestone 1.9
 

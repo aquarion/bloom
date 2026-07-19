@@ -55,7 +55,7 @@ describe('Attribution — CW label leak guard', () => {
             />,
         );
 
-        expect(screen.queryByText(/⚠️/)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('cw-marker')).not.toBeInTheDocument();
     });
 
     it('shows the CW label once the post has been revealed via a sibling PostContent overlay', async () => {
@@ -88,11 +88,12 @@ describe('Attribution — CW label leak guard', () => {
         const user = userEvent.setup();
         renderWithCw(<Harness />);
 
-        expect(screen.queryByText(/⚠️/)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('cw-marker')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'reveal' }));
 
-        expect(screen.getByText(/⚠️ Adult content/)).toBeInTheDocument();
+        expect(screen.getByTestId('cw-marker')).toBeInTheDocument();
+        expect(screen.getByText('Adult content')).toBeInTheDocument();
     });
 
     it('shows the CW label immediately when cwBehavior is show (no overlay gate exists to leak past)', () => {
@@ -106,7 +107,8 @@ describe('Attribution — CW label leak guard', () => {
             />,
         );
 
-        expect(screen.getByText(/⚠️ Adult content/)).toBeInTheDocument();
+        expect(screen.getByTestId('cw-marker')).toBeInTheDocument();
+        expect(screen.getByText('Adult content')).toBeInTheDocument();
     });
 
     it('does not leak a whitelisted quoted_post CW label either', () => {
@@ -132,6 +134,6 @@ describe('Attribution — CW label leak guard', () => {
             />,
         );
 
-        expect(screen.queryByText(/⚠️/)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('cw-marker')).not.toBeInTheDocument();
     });
 });

@@ -14,7 +14,8 @@ describe('AuthorChip — persistent CW indicator', () => {
             />,
         );
 
-        expect(screen.getByText(/⚠️ Adult content/)).toBeInTheDocument();
+        expect(screen.getByTestId('cw-marker')).toBeInTheDocument();
+        expect(screen.getByText('Adult content')).toBeInTheDocument();
     });
 
     it('does not show a warning marker when cwLabel is null', () => {
@@ -28,7 +29,7 @@ describe('AuthorChip — persistent CW indicator', () => {
             />,
         );
 
-        expect(screen.queryByText(/⚠️/)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('cw-marker')).not.toBeInTheDocument();
     });
 
     it('does not show a warning marker when cwLabel is omitted', () => {
@@ -41,6 +42,6 @@ describe('AuthorChip — persistent CW indicator', () => {
             />,
         );
 
-        expect(screen.queryByText(/⚠️/)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('cw-marker')).not.toBeInTheDocument();
     });
 });

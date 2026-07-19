@@ -1,3 +1,4 @@
+import { TriangleAlert } from 'lucide-react';
 import { EmojiText } from '@/lib/emoji-text';
 import bloom from '../../../icons/bloom-standard.svg';
 
@@ -35,8 +36,12 @@ export function AuthorChip({
                 <p className="truncate font-bold text-white text-xs leading-tight">
                     <EmojiText text={name} emojis={emojis} />
                     {cwLabel && (
-                        <span className="ml-1.5 font-normal text-red-400">
-                            ⚠️ {cwLabel}
+                        <span
+                            data-testid="cw-marker"
+                            className="ml-1.5 inline-flex items-center gap-1 font-normal text-red-400"
+                        >
+                            <TriangleAlert className="size-3 flex-shrink-0" />
+                            {cwLabel}
                         </span>
                     )}
                 </p>

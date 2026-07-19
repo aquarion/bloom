@@ -1,6 +1,7 @@
 import { Quote, Repeat2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { isCwLabelVisible, nestedCwLike, useCwState } from '@/hooks/useCwState';
+import { useCwState } from '@/hooks/useCwState';
+import { isCwLabelVisible, nestedCwLike } from '@/lib/cw';
 import { absoluteTime, timeSince } from '@/lib/time-since';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
@@ -27,11 +28,7 @@ export function Attribution({
         : null;
     const quotedCwLabel =
         post.quoted_post &&
-        isCwLabelVisible(
-            nestedCwLike(post.quoted_post),
-            cwBehavior,
-            isRevealed,
-        )
+        isCwLabelVisible(nestedCwLike(post.quoted_post), cwBehavior, isRevealed)
             ? post.quoted_post.cw_text
             : null;
 

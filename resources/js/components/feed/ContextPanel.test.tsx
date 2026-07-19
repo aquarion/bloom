@@ -89,6 +89,8 @@ describe('ContextPanel — CW gating for nested posts', () => {
         expect(
             screen.getByRole('button', { name: 'Show author' }),
         ).toBeInTheDocument();
-        expect(screen.getByText('Labelled as rude content')).toBeInTheDocument();
+        expect(
+            screen.getByText('Labelled as rude content'),
+        ).toBeInTheDocument();
     });
 });

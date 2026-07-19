@@ -215,8 +215,8 @@ export default function FeedSettings({
                 <div className="space-y-2">
                     <Label>Always show these content warning types</Label>
                     <p className="text-muted-foreground text-xs">
-                        Posts labelled with a whitelisted type skip the
-                        content warning above entirely.
+                        Posts labelled with a whitelisted type skip the content
+                        warning above entirely.
                     </p>
                     <div className="space-y-2">
                         {CW_LABEL_OPTIONS.map((option) => (

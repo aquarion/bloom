@@ -90,7 +90,9 @@ const poll = {
 
 describe('PostAnimator — poll rendering', () => {
     it('renders poll results for a poll-only post (no body, no media)', () => {
-        renderWithCw(<PostAnimator post={{ ...basePost, poll }} colors={null} />);
+        renderWithCw(
+            <PostAnimator post={{ ...basePost, poll }} colors={null} />,
+        );
 
         expect(screen.getByText('Yes')).toBeInTheDocument();
         expect(screen.getByText('No')).toBeInTheDocument();

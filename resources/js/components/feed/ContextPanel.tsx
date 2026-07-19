@@ -1,6 +1,7 @@
 import { AtSign } from 'lucide-react';
 import type React from 'react';
-import { nestedCwLike, shouldShowCwOverlay, useCwState } from '@/hooks/useCwState';
+import { useCwState } from '@/hooks/useCwState';
+import { nestedCwLike, shouldShowCwOverlay } from '@/lib/cw';
 import type { Mention } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 import { AuthorChip } from './AuthorChip';

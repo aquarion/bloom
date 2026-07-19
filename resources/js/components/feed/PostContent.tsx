@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { shouldShowCwOverlay, useCwState } from '@/hooks/useCwState';
+import { useCwState } from '@/hooks/useCwState';
+import { shouldShowCwOverlay } from '@/lib/cw';
 import { postDisplayColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';

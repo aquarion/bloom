@@ -23,9 +23,7 @@ export function AuthorChip({
     return (
         <div
             className={`flex min-w-0 flex-1 items-center gap-2 rounded-full py-1 pr-3 pl-1 ${
-                cwLabel
-                    ? 'border border-red-900 bg-red-950/40'
-                    : 'bg-white/10'
+                cwLabel ? 'border border-red-900 bg-red-950/40' : 'bg-white/10'
             }`}
         >
             <img

@@ -1,3 +1,5 @@
+import type { CwCategory } from '@/types/post';
+
 export type ContentBehavior = 'skip' | 'blur' | 'show';
 
 export interface FeedPreferences {
@@ -5,4 +7,5 @@ export interface FeedPreferences {
     mute_words: string[];
     cw_behavior: ContentBehavior;
     sensitive_media_behavior: ContentBehavior;
+    cw_label_whitelist: CwCategory[];
 }

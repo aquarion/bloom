@@ -794,6 +794,50 @@ it('filters out posts containing muted words', function () {
         ->and($result['posts'][0]['id'])->toBe('mastodon_1');
 });
 
+it('suppresses cw_text for whitelisted categories without dropping the post', function () {
+    $user = User::factory()->create(['feed_preferences' => [
+        'cw_label_whitelist' => ['adult'],
+        'max_age_days' => null,
+    ]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $makeBlueskyPost = fn (string $rkey, array $labels) => [
+        'post' => [
+            'uri' => "at://did:plc:abc/app.bsky.feed.post/{$rkey}",
+            'record' => ['text' => "post {$rkey}", 'createdAt' => now()->toIso8601String()],
+            'author' => ['displayName' => 'Me', 'handle' => 'me.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => $labels,
+            'embed' => null,
+        ],
+    ];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn([
+        'posts' => [
+            $makeBlueskyPost('whitelisted', [['val' => 'sexual']]),
+            $makeBlueskyPost('not-whitelisted', [['val' => 'gore']]),
+        ],
+        'cursor' => null,
+    ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    $whitelisted = collect($result['posts'])->firstWhere('id', 'bluesky_at://did:plc:abc/app.bsky.feed.post/whitelisted');
+    $notWhitelisted = collect($result['posts'])->firstWhere('id', 'bluesky_at://did:plc:abc/app.bsky.feed.post/not-whitelisted');
+
+    expect($result['posts'])->toHaveCount(2)
+        ->and($whitelisted['cw_text'])->toBeNull()
+        ->and($whitelisted['cw_category'])->toBeNull()
+        ->and($notWhitelisted['cw_text'])->toBe('Graphic media')
+        ->and($notWhitelisted['cw_category'])->toBe('graphic');
+});
+
 it('applies age cutoff to bluesky posts', function () {
     $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 7]]);
     SocialAccount::factory()->create([

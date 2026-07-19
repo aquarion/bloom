@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { Quote, Reply } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import type { Post } from '@/types/post';
+import type { ContentBehavior } from '@/types/preferences';
 import { ContextPanel } from './ContextPanel';
 import { LinkCard } from './LinkCard';
 import { PollResults } from './PollResults';
@@ -10,9 +11,11 @@ import { PollResults } from './PollResults';
 export function PanelsOnlyPost({
     post,
     onReady,
+    cwBehavior = 'show',
 }: {
     post: Post;
     onReady?: () => void;
+    cwBehavior?: ContentBehavior;
 }) {
     const panelsRef = useRef<HTMLDivElement>(null);
     const onReadyRef = useRef(onReady);
@@ -58,6 +61,11 @@ export function PanelsOnlyPost({
                         body={post.reply_to.body}
                         original_url={post.reply_to.original_url}
                         chip_mentions={post.reply_to.chip_mentions}
+                        cw_text={post.reply_to.cw_text}
+                        cw_is_author_level={post.reply_to.cw_is_author_level}
+                        cw_label_source={post.reply_to.cw_label_source}
+                        sensitive_media={post.reply_to.sensitive_media}
+                        cwBehavior={cwBehavior}
                     />
                 )}
                 {post.quoted_post && (
@@ -70,6 +78,13 @@ export function PanelsOnlyPost({
                         body={post.quoted_post.body}
                         original_url={post.quoted_post.original_url}
                         chip_mentions={post.quoted_post.chip_mentions}
+                        cw_text={post.quoted_post.cw_text}
+                        cw_is_author_level={
+                            post.quoted_post.cw_is_author_level
+                        }
+                        cw_label_source={post.quoted_post.cw_label_source}
+                        sensitive_media={post.quoted_post.sensitive_media}
+                        cwBehavior={cwBehavior}
                     />
                 )}
                 {post.poll && (

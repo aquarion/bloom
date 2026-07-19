@@ -38,6 +38,7 @@ export function Attribution({ post }: { post: Post }) {
                                     ? absoluteTime(post.quoted_post.created_at)
                                     : undefined
                             }
+                            cwLabel={post.quoted_post.cw_text}
                         />
                     </a>
                 ) : (
@@ -57,6 +58,7 @@ export function Attribution({ post }: { post: Post }) {
                                     ? absoluteTime(post.quoted_post.created_at)
                                     : undefined
                             }
+                            cwLabel={post.quoted_post.cw_text}
                         />
                     </div>
                 )}
@@ -74,6 +76,7 @@ export function Attribution({ post }: { post: Post }) {
                         account={post.author_handle}
                         time={timeSince(post.created_at)}
                         absoluteTime={absoluteTime(post.created_at)}
+                        cwLabel={post.cw_text}
                     />
                 </a>
             </div>
@@ -104,6 +107,7 @@ export function Attribution({ post }: { post: Post }) {
                         account={post.author_handle}
                         time={timeSince(post.created_at)}
                         absoluteTime={absoluteTime(post.created_at)}
+                        cwLabel={post.cw_text}
                     />
                 </a>
                 <span className="flex-shrink-0 text-white/30">{label}</span>
@@ -137,6 +141,7 @@ export function Attribution({ post }: { post: Post }) {
             account={post.author_handle}
             time={timeSince(post.created_at)}
             absoluteTime={absoluteTime(post.created_at)}
+            cwLabel={post.cw_text}
         />
     );
 

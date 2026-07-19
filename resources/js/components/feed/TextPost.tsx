@@ -8,6 +8,7 @@ import { EmojiText } from '@/lib/emoji-text';
 import type { PostColors } from '@/lib/post-colors';
 import { postColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
+import type { ContentBehavior } from '@/types/preferences';
 import { useAutoFitText } from '@/hooks/useAutoFitText';
 import { ContextPanel } from './ContextPanel';
 import { LinkCard } from './LinkCard';
@@ -23,11 +24,13 @@ export function TextPost({
     body,
     colors,
     onReady,
+    cwBehavior = 'show',
 }: {
     post: Post;
     body: string;
     colors: PostColors | null;
     onReady?: () => void;
+    cwBehavior?: ContentBehavior;
 }) {
     const textRef = useRef<HTMLDivElement>(null);
     const panelsRef = useRef<HTMLDivElement>(null);
@@ -130,6 +133,15 @@ export function TextPost({
                                 body={post.reply_to.body}
                                 original_url={post.reply_to.original_url}
                                 chip_mentions={post.reply_to.chip_mentions}
+                                cw_text={post.reply_to.cw_text}
+                                cw_is_author_level={
+                                    post.reply_to.cw_is_author_level
+                                }
+                                cw_label_source={post.reply_to.cw_label_source}
+                                sensitive_media={
+                                    post.reply_to.sensitive_media
+                                }
+                                cwBehavior={cwBehavior}
                             />
                         )}
                         {post.quoted_post && (
@@ -142,6 +154,17 @@ export function TextPost({
                                 body={post.quoted_post.body}
                                 original_url={post.quoted_post.original_url}
                                 chip_mentions={post.quoted_post.chip_mentions}
+                                cw_text={post.quoted_post.cw_text}
+                                cw_is_author_level={
+                                    post.quoted_post.cw_is_author_level
+                                }
+                                cw_label_source={
+                                    post.quoted_post.cw_label_source
+                                }
+                                sensitive_media={
+                                    post.quoted_post.sensitive_media
+                                }
+                                cwBehavior={cwBehavior}
                             />
                         )}
                     </div>

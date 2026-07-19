@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -14,6 +15,13 @@ import {
 } from '@/components/ui/select';
 import SettingsPageLayout from '@/layouts/settings-page-layout';
 import type { ContentBehavior, FeedPreferences } from '@/types/preferences';
+import type { CwCategory } from '@/types/post';
+
+const CW_LABEL_OPTIONS: { value: CwCategory; label: string }[] = [
+    { value: 'adult', label: 'Adult content' },
+    { value: 'graphic', label: 'Graphic media' },
+    { value: 'generic', label: 'Content warning (generic)' },
+];
 
 export default function FeedSettings({
     preferences,
@@ -27,7 +35,17 @@ export default function FeedSettings({
         mute_words: preferences.mute_words,
         cw_behavior: preferences.cw_behavior,
         sensitive_media_behavior: preferences.sensitive_media_behavior,
+        cw_label_whitelist: preferences.cw_label_whitelist,
     });
+
+    function toggleCwLabelWhitelist(category: CwCategory, checked: boolean) {
+        setData(
+            'cw_label_whitelist',
+            checked
+                ? [...data.cw_label_whitelist, category]
+                : data.cw_label_whitelist.filter((c) => c !== category),
+        );
+    }
 
     const [muteInput, setMuteInput] = useState('');
 
@@ -189,6 +207,41 @@ export default function FeedSettings({
                     {errors.cw_behavior && (
                         <p className="text-destructive text-sm">
                             {errors.cw_behavior}
+                        </p>
+                    )}
+                </div>
+
+                {/* CW label whitelist */}
+                <div className="space-y-2">
+                    <Label>Always show these content warning types</Label>
+                    <p className="text-muted-foreground text-xs">
+                        Posts labelled with a whitelisted type skip the
+                        content warning above entirely.
+                    </p>
+                    <div className="space-y-2">
+                        {CW_LABEL_OPTIONS.map((option) => (
+                            <label
+                                key={option.value}
+                                className="flex items-center gap-2 text-sm"
+                            >
+                                <Checkbox
+                                    checked={data.cw_label_whitelist.includes(
+                                        option.value,
+                                    )}
+                                    onCheckedChange={(checked) =>
+                                        toggleCwLabelWhitelist(
+                                            option.value,
+                                            checked === true,
+                                        )
+                                    }
+                                />
+                                {option.label}
+                            </label>
+                        ))}
+                    </div>
+                    {errors.cw_label_whitelist && (
+                        <p className="text-destructive text-sm">
+                            {errors.cw_label_whitelist}
                         </p>
                     )}
                 </div>

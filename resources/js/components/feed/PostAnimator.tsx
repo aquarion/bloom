@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { PostColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
+import type { ContentBehavior } from '@/types/preferences';
 import { MediaPost } from './MediaPost';
 import { PanelsOnlyPost } from './PanelsOnlyPost';
 import { TextPost } from './TextPost';
@@ -14,6 +15,7 @@ export function PostAnimator({
     blurMedia = false,
     onRevealMedia,
     paused = false,
+    cwBehavior = 'show',
 }: {
     post: Post;
     colors: PostColors | null;
@@ -23,6 +25,7 @@ export function PostAnimator({
     blurMedia?: boolean;
     onRevealMedia?: () => void;
     paused?: boolean;
+    cwBehavior?: ContentBehavior;
 }) {
     const onReadyRef = useRef(onReady);
 
@@ -58,19 +61,32 @@ export function PostAnimator({
                 onProgress={onProgress}
                 onAdvance={onAdvance}
                 onReady={onReady}
+                cwBehavior={cwBehavior}
             />
         );
     }
 
     if (!body) {
         if (hasPanels) {
-            return <PanelsOnlyPost post={post} onReady={onReady} />;
+            return (
+                <PanelsOnlyPost
+                    post={post}
+                    onReady={onReady}
+                    cwBehavior={cwBehavior}
+                />
+            );
         }
 
         return null;
     }
 
     return (
-        <TextPost post={post} body={body} colors={colors} onReady={onReady} />
+        <TextPost
+            post={post}
+            body={body}
+            colors={colors}
+            onReady={onReady}
+            cwBehavior={cwBehavior}
+        />
     );
 }

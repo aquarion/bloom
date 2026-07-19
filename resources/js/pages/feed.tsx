@@ -4,8 +4,7 @@ import { FeedChrome } from '@/components/feed/FeedChrome';
 import { PostBackground } from '@/components/feed/PostBackground';
 import { PostContent } from '@/components/feed/PostContent';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
-import { CwStateProvider, useCwState } from '@/hooks/useCwState';
-import { shouldShowCwOverlay } from '@/lib/cw';
+import { CwStateProvider } from '@/hooks/useCwState';
 import { useFeedQueue } from '@/hooks/useFeedQueue';
 import { useFeedTransition } from '@/hooks/useFeedTransition';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -55,7 +54,6 @@ function FeedView({
     const [paused, setPaused] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [panelOpen, setPanelOpen] = useState(false);
-    const { isRevealed } = useCwState();
 
     const {
         isSupported: wakeLockSupported,
@@ -124,18 +122,9 @@ function FeedView({
         closeHelp();
     };
 
-    const overlayActive = current
-        ? shouldShowCwOverlay(
-              current,
-              cwBehavior,
-              sensitiveMediaBehavior,
-              isRevealed,
-          )
-        : false;
-
     const { progress } = useAutoAdvance({
         duration: 8000,
-        paused: paused || !animationReady || overlayActive,
+        paused: paused || !animationReady,
         onAdvance: handleAdvance,
     });
 

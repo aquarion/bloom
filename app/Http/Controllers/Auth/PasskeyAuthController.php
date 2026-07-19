@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Mail\PasskeyInvalidated;
 use App\Models\Passkey;
+use App\Models\Tombstone;
 use App\Models\User;
 use App\Services\WebAuthn\WebAuthnService;
 use Illuminate\Http\JsonResponse;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -39,7 +41,19 @@ class PasskeyAuthController extends Controller
             return $result;
         }
 
-        Auth::login($result['passkey']->user);
+        if (isset($result['tombstone'])) {
+            $request->session()->put('tombstone_id', $result['tombstone']->id);
+            $request->session()->put('tombstone_credential_id', $result['credential_id']);
+
+            return response()->json(['redirect' => route('tombstone.show')]);
+        }
+
+        $passkey = $result['passkey'];
+        Auth::login($passkey->user);
+        $passkey->user->update([
+            'last_active_at' => now(),
+            'inactivity_warning_sent_at' => null,
+        ]);
 
         return response()->json(['redirect' => route('dashboard')]);
     }
@@ -79,7 +93,7 @@ class PasskeyAuthController extends Controller
         ]);
     }
 
-    /** @return array{passkey: Passkey}|JsonResponse */
+    /** @return array{passkey: Passkey}|array{tombstone: Tombstone, credential_id: string}|JsonResponse */
     private function resolveVerifiedPasskey(
         Request $request,
         ?int $requiredUserId = null,
@@ -119,7 +133,16 @@ class PasskeyAuthController extends Controller
         $passkey = $query->first();
 
         if (! $passkey) {
-            return response()->json(['message' => 'Passkey not recognised.'], 401);
+            if ($requiredUserId !== null) {
+                return response()->json(['message' => 'Passkey not recognised.'], 401);
+            }
+
+            $tombstoneMatch = $this->findTombstoneByCredentialId($credentialId);
+            if (! $tombstoneMatch) {
+                return response()->json(['message' => 'Passkey not recognised.'], 401);
+            }
+
+            return $this->verifyTombstonedPasskey($tombstoneMatch, $request, $options, $credentialId);
         }
 
         try {
@@ -154,5 +177,92 @@ class PasskeyAuthController extends Controller
         ]);
 
         return ['passkey' => $passkey];
+    }
+
+    /** @return array{tombstone: Tombstone, archived_passkey: array<string, mixed>}|null */
+    /**
+     * Drivers whose query grammar supports partial-object JSON containment
+     * (i.e. `whereJsonContains` can match an array element by a single key),
+     * letting us narrow the scan to candidate rows in the database instead
+     * of pulling every tombstone into PHP.
+     *
+     * @var array<int, string>
+     */
+    private const JSON_CONTAINS_DRIVERS = ['mysql', 'pgsql'];
+
+    private function findTombstoneByCredentialId(string $credentialId): ?array
+    {
+        $query = Tombstone::select(['id', 'schema_version', 'archived_passkeys']);
+
+        if (in_array(DB::connection()->getDriverName(), self::JSON_CONTAINS_DRIVERS, true)) {
+            $query->whereJsonContains('archived_passkeys', ['credential_id' => $credentialId]);
+        }
+
+        foreach ($query->cursor() as $tombstone) {
+            $match = $tombstone->findArchivedPasskey($credentialId);
+
+            if ($match) {
+                return ['tombstone' => $tombstone, 'archived_passkey' => $match];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array{tombstone: Tombstone, archived_passkey: array<string, mixed>}  $tombstoneMatch
+     * @return array{tombstone: Tombstone, credential_id: string}|JsonResponse
+     */
+    private function verifyTombstonedPasskey(
+        array $tombstoneMatch,
+        Request $request,
+        mixed $options,
+        string $credentialId,
+    ): array|JsonResponse {
+        /** @var Tombstone $tombstone */
+        $tombstone = $tombstoneMatch['tombstone'];
+        $archived = $tombstoneMatch['archived_passkey'];
+
+        if ($tombstone->schema_version !== Tombstone::CURRENT_SCHEMA_VERSION) {
+            Log::warning('Tombstone passkey lookup hit an unrecognised schema version', [
+                'tombstone_id' => $tombstone->id,
+                'schema_version' => $tombstone->schema_version,
+            ]);
+
+            return response()->json(['message' => 'Passkey verification failed.'], 401);
+        }
+
+        $transientPasskey = new Passkey([
+            'credential_id' => $archived['credential_id'],
+            'public_key' => $archived['public_key'],
+            'sign_count' => $archived['sign_count'],
+            'transports' => $archived['transports'],
+        ]);
+
+        try {
+            $source = $this->webAuthn->verifyAuthentication(
+                json_encode($request->all()),
+                $options,
+                $transientPasskey,
+            );
+        } catch (Throwable $e) {
+            Log::warning('Tombstoned passkey verification failed', ['exception' => $e->getMessage()]);
+
+            return response()->json(['message' => 'Passkey verification failed.'], 401);
+        }
+
+        // A counter of 0 means the authenticator doesn't implement counters; only check for
+        // equal-or-lower counters when the authenticator tracks them, per WebAuthn §6.1. There
+        // is no live Passkey/User to invalidate or notify for a tombstoned credential, so we
+        // just log and return the same generic failure as any other bad attempt.
+        if ($source->counter !== 0 && $source->counter <= $archived['sign_count']) {
+            Log::warning('Tombstoned passkey verification detected a replayed counter', [
+                'tombstone_id' => $tombstone->id,
+            ]);
+
+            return response()->json(['message' => 'Passkey verification failed.'], 401);
+        }
+
+        return ['tombstone' => $tombstone, 'credential_id' => $credentialId];
     }
 }

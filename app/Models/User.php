@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'feed_preferences'])]
+#[Fillable(['name', 'email', 'feed_preferences', 'last_active_at', 'inactivity_warning_sent_at'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -30,6 +30,8 @@ class User extends Authenticatable
     protected $casts = [
         'feed_preferences' => 'array',
         'roles' => 'array',
+        'last_active_at' => 'datetime',
+        'inactivity_warning_sent_at' => 'datetime',
     ];
 
     protected function email(): Attribute
@@ -47,5 +49,27 @@ class User extends Authenticatable
     public function passkeys(): HasMany
     {
         return $this->hasMany(Passkey::class);
+    }
+
+    /**
+     * Cancel any active subscription for this user.
+     *
+     * No-op today — this application has no billing/subscription system yet.
+     * Wired in ahead of time so account-tombstoning has a real hook to call
+     * once billing exists, without needing to touch the tombstoning command.
+     */
+    public function cancelSubscription(): void
+    {
+        //
+    }
+
+    /**
+     * Whether this user currently has a paid subscription.
+     *
+     * No-op today; see cancelSubscription().
+     */
+    public function isSubscribed(): bool
+    {
+        return false;
     }
 }

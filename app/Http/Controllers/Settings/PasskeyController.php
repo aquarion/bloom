@@ -70,6 +70,8 @@ class PasskeyController extends Controller
             ...$data,
         ]);
 
+        $request->user()->update(['last_active_at' => now(), 'inactivity_warning_sent_at' => null]);
+
         return response()->json($passkey->only('id', 'name', 'last_used_at', 'created_at'), 201);
     }
 

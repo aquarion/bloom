@@ -5,16 +5,9 @@ last_updated: "2026-07-19"
 
 Notable changes to the Bloom application, newest first.
 
-## Currently in beta
-
-These features are available now but require opting in to beta testing via your [Profile settings](/settings/profile).
-
-- **Mention chips** — @-mentions in posts appear as interactive avatar chips linking to the mentioned account.
-
----
-
 ## 2026-07-19 — Milestone 1.9
 
+- **Mention chips** graduated out of beta — @-mentions in posts appear as interactive avatar chips linking to the mentioned account, now enabled for everyone.
 - **Account archival** — accounts inactive for an extended period are warned by email, then archived ("tombstoned") if inactivity continues. Signing in again after archival shows a recovery screen to restore the account or permanently delete it.
 - **Fixed** — the public front page could show posts with a content warning or flagged sensitive media to signed-out visitors. These are now filtered out.
 
@@ -29,7 +22,7 @@ These features are available now but require opting in to beta testing via your 
 - **Content warning overlays** — posts with Bluesky or Mastodon moderation labels show a content warning before revealing the post. The overlay identifies the label type and whether it was applied by the author or a moderation service. Dismissing a warning for an author applies for the rest of your session.
 - **Image carousel** — posts with multiple images display a full-screen carousel with navigation and a progress indicator.
 - **Feed sidebar** — a sidebar panel shows post metadata and context while reading.
-- **Mention chips** — @-mentions in posts appear as interactive avatar chips. *(beta)*
+- **Mention chips** — @-mentions in posts appear as interactive avatar chips.
 - **Keyboard shortcuts** — vim-style shortcuts: `j`/`k` to navigate posts, `?` to view all shortcuts.
 - **Public feeds** — support for Mastodon public timelines and Bluesky custom feeds alongside home timelines.
 - **Matomo analytics** — privacy-respecting analytics to help improve the product.

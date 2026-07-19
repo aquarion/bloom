@@ -1,6 +1,12 @@
 import { router } from '@inertiajs/react';
 import axios from 'axios';
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+} from 'react';
 import type { FeedResponse, Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 
@@ -8,10 +14,9 @@ const REFILL_THRESHOLD = 5;
 const HISTORY_CAP = 50;
 
 type State = {
-    current: Post | null;
-    queue: Post[];
+    path: Post[];
+    position: number;
     cursor: string | null;
-    history: Post[];
 };
 type Action =
     | { type: 'advance' }
@@ -21,32 +26,36 @@ type Action =
 function reducer(state: State, action: Action): State {
     switch (action.type) {
         case 'advance': {
-            const [next, ...rest] = state.queue;
-            const history = state.current
-                ? [...state.history.slice(-(HISTORY_CAP - 1)), state.current]
-                : state.history;
-
-            return { ...state, current: next ?? null, queue: rest, history };
-        }
-
-        case 'go_back': {
-            if (state.history.length === 0) {
+            if (state.position >= state.path.length) {
                 return state;
             }
 
-            const prev = state.history[state.history.length - 1];
-            const history = state.history.slice(0, -1);
-            const queue = state.current
-                ? [state.current, ...state.queue]
-                : state.queue;
+            let position = state.position + 1;
+            let path = state.path;
 
-            return { ...state, current: prev, queue, history };
+            if (position > HISTORY_CAP) {
+                const excess = position - HISTORY_CAP;
+                path = path.slice(excess);
+                position -= excess;
+            }
+
+            return { ...state, path, position };
+        }
+
+        case 'go_back': {
+            if (state.position === 0) {
+                return state;
+            }
+
+            return { ...state, position: state.position - 1 };
         }
 
         case 'enqueue': {
+            const currentPost = state.path[state.position] ?? null;
+            const queuePosts = state.path.slice(state.position + 1);
             const seen = new Set<string>([
-                ...(state.current ? [state.current.id] : []),
-                ...state.queue.map((p) => p.id),
+                ...(currentPost ? [currentPost.id] : []),
+                ...queuePosts.map((p) => p.id),
             ]);
             const incoming = action.posts
                 .filter((p) => {
@@ -59,18 +68,27 @@ function reducer(state: State, action: Action): State {
                     return true;
                 })
                 .sort((a, b) => b.created_at.localeCompare(a.created_at));
-            const merged = [...state.queue, ...incoming];
+            const merged = [...queuePosts, ...incoming];
+            const historyPart = state.path.slice(0, state.position);
 
-            if (state.current === null && merged.length > 0) {
+            if (currentPost === null) {
+                if (merged.length === 0) {
+                    return { ...state, cursor: action.cursor };
+                }
+
                 return {
-                    current: merged[0],
-                    queue: merged.slice(1),
+                    ...state,
+                    path: [...historyPart, ...merged],
+                    position: historyPart.length,
                     cursor: action.cursor,
-                    history: state.history,
                 };
             }
 
-            return { ...state, queue: merged, cursor: action.cursor };
+            return {
+                ...state,
+                path: [...historyPart, currentPost, ...merged],
+                cursor: action.cursor,
+            };
         }
     }
 }
@@ -113,11 +131,16 @@ export function useFeedQueue({
     const filteredInitial = initialPosts.filter(filterPost);
 
     const [state, dispatch] = useReducer(reducer, {
-        current: filteredInitial[0] ?? null,
-        queue: filteredInitial.slice(1),
+        path: filteredInitial,
+        position: 0,
         cursor: initialCursor,
-        history: [],
     });
+
+    const current = state.path[state.position] ?? null;
+    const queue = useMemo(
+        () => state.path.slice(state.position + 1),
+        [state.path, state.position],
+    );
 
     const fetchingRef = useRef(false);
 
@@ -160,10 +183,10 @@ export function useFeedQueue({
     );
 
     useEffect(() => {
-        if (state.queue.length <= REFILL_THRESHOLD && state.cursor) {
+        if (queue.length <= REFILL_THRESHOLD && state.cursor) {
             fetchMore(state.cursor);
         }
-    }, [state.queue.length, state.cursor, fetchMore]);
+    }, [queue.length, state.cursor, fetchMore]);
 
     const advance = useCallback(() => {
         dispatch({ type: 'advance' });
@@ -174,10 +197,10 @@ export function useFeedQueue({
     }, []);
 
     return {
-        current: state.current,
-        queue: state.queue,
+        current,
+        queue,
         advance,
         goBack,
-        canGoBack: state.history.length > 0,
+        canGoBack: state.position > 0,
     };
 }

@@ -137,6 +137,84 @@ it('appends incoming posts after existing queue to avoid skipping buffered posts
     expect(result.current.queue.map((p) => p.id)).toEqual(['old', 'new']);
 });
 
+it('advancing past the end of the queue sets current to null, and further advance is a no-op', () => {
+    const posts = [makePost('1'), makePost('2')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+
+    act(() => result.current.advance());
+    expect(result.current.current?.id).toBe('2');
+
+    act(() => result.current.advance());
+    expect(result.current.current).toBeNull();
+    expect(result.current.queue).toHaveLength(0);
+
+    act(() => result.current.advance());
+    expect(result.current.current).toBeNull();
+    expect(result.current.canGoBack).toBe(true);
+});
+
+it('restores current from an incoming batch after the feed was exhausted', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
+    });
+
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: [], initialCursor: 'cursor123' }),
+    );
+
+    expect(result.current.current).toBeNull();
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
+    expect(result.current.queue.map((p) => p.id)).toEqual(['2']);
+});
+
+it('stays exhausted when a refill while current is null returns no posts', async () => {
+    vi.mocked(axios.get).mockClear();
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [], next_cursor: null },
+    });
+
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: [], initialCursor: 'cursor123' }),
+    );
+
+    await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(1));
+    expect(result.current.current).toBeNull();
+    expect(result.current.queue).toHaveLength(0);
+});
+
+it('goBack still walks back to the correct pre-enqueue post after an enqueue at a non-zero position', async () => {
+    const posts = Array.from({ length: 7 }, (_, i) => makePost(String(i)));
+
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [makePost('new')], next_cursor: null },
+    });
+
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: 'cursor123' }),
+    );
+
+    act(() => result.current.advance()); // current: '1', history: ['0']
+
+    await waitFor(() =>
+        expect(result.current.queue.map((p) => p.id)).toContain('new'),
+    );
+
+    act(() => result.current.goBack());
+    expect(result.current.current?.id).toBe('0');
+    expect(result.current.queue.map((p) => p.id)).toEqual([
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6',
+        'new',
+    ]);
+});
+
 it('redirects to login when feed refill gets unauthenticated', async () => {
     const posts = Array.from({ length: 6 }, (_, i) => makePost(String(i)));
 
@@ -344,11 +422,16 @@ it('caps history at 50 posts', () => {
         act(() => result.current.advance());
     }
 
+    expect(result.current.current?.id).toBe('55');
+
     for (let i = 0; i < 50; i++) {
         act(() => result.current.goBack());
     }
 
-    const idBefore = result.current.current?.id;
+    // 5 posts (0-4) should have been trimmed from history once the 50-post
+    // cap was exceeded, so going back 50 times lands on post 5, not post 0.
+    expect(result.current.current?.id).toBe('5');
+
     act(() => result.current.goBack());
-    expect(result.current.current?.id).toBe(idBefore);
+    expect(result.current.current?.id).toBe('5');
 });

@@ -22,6 +22,12 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # 'edited' also fires for title/body-only edits, not just base-branch
+    # retargets — skip those so an unrelated description tweak doesn't
+    # trigger a full test + build-and-push + deploy-staging run. Everything
+    # else (build-and-push, deploy-staging, deploy-production) needs this
+    # job either directly or transitively, so gating here is sufficient.
+    if: github.event.action != 'edited' || github.event.changes.base != null
     permissions:
       contents: read
 

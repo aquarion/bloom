@@ -838,6 +838,39 @@ it('suppresses cw_text for whitelisted categories without dropping the post', fu
         ->and($notWhitelisted['cw_category'])->toBe('graphic');
 });
 
+it('whitelisting generic does not suppress cw_text for the separate safety category', function () {
+    $user = User::factory()->create(['feed_preferences' => [
+        'cw_label_whitelist' => ['generic'],
+        'max_age_days' => null,
+    ]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn([
+        'posts' => [[
+            'post' => [
+                'uri' => 'at://did:plc:abc/app.bsky.feed.post/threat',
+                'record' => ['text' => 'post', 'createdAt' => now()->toIso8601String()],
+                'author' => ['displayName' => 'Me', 'handle' => 'me.bsky.social', 'avatar' => ''],
+                'labels' => [['val' => 'threat']],
+                'embed' => null,
+            ],
+        ]],
+        'cursor' => null,
+    ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'][0]['cw_text'])->toBe('threatening content')
+        ->and($result['posts'][0]['cw_category'])->toBe('safety');
+});
+
 it('suppresses cw_text on a whitelisted quoted_post without touching the top-level post', function () {
     $user = User::factory()->create(['feed_preferences' => [
         'cw_label_whitelist' => ['adult'],

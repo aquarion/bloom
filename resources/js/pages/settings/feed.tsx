@@ -17,9 +17,19 @@ import SettingsPageLayout from '@/layouts/settings-page-layout';
 import type { ContentBehavior, FeedPreferences } from '@/types/preferences';
 import type { CwCategory } from '@/types/post';
 
-const CW_LABEL_OPTIONS: { value: CwCategory; label: string }[] = [
+const CW_LABEL_OPTIONS: {
+    value: CwCategory;
+    label: string;
+    warning?: string;
+}[] = [
     { value: 'adult', label: 'Adult content' },
     { value: 'graphic', label: 'Graphic media' },
+    {
+        value: 'safety',
+        label: 'Self-harm & threats',
+        warning:
+            'You will stop seeing warnings for self-harm, threats, and intolerance.',
+    },
     { value: 'generic', label: 'Content warning (generic)' },
 ];
 
@@ -219,25 +229,33 @@ export default function FeedSettings({
                         warning above entirely.
                     </p>
                     <div className="space-y-2">
-                        {CW_LABEL_OPTIONS.map((option) => (
-                            <label
-                                key={option.value}
-                                className="flex items-center gap-2 text-sm"
-                            >
-                                <Checkbox
-                                    checked={data.cw_label_whitelist.includes(
-                                        option.value,
+                        {CW_LABEL_OPTIONS.map((option) => {
+                            const checked = data.cw_label_whitelist.includes(
+                                option.value,
+                            );
+
+                            return (
+                                <div key={option.value}>
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <Checkbox
+                                            checked={checked}
+                                            onCheckedChange={(next) =>
+                                                toggleCwLabelWhitelist(
+                                                    option.value,
+                                                    next === true,
+                                                )
+                                            }
+                                        />
+                                        {option.label}
+                                    </label>
+                                    {checked && option.warning && (
+                                        <p className="mt-1 ml-6 text-destructive text-xs">
+                                            {option.warning}
+                                        </p>
                                     )}
-                                    onCheckedChange={(checked) =>
-                                        toggleCwLabelWhitelist(
-                                            option.value,
-                                            checked === true,
-                                        )
-                                    }
-                                />
-                                {option.label}
-                            </label>
-                        ))}
+                                </div>
+                            );
+                        })}
                     </div>
                     {errors.cw_label_whitelist && (
                         <p className="text-destructive text-sm">

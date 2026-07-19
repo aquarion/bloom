@@ -2910,6 +2910,22 @@ it('sets cw_category to generic for bluesky moderation labels', function () {
     expect($post['cw_category'])->toBe('generic');
 });
 
+it('sets cw_category to safety for bluesky threat, intolerant, and self-harm labels', function (string $label) {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => $label]],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_category'])->toBe('safety');
+})->with(['threat', 'intolerant', 'self-harm']);
+
 it('sets cw_category to generic for unknown bluesky labels', function () {
     $feedPost = [
         'post' => [

@@ -21,7 +21,7 @@ it('updates user feed preferences', function () {
         'mute_words' => ['spam', 'giveaway'],
         'cw_behavior' => 'skip',
         'sensitive_media_behavior' => 'show',
-        'cw_label_whitelist' => ['adult', 'generic'],
+        'cw_label_whitelist' => ['adult', 'safety', 'generic'],
     ]);
 
     $response->assertRedirect();
@@ -31,7 +31,7 @@ it('updates user feed preferences', function () {
         ->and($user->getPreference('mute_words'))->toBe(['spam', 'giveaway'])
         ->and($user->getPreference('cw_behavior'))->toBe('skip')
         ->and($user->getPreference('sensitive_media_behavior'))->toBe('show')
-        ->and($user->getPreference('cw_label_whitelist'))->toBe(['adult', 'generic']);
+        ->and($user->getPreference('cw_label_whitelist'))->toBe(['adult', 'safety', 'generic']);
 });
 
 it('validates feed preferences input', function () {

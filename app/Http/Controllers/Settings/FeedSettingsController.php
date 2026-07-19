@@ -29,7 +29,7 @@ class FeedSettingsController extends Controller
             'cw_behavior' => ['required', Rule::in(['skip', 'blur', 'show'])],
             'sensitive_media_behavior' => ['required', Rule::in(['skip', 'blur', 'show'])],
             'cw_label_whitelist' => ['nullable', 'array'],
-            'cw_label_whitelist.*' => [Rule::in(['adult', 'graphic', 'generic'])],
+            'cw_label_whitelist.*' => [Rule::in(['adult', 'graphic', 'safety', 'generic'])],
         ]);
 
         $user = $request->user();

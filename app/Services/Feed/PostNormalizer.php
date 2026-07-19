@@ -711,25 +711,36 @@ class PostNormalizer
         $graphicLabels = ['graphic-media', 'gore'];
         $mediaLabels = array_merge($adultLabels, $graphicLabels);
 
-        $moderationLabelMap = [
-            'rude' => 'rude content',
+        // Kept in its own whitelist category, distinct from 'generic' — a user who
+        // whitelists low-stakes noise (spam, impersonation, misleading, unrecognised
+        // labels) shouldn't silently also stop seeing self-harm/threat/intolerance warnings.
+        $safetyLabelMap = [
             'threat' => 'threatening content',
             'intolerant' => 'intolerant content',
             'self-harm' => 'self-harm content',
+        ];
+
+        $moderationLabelMap = [
+            'rude' => 'rude content',
             'spam' => 'spam',
             'impersonation' => 'impersonation',
             'misleading' => 'misleading content',
         ];
 
-        // 'adult' and 'graphic' map to the taxonomy exposed for whitelisting (#169); every
-        // other bucket — moderation labels and unrecognised raw labels alike — collapses to
-        // 'generic' since there's no dedicated whitelist entry for them.
-        $resolveCw = function (array $l) use ($adultLabels, $graphicLabels, $moderationLabelMap): array {
+        // 'adult', 'graphic', and 'safety' map to dedicated whitelist entries (#169); every
+        // other bucket — remaining moderation labels and unrecognised raw labels alike —
+        // collapses to 'generic' since there's no finer-grained whitelist entry for them.
+        $resolveCw = function (array $l) use ($adultLabels, $graphicLabels, $safetyLabelMap, $moderationLabelMap): array {
             if (array_intersect($l, $adultLabels)) {
                 return ['text' => 'Adult content', 'category' => 'adult'];
             }
             if (array_intersect($l, $graphicLabels)) {
                 return ['text' => 'Graphic media', 'category' => 'graphic'];
+            }
+            foreach ($l as $label) {
+                if (isset($safetyLabelMap[$label])) {
+                    return ['text' => $safetyLabelMap[$label], 'category' => 'safety'];
+                }
             }
             foreach ($l as $label) {
                 if (isset($moderationLabelMap[$label])) {

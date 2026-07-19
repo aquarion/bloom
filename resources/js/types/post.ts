@@ -12,8 +12,8 @@ export interface Mention {
     profile_url: string;
 }
 
-/** Bluesky's moderation-label taxonomy collapsed to three whitelistable buckets; Mastodon's freeform spoiler_text always maps to 'generic'. */
-export type CwCategory = 'adult' | 'graphic' | 'generic';
+/** Bluesky's moderation-label taxonomy collapsed to whitelistable buckets; Mastodon's freeform spoiler_text always maps to 'generic'. */
+export type CwCategory = 'adult' | 'graphic' | 'safety' | 'generic';
 
 interface CwFields {
     cw_text: string | null;

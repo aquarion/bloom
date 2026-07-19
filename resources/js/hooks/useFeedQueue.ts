@@ -1,6 +1,12 @@
 import { router } from '@inertiajs/react';
 import axios from 'axios';
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+} from 'react';
 import type { FeedResponse, Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 
@@ -131,7 +137,10 @@ export function useFeedQueue({
     });
 
     const current = state.path[state.position] ?? null;
-    const queue = state.path.slice(state.position + 1);
+    const queue = useMemo(
+        () => state.path.slice(state.position + 1),
+        [state.path, state.position],
+    );
 
     const fetchingRef = useRef(false);
 

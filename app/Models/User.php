@@ -34,9 +34,18 @@ class User extends Authenticatable
         'inactivity_warning_sent_at' => 'datetime',
     ];
 
+    protected $appends = ['avatar'];
+
     protected function email(): Attribute
     {
         return Attribute::make(set: fn (string $value) => strtolower($value));
+    }
+
+    protected function avatar(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => 'https://www.gravatar.com/avatar/'.hash('sha256', strtolower(trim($this->email))).'?s=128&d=404',
+        );
     }
 
     /** @return HasMany<SocialAccount, $this> */

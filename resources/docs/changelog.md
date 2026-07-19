@@ -16,6 +16,7 @@ These features are available now but require opting in to beta testing via your 
 ## 2026-07-19 — Milestone 1.9
 
 - **Account archival** — accounts inactive for an extended period are warned by email, then archived ("tombstoned") if inactivity continues. Signing in again after archival shows a recovery screen to restore the account or permanently delete it.
+- **Fixed** — the public front page could show posts with a content warning or flagged sensitive media to signed-out visitors. These are now filtered out.
 
 ## 2026-07-18 — Milestone 1.8
 

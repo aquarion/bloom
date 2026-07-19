@@ -78,7 +78,10 @@ class WelcomeController extends Controller
             $statuses,
         );
 
-        return array_values(array_filter($normalised, fn (array $post) => $post['body'] !== ''));
+        return array_values(array_filter(
+            $normalised,
+            fn (array $post) => $post['body'] !== '' && $post['cw_text'] === null && ! $post['sensitive_media']
+        ));
     }
 
     private function fallbackPosts(): array

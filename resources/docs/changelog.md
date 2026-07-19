@@ -13,6 +13,10 @@ These features are available now but require opting in to beta testing via your 
 
 ---
 
+## 2026-07-19 — Milestone 1.10
+
+- **Gravatar profile icon** — your Bloom sidebar profile icon now uses your Gravatar image (based on your account email), falling back to your initials if you don't have one.
+
 ## 2026-07-19 — Milestone 1.9
 
 - **Account archival** — accounts inactive for an extended period are warned by email, then archived ("tombstoned") if inactivity continues. Signing in again after archival shows a recovery screen to restore the account or permanently delete it.

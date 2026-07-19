@@ -111,7 +111,7 @@ class PostNormalizer
             'source' => 'bluesky',
             'source_handle' => $sourceHandle,
             'source_instance' => null,
-            'author_name' => $author['displayName'] ?: $author['handle'],
+            'author_name' => ($author['displayName'] ?? '') ?: $author['handle'],
             'author_handle' => '@'.$author['handle'],
             'author_avatar' => $this->safeUrl($author['avatar'] ?? ''),
             'author_banner' => $this->safeUrl($author['banner'] ?? '') ?: null,

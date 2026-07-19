@@ -108,6 +108,27 @@ it('normalises a bluesky feed view post to unified post format', function () {
         ->and($post['media'][0]['alt_text'])->toBe('Sky photo');
 });
 
+it('falls back to handle when bluesky post author has no displayName key at all', function () {
+    // Bluesky's displayName is optional — an account that never set one omits the key
+    // entirely rather than sending an empty string, which threw "Undefined array key"
+    // in production when accessed without a null coalesce.
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'hello bluesky', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => [
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/avatar.jpg',
+            ],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['author_name'])->toBe('alice.bsky.social');
+});
+
 it('does not double-append instance to federated mastodon author handle', function () {
     $status = [
         'id' => '1',

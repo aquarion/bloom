@@ -250,6 +250,9 @@ class FeedAggregator
         $muteWords = $user->getPreference('mute_words', []);
         $deduped = $this->applyMuteWords($deduped, $muteWords);
 
+        $cwLabelWhitelist = $user->getPreference('cw_label_whitelist', []);
+        $deduped = $this->applyCwWhitelist($deduped, $cwLabelWhitelist);
+
         $nextCursor = ! empty($deduped) ? base64_encode(json_encode($cursors)) : null;
 
         return ['posts' => $deduped, 'next_cursor' => $nextCursor];
@@ -326,6 +329,50 @@ class FeedAggregator
 
             return true;
         }));
+    }
+
+    /**
+     * Unlike applyMuteWords(), a whitelisted CW category doesn't remove the post —
+     * it just suppresses the CW fields so PostContent no longer shows an overlay for it,
+     * on both the post itself and any nested reply/quoted post carrying the same category.
+     */
+    private function applyCwWhitelist(array $posts, array $whitelist): array
+    {
+        if (empty($whitelist)) {
+            return $posts;
+        }
+
+        return array_map(fn (array $post) => $this->suppressWhitelistedCw($post, $whitelist), $posts);
+    }
+
+    private function suppressWhitelistedCw(array $post, array $whitelist): array
+    {
+        $post = $this->clearCwFieldsIfWhitelisted($post, $whitelist);
+
+        foreach (['reply_to', 'quoted_post'] as $nestedKey) {
+            if (is_array($post[$nestedKey] ?? null)) {
+                $post[$nestedKey] = $this->clearCwFieldsIfWhitelisted($post[$nestedKey], $whitelist);
+            }
+        }
+
+        return $post;
+    }
+
+    /**
+     * @param  array<int, string>  $whitelist
+     */
+    private function clearCwFieldsIfWhitelisted(array $node, array $whitelist): array
+    {
+        if (! in_array($node['cw_category'] ?? null, $whitelist, true)) {
+            return $node;
+        }
+
+        return array_merge($node, [
+            'cw_text' => null,
+            'cw_is_author_level' => false,
+            'cw_label_source' => null,
+            'cw_category' => null,
+        ]);
     }
 
     private function fetchMastodonStatuses(SocialAccount $account, array $statuses, callable $idExtractor): array

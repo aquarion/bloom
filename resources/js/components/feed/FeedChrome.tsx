@@ -16,6 +16,7 @@ import { NavMenuIcon } from '@/components/feed/NavMenuIcon';
 import { ProgressBar } from '@/components/feed/ProgressBar';
 import { SourceBadge } from '@/components/feed/SourceBadge';
 import type { Post } from '@/types/post';
+import type { ContentBehavior } from '@/types/preferences';
 
 export function FeedChrome({
     current,
@@ -35,6 +36,7 @@ export function FeedChrome({
     carouselProgress,
     progress,
     showHelp,
+    cwBehavior = 'show',
 }: {
     current: Post;
     queue: Post[];
@@ -53,6 +55,7 @@ export function FeedChrome({
     carouselProgress: { activeIndex: number; elapsed: number } | null;
     progress: number;
     showHelp: boolean;
+    cwBehavior?: ContentBehavior;
 }) {
     return (
         <div className="pointer-events-none absolute inset-0 z-20 flex flex-col">
@@ -93,7 +96,7 @@ export function FeedChrome({
             <div className="flex-1" />
 
             <div className="pointer-events-auto flex items-center gap-2 px-4 pt-2 pb-3">
-                <Attribution post={current} />
+                <Attribution post={current} cwBehavior={cwBehavior} />
                 {current.chip_mentions.length > 0 && (
                     <>
                         <AtSign className="size-4 flex-shrink-0 text-white/30" />

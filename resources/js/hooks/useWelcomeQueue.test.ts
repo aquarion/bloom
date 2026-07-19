@@ -32,6 +32,7 @@ function makePost(id: string): Post {
         cw_text: null,
         cw_is_author_level: false,
         cw_label_source: null,
+        cw_category: null,
         sensitive_media: false,
     };
 }

@@ -1,7 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { CwStateProvider } from '@/hooks/useCwState';
 import type { MediaAttachment, Post } from '@/types/post';
 import { PostAnimator } from './PostAnimator';
+
+function renderWithCw(children: ReactNode) {
+    return render(<CwStateProvider>{children}</CwStateProvider>);
+}
 
 // Mock GSAP to prevent animation errors in tests
 vi.mock('gsap', () => ({
@@ -83,13 +89,14 @@ const makePost = (overrides: Partial<Post> = {}): Post => ({
     cw_text: null,
     cw_is_author_level: false,
     cw_label_source: null,
+    cw_category: null,
     sensitive_media: false,
     ...overrides,
 });
 
 describe('PostAnimator — image branch', () => {
     it('renders ImageCarousel when post has media', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={makePost({ media: [makeImage('a.jpg')] })}
                 colors={null}
@@ -99,7 +106,7 @@ describe('PostAnimator — image branch', () => {
     });
 
     it('passes all media items to ImageCarousel', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={makePost({
                     media: [makeImage('a.jpg'), makeImage('b.jpg')],
@@ -114,7 +121,7 @@ describe('PostAnimator — image branch', () => {
     });
 
     it('shows the post body below the carousel when body and media are both present', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={makePost({
                     media: [makeImage('a.jpg')],
@@ -130,7 +137,7 @@ describe('PostAnimator — image branch', () => {
     it('calls onAdvance (not onReady) when ImageCarousel calls onComplete', () => {
         const onAdvance = vi.fn();
         const onReady = vi.fn();
-        render(
+        renderWithCw(
             <PostAnimator
                 post={makePost({ media: [makeImage('a.jpg')] })}
                 colors={null}
@@ -147,7 +154,7 @@ describe('PostAnimator — image branch', () => {
 
     it('falls back to onReady when onAdvance is not provided', () => {
         const onReady = vi.fn();
-        render(
+        renderWithCw(
             <PostAnimator
                 post={makePost({ media: [makeImage('a.jpg')] })}
                 colors={null}
@@ -161,7 +168,7 @@ describe('PostAnimator — image branch', () => {
     });
 
     it('shows reply_to context panel when image post has a reply', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={makePost({
                     media: [makeImage('a.jpg')],
@@ -173,6 +180,11 @@ describe('PostAnimator — image branch', () => {
                         body: 'Original post',
                         created_at: null,
                         chip_mentions: [],
+                        cw_text: null,
+                        cw_is_author_level: false,
+                        cw_label_source: null,
+                        cw_category: null,
+                        sensitive_media: false,
                     },
                 })}
                 colors={null}
@@ -182,7 +194,7 @@ describe('PostAnimator — image branch', () => {
     });
 
     it('shows quoted_post context panel when image post has a quote', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={makePost({
                     media: [makeImage('a.jpg')],
@@ -194,6 +206,11 @@ describe('PostAnimator — image branch', () => {
                         body: 'Quoted post body',
                         created_at: null,
                         chip_mentions: [],
+                        cw_text: null,
+                        cw_is_author_level: false,
+                        cw_label_source: null,
+                        cw_category: null,
+                        sensitive_media: false,
                     },
                 })}
                 colors={null}
@@ -203,7 +220,7 @@ describe('PostAnimator — image branch', () => {
     });
 
     it('forwards blurMedia to ImageCarousel', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={makePost({ media: [makeImage('a.jpg')] })}
                 colors={null}
@@ -217,7 +234,7 @@ describe('PostAnimator — image branch', () => {
     });
 
     it('passes blurMedia=false by default', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={makePost({ media: [makeImage('a.jpg')] })}
                 colors={null}
@@ -232,7 +249,7 @@ describe('PostAnimator — image branch', () => {
 
 describe('PostAnimator — text branch', () => {
     it('renders hashtag links using the precomputed url', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={makePost({
                     body: 'Hello world',

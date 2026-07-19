@@ -1,4 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { useCwState } from '@/hooks/useCwState';
+import { shouldShowCwOverlay } from '@/lib/cw';
 import { postDisplayColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
@@ -72,9 +74,6 @@ export function PostContent({
     cwBehavior = 'show',
     sensitiveMediaBehavior = 'show',
     paused = false,
-    authorCwRevealed = false,
-    onRevealAuthor,
-    onCwOverlayActive,
 }: {
     post: Post;
     onReady?: () => void;
@@ -83,33 +82,21 @@ export function PostContent({
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
     paused?: boolean;
-    authorCwRevealed?: boolean;
-    onRevealAuthor?: () => void;
-    onCwOverlayActive?: (active: boolean) => void;
 }) {
     const colors = postDisplayColors(post);
-    const [cwRevealed, setCwRevealed] = useState(false);
     const [mediaRevealed, setMediaRevealed] = useState(false);
+    const { isRevealed, reveal } = useCwState();
 
     const cwText = post.cw_text;
     const isAuthorLevel = post.cw_is_author_level;
-    const showCwOverlay =
-        cwText !== null &&
-        cwBehavior === 'blur' &&
-        !cwRevealed &&
-        !authorCwRevealed &&
-        // When the media is already individually blurred (Bluesky label-based CW),
-        // the full-post overlay is redundant — post text is readable and gives enough
-        // context to decide whether to reveal. Mastodon spoiler_text is user-authored
-        // so it always deserves its own overlay.
-        !(
-            post.source === 'bluesky' &&
-            post.sensitive_media &&
-            sensitiveMediaBehavior === 'blur'
-        );
+    const showCwOverlay = shouldShowCwOverlay(
+        post,
+        cwBehavior,
+        sensitiveMediaBehavior,
+        isRevealed,
+    );
 
     const onReadyRef = useRef(onReady);
-    const revealInProgressRef = useRef(false);
     const blurMedia =
         post.sensitive_media &&
         sensitiveMediaBehavior === 'blur' &&
@@ -119,33 +106,12 @@ export function PostContent({
         onReadyRef.current = onReady;
     });
 
-    const onCwOverlayActiveRef = useRef(onCwOverlayActive);
-    useLayoutEffect(() => {
-        onCwOverlayActiveRef.current = onCwOverlayActive;
-    });
-
-    useLayoutEffect(() => {
-        onCwOverlayActiveRef.current?.(showCwOverlay);
-    }, [showCwOverlay]);
-
     const handleReady = () => {
         onReadyRef.current?.();
     };
 
-    const onRevealAuthorRef = useRef(onRevealAuthor);
-    useLayoutEffect(() => {
-        onRevealAuthorRef.current = onRevealAuthor;
-    });
-
     const revealCw = () => {
-        if (revealInProgressRef.current) {
-            return;
-        }
-
-        revealInProgressRef.current = true;
-
-        setCwRevealed(true);
-        onRevealAuthorRef.current?.();
+        reveal(post);
     };
 
     return (
@@ -160,6 +126,7 @@ export function PostContent({
                     blurMedia={blurMedia}
                     onRevealMedia={() => setMediaRevealed(true)}
                     paused={paused}
+                    cwBehavior={cwBehavior}
                 />
             </div>
             {showCwOverlay && cwText !== null && (

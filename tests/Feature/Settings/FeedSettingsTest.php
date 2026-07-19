@@ -21,6 +21,7 @@ it('updates user feed preferences', function () {
         'mute_words' => ['spam', 'giveaway'],
         'cw_behavior' => 'skip',
         'sensitive_media_behavior' => 'show',
+        'cw_label_whitelist' => ['adult', 'safety', 'generic'],
     ]);
 
     $response->assertRedirect();
@@ -29,7 +30,8 @@ it('updates user feed preferences', function () {
     expect($user->getPreference('max_age_days'))->toBe(14)
         ->and($user->getPreference('mute_words'))->toBe(['spam', 'giveaway'])
         ->and($user->getPreference('cw_behavior'))->toBe('skip')
-        ->and($user->getPreference('sensitive_media_behavior'))->toBe('show');
+        ->and($user->getPreference('sensitive_media_behavior'))->toBe('show')
+        ->and($user->getPreference('cw_label_whitelist'))->toBe(['adult', 'safety', 'generic']);
 });
 
 it('validates feed preferences input', function () {
@@ -43,6 +45,20 @@ it('validates feed preferences input', function () {
     ]);
 
     $response->assertSessionHasErrors('cw_behavior');
+});
+
+it('rejects an invalid cw_label_whitelist entry', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $response = $this->actingAs($user)->put(route('feed.settings.update'), [
+        'max_age_days' => 14,
+        'mute_words' => [],
+        'cw_behavior' => 'blur',
+        'sensitive_media_behavior' => 'show',
+        'cw_label_whitelist' => ['not-a-real-category'],
+    ]);
+
+    $response->assertSessionHasErrors('cw_label_whitelist.0');
 });
 
 it('redirects guests away from feed settings', function () {

@@ -1,12 +1,6 @@
 import { router } from '@inertiajs/react';
 import axios from 'axios';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useReducer,
-    useRef,
-} from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import type { FeedResponse, Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 

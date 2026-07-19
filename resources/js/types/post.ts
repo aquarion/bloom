@@ -12,7 +12,19 @@ export interface Mention {
     profile_url: string;
 }
 
-export interface ReplyTo {
+/** Bluesky's moderation-label taxonomy collapsed to whitelistable buckets; Mastodon's freeform spoiler_text always maps to 'generic'. */
+export type CwCategory = 'adult' | 'graphic' | 'safety' | 'generic';
+
+interface CwFields {
+    cw_text: string | null;
+    cw_is_author_level: boolean;
+    /** Who applied the content warning. 'self' = author labelled their own content; 'external' = third-party labeller (Bluesky only); null = no CW (cw_text is also null). */
+    cw_label_source: 'self' | 'external' | null;
+    cw_category: CwCategory | null;
+    sensitive_media: boolean;
+}
+
+export interface ReplyTo extends CwFields {
     author_name: string;
     author_handle: string;
     author_avatar: string;
@@ -22,7 +34,7 @@ export interface ReplyTo {
     chip_mentions: Mention[];
 }
 
-export interface QuotedPost {
+export interface QuotedPost extends CwFields {
     author_name: string;
     author_handle: string;
     author_avatar: string;
@@ -55,7 +67,7 @@ export interface Poll {
     readonly own_votes: readonly number[];
 }
 
-export interface Post {
+export interface Post extends CwFields {
     id: string;
     source: 'mastodon' | 'bluesky';
     source_handle: string | null;
@@ -82,11 +94,6 @@ export interface Post {
     hashtags: HashtagLink[];
     /** Mentions classified as incidental — stripped from `body`, shown as chips. Empty if none, or if disabled for this viewer. */
     chip_mentions: Mention[];
-    cw_text: string | null;
-    cw_is_author_level: boolean;
-    /** Who applied the content warning. 'self' = author labelled their own content; 'external' = third-party labeller (Bluesky only); null = no CW (cw_text is also null). */
-    cw_label_source: 'self' | 'external' | null;
-    sensitive_media: boolean;
     /** Absent on Bluesky posts (no poll concept). Explicit null on a Mastodon post with no poll. */
     poll?: Poll | null;
 }

@@ -1,6 +1,7 @@
 import { Quote, Reply } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import type { Post } from '@/types/post';
+import type { ContentBehavior } from '@/types/preferences';
 import { ContextPanel } from './ContextPanel';
 import { EmojiText } from '@/lib/emoji-text';
 import { ImageCarousel } from './ImageCarousel';
@@ -15,6 +16,7 @@ export function MediaPost({
     onProgress,
     onAdvance,
     onReady,
+    cwBehavior = 'show',
 }: {
     post: Post;
     paused?: boolean;
@@ -23,6 +25,7 @@ export function MediaPost({
     onProgress?: (index: number, elapsed: number) => void;
     onAdvance?: () => void;
     onReady?: () => void;
+    cwBehavior?: ContentBehavior;
 }) {
     const onReadyRef = useRef(onReady);
     const onAdvanceRef = useRef(onAdvance);
@@ -64,27 +67,19 @@ export function MediaPost({
                         {post.reply_to && (
                             <ContextPanel
                                 icon={<Reply className="size-3.5" />}
-                                author_name={post.reply_to.author_name}
-                                author_avatar={post.reply_to.author_avatar}
-                                author_handle={post.reply_to.author_handle}
                                 emojis={post.emojis}
-                                body={post.reply_to.body}
-                                original_url={post.reply_to.original_url}
-                                chip_mentions={post.reply_to.chip_mentions}
+                                cwBehavior={cwBehavior}
                                 fullWidth
+                                {...post.reply_to}
                             />
                         )}
                         {post.quoted_post && (
                             <ContextPanel
                                 icon={<Quote className="size-3.5" />}
-                                author_name={post.quoted_post.author_name}
-                                author_avatar={post.quoted_post.author_avatar}
-                                author_handle={post.quoted_post.author_handle}
                                 emojis={post.emojis}
-                                body={post.quoted_post.body}
-                                original_url={post.quoted_post.original_url}
-                                chip_mentions={post.quoted_post.chip_mentions}
+                                cwBehavior={cwBehavior}
                                 fullWidth
+                                {...post.quoted_post}
                             />
                         )}
                         {post.link_url && (

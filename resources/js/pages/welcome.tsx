@@ -9,13 +9,25 @@ import { PostContent } from '@/components/feed/PostContent';
 import { ProgressBar } from '@/components/feed/ProgressBar';
 import { SourceBadge } from '@/components/feed/SourceBadge';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
+import { CwStateProvider } from '@/hooks/useCwState';
 import { useWelcomeQueue } from '@/hooks/useWelcomeQueue';
 import { trackEvent } from '@/lib/matomo';
 import { login, register } from '@/routes';
 import { show as docsShow } from '@/routes/docs';
 import type { Post } from '@/types/post';
 
-export default function Welcome({
+export default function Welcome(props: {
+    initialPosts: Post[];
+    canRegister?: boolean;
+}) {
+    return (
+        <CwStateProvider>
+            <WelcomeView {...props} />
+        </CwStateProvider>
+    );
+}
+
+function WelcomeView({
     initialPosts,
     canRegister = true,
 }: {

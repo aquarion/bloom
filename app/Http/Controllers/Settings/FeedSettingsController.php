@@ -28,6 +28,8 @@ class FeedSettingsController extends Controller
             'mute_words.*' => ['string', 'max:100'],
             'cw_behavior' => ['required', Rule::in(['skip', 'blur', 'show'])],
             'sensitive_media_behavior' => ['required', Rule::in(['skip', 'blur', 'show'])],
+            'cw_label_whitelist' => ['nullable', 'array'],
+            'cw_label_whitelist.*' => [Rule::in(['adult', 'graphic', 'safety', 'generic'])],
         ]);
 
         $user = $request->user();
@@ -35,6 +37,7 @@ class FeedSettingsController extends Controller
         $prefs['mute_words'] = $validated['mute_words'] ?? [];
         $prefs['cw_behavior'] = $validated['cw_behavior'];
         $prefs['sensitive_media_behavior'] = $validated['sensitive_media_behavior'];
+        $prefs['cw_label_whitelist'] = $validated['cw_label_whitelist'] ?? [];
         if (array_key_exists('max_age_days', $validated)) {
             $prefs['max_age_days'] = $validated['max_age_days'];
         }

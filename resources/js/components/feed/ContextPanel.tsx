@@ -64,6 +64,16 @@ export function ContextPanel({
             cwLabel={cw_text}
         />
     );
+    // Inside the gate, the "Marked as X" / "Labelled as X" copy below already states
+    // the label — showing it a second time on the chip badge would be redundant.
+    const gatedChip = (
+        <AuthorChip
+            name={author_name}
+            avatar={author_avatar}
+            emojis={emojis}
+            account={author_handle}
+        />
+    );
 
     const content = showCwGate ? (
         <>
@@ -72,7 +82,7 @@ export function ContextPanel({
                 {cw_is_author_level ? (
                     <span className="text-sm text-white/70">This author</span>
                 ) : (
-                    chip
+                    gatedChip
                 )}
             </div>
             <p className="text-sm text-white/70">

@@ -74,6 +74,27 @@ describe('ContextPanel — CW gating for nested posts', () => {
         expect(screen.getByText('the quoted body text')).toBeInTheDocument();
     });
 
+    it('still gates the body when sensitive_media is true, unlike the top-level Bluesky media-redundancy exception', () => {
+        // shouldShowCwOverlay skips the overlay for a top-level Bluesky post whose
+        // sensitive_media is already blurred by PostAnimator — but ContextPanel has no
+        // media to blur, so nestedCwLike() omits `source` and that exception must never
+        // apply here. Regression test for the bypass this specifically guards against.
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                cw_text="Graphic media"
+                cw_label_source="self"
+                sensitive_media
+                cwBehavior="blur"
+            />,
+        );
+
+        expect(
+            screen.queryByText('the quoted body text'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText('Marked as graphic media')).toBeInTheDocument();
+    });
+
     it('shows "This author" copy and a "Show author" button for author-level CW', () => {
         renderWithCw(
             <ContextPanel

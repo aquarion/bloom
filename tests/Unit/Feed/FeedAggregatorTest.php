@@ -834,6 +834,9 @@ it('suppresses cw_text for whitelisted categories without dropping the post', fu
     expect($result['posts'])->toHaveCount(2)
         ->and($whitelisted['cw_text'])->toBeNull()
         ->and($whitelisted['cw_category'])->toBeNull()
+        // Whitelisting only suppresses the CW overlay — sensitive_media is a separate,
+        // independently-controlled blur (sensitive_media_behavior) and must survive.
+        ->and($whitelisted['sensitive_media'])->toBeTrue()
         ->and($notWhitelisted['cw_text'])->toBe('Graphic media')
         ->and($notWhitelisted['cw_category'])->toBe('graphic');
 });

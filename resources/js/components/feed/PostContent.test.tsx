@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { CwStateProvider } from '@/hooks/useCwState';
 import type { Post } from '@/types/post';
+import { ContextPanel } from './ContextPanel';
 import { PostContent } from './PostContent';
 
 function renderWithCw(children: ReactNode) {
@@ -241,5 +242,108 @@ describe('PostContent — revealing a CW', () => {
         expect(
             screen.queryByText('The author marked this post as adult content'),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('PostContent + ContextPanel — parent/nested reveal isolation', () => {
+    const nestedPanelProps = {
+        icon: null,
+        author_name: 'Bob',
+        author_avatar: '',
+        author_handle: '@bob.bsky.social',
+        emojis: {},
+        body: 'the quoted body text',
+        original_url: 'https://bsky.app/profile/bob.bsky.social/post/1',
+        chip_mentions: [],
+    };
+
+    it('revealing the parent post-level CW does not reveal a nested post from a different author', async () => {
+        const user = userEvent.setup();
+        renderWithCw(
+            <>
+                <PostContent
+                    post={makePost({
+                        cw_text: 'Graphic media',
+                        cw_is_author_level: false,
+                        cw_label_source: 'self',
+                    })}
+                    cwBehavior="blur"
+                />
+                <ContextPanel
+                    {...nestedPanelProps}
+                    cw_text="Adult content"
+                    cw_label_source="self"
+                    cwBehavior="blur"
+                />
+            </>,
+        );
+
+        const [revealParent] = screen.getAllByRole('button', {
+            name: 'Show anyway',
+        });
+        await user.click(revealParent);
+
+        expect(
+            screen.queryByText('the quoted body text'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText('Marked as adult content')).toBeInTheDocument();
+    });
+
+    it('revealing a nested post-level CW does not reveal the parent post', async () => {
+        const user = userEvent.setup();
+        renderWithCw(
+            <>
+                <PostContent
+                    post={makePost({
+                        cw_text: 'Graphic media',
+                        cw_is_author_level: false,
+                        cw_label_source: 'self',
+                    })}
+                    cwBehavior="blur"
+                />
+                <ContextPanel
+                    {...nestedPanelProps}
+                    cw_text="Adult content"
+                    cw_label_source="self"
+                    cwBehavior="blur"
+                />
+            </>,
+        );
+
+        const [, revealNested] = screen.getAllByRole('button', {
+            name: 'Show anyway',
+        });
+        await user.click(revealNested);
+
+        expect(
+            screen.getByText('The author marked this post as graphic media'),
+        ).toBeInTheDocument();
+    });
+
+    it('revealing an author-level CW on the parent also reveals a nested post from the same author', async () => {
+        const user = userEvent.setup();
+        renderWithCw(
+            <>
+                <PostContent
+                    post={makePost({
+                        cw_text: 'rude content',
+                        cw_is_author_level: true,
+                        cw_label_source: 'external',
+                    })}
+                    cwBehavior="blur"
+                />
+                <ContextPanel
+                    {...nestedPanelProps}
+                    author_handle="@alice.bsky.social"
+                    cw_text="Adult content"
+                    cw_label_source="self"
+                    cwBehavior="blur"
+                />
+            </>,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Show author' }));
+
+        expect(screen.getByText('the quoted body text')).toBeInTheDocument();
     });
 });

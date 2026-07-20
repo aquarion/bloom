@@ -49,16 +49,16 @@ function PostRow({ post, isCurrent }: { post: Post; isCurrent: boolean }) {
             <img
                 src={post.author_avatar}
                 alt={post.author_name}
-                className="mt-0.5 h-8 w-8 flex-shrink-0 rounded-full object-cover"
+                className="mt-0.5 h-8 w-8 shrink-0 rounded-full object-cover"
             />
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                     <span className="truncate font-medium text-white text-xs">
                         {post.author_name}
                     </span>
-                    <SourceIcon className="size-3 flex-shrink-0 text-white/40" />
+                    <SourceIcon className="size-3 shrink-0 text-white/40" />
                     {isCurrent && (
-                        <span className="ml-auto flex-shrink-0 rounded bg-amber-400/20 px-1 py-0.5 font-bold text-[10px] text-amber-400">
+                        <span className="ml-auto shrink-0 rounded bg-amber-400/20 px-1 py-0.5 font-bold text-[10px] text-amber-400">
                             NOW
                         </span>
                     )}

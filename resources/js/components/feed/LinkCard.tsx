@@ -56,7 +56,9 @@ export function LinkCard({
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={title ? `${title} (YouTube video)` : 'YouTube video'}
+                aria-label={
+                    title ? `${title} (YouTube video)` : 'YouTube video'
+                }
                 className={`${panelClass} block overflow-hidden hover:bg-white/20`}
             >
                 <div className="relative aspect-video w-full bg-black/60">

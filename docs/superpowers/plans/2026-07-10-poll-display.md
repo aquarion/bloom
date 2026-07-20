@@ -474,11 +474,11 @@ export function PollResults({
                             <div className="relative flex items-center justify-between gap-2">
                                 <span className="flex items-center gap-1.5">
                                     {isOwnVote && (
-                                        <Check className="size-3.5 flex-shrink-0" />
+                                        <Check className="size-3.5 shrink-0" />
                                     )}
                                     {option.title}
                                 </span>
-                                <span className="flex-shrink-0 text-white/50">
+                                <span className="shrink-0 text-white/50">
                                     {votes} votes ({pct}%)
                                 </span>
                             </div>

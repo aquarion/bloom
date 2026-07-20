@@ -110,7 +110,7 @@ export function MentionChips({ mentions }: { mentions: Mention[] }) {
                             href={mention.profile_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="max-w-[12rem] flex-shrink-0"
+                            className="max-w-48 shrink-0"
                         >
                             <AuthorChip
                                 name={mention.display_name}
@@ -127,7 +127,7 @@ export function MentionChips({ mentions }: { mentions: Mention[] }) {
                     ),
                 )}
                 {hiddenCount > 0 && (
-                    <span className="flex-shrink-0 rounded-full bg-white/10 px-2 py-1 text-white/50 text-xs">
+                    <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-white/50 text-xs">
                         +{hiddenCount}
                     </span>
                 )}

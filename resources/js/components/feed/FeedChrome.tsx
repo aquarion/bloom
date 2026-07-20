@@ -99,7 +99,7 @@ export function FeedChrome({
                 <Attribution post={current} cwBehavior={cwBehavior} />
                 {current.chip_mentions.length > 0 && (
                     <>
-                        <AtSign className="size-4 flex-shrink-0 text-white/30" />
+                        <AtSign className="size-4 shrink-0 text-white/30" />
                         <MentionChips mentions={current.chip_mentions} />
                     </>
                 )}
@@ -107,7 +107,7 @@ export function FeedChrome({
                     type="button"
                     onClick={onGoBack}
                     disabled={!canGoBack}
-                    className="ml-auto flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white/10 disabled:hover:text-white/60"
+                    className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white/10 disabled:hover:text-white/60"
                     aria-label="Previous"
                 >
                     <SkipBack className="h-4 w-4" />
@@ -115,7 +115,7 @@ export function FeedChrome({
                 <button
                     type="button"
                     onClick={onTogglePause}
-                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
                     aria-label={paused ? 'Resume' : 'Pause'}
                     aria-pressed={paused}
                 >
@@ -128,7 +128,7 @@ export function FeedChrome({
                 <button
                     type="button"
                     onClick={onAdvance}
-                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
                     aria-label="Next"
                 >
                     <SkipForward className="h-4 w-4" />

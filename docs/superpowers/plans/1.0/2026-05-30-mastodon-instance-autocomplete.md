@@ -428,7 +428,7 @@ export default function InstanceCombobox({ id, name, placeholder }: InstanceComb
                             <ComboboxOption
                                 key={s.name}
                                 value={s.name}
-                                className="cursor-pointer px-3 py-2 text-sm data-[focus]:bg-accent data-[focus]:text-accent-foreground"
+                                className="cursor-pointer px-3 py-2 text-sm data-focus:bg-accent data-focus:text-accent-foreground"
                             >
                                 <p className="font-medium">{s.name}</p>
                                 {s.description && (

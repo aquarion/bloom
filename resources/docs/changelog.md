@@ -1,12 +1,14 @@
 ---
 title: Changelog
-last_updated: "2026-07-19"
+last_updated: "2026-07-20"
 ---
 
 Notable changes to the Bloom application, newest first.
 
-## 2026-07-19 — Milestone 1.10
+## 2026-07-20 — Milestone 1.10
 
+- **Public feed source badge** — posts from a public Mastodon timeline, a Bluesky algorithmic feed, or the front page now show "[icon] Provider — Feed Name" in the top-left badge instead of a blank or misleading account handle.
+- **YouTube link previews** — links to a YouTube video now show a thumbnail with a play-button overlay instead of the generic favicon/title card.
 - **Gravatar profile icon** — your Bloom sidebar profile icon now uses your Gravatar image (based on your account email), falling back to your initials if you don't have one.
 - **Content warnings stay visible after you accept them** — previously, accepting a content warning hid all trace that the post had been flagged. Now a warning icon and label stay next to the author's name, on the original post and on any quoted or replied-to post it carries.
 - **Content warning whitelist** — in Feed settings, choose specific warning types (adult content, graphic media, self-harm & threats, or general warnings) to always show without the blur overlay.

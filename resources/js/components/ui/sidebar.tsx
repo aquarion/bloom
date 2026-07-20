@@ -72,8 +72,18 @@ function SidebarProvider({
 	// We use openProp and setOpenProp for control from outside the component.
 	const [_open, _setOpen] = React.useState(defaultOpen);
 	const open = openProp ?? _open;
+	// Tracks the latest open value outside the render closure so consecutive
+	// setOpen calls in the same tick (e.g. two toggles before React commits
+	// a re-render) each resolve against the prior call's result instead of
+	// both reading the same stale `open`.
+	const openRef = React.useRef(open);
+	React.useLayoutEffect(() => {
+		openRef.current = open;
+	}, [open]);
 	const setOpen = (value: boolean | ((value: boolean) => boolean)) => {
-		const openState = typeof value === "function" ? value(open) : value;
+		const openState =
+			typeof value === "function" ? value(openRef.current) : value;
+		openRef.current = openState;
 
 		if (setOpenProp) {
 			setOpenProp(openState);

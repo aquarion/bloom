@@ -21,18 +21,23 @@ function markFavicon404(url: string) {
 export function LinkCard({
     url,
     title,
+    description,
+    image,
     favicon,
     youtubeId = null,
     fullWidth = false,
 }: {
     url: string;
     title: string | null;
+    description: string | null;
+    image: string | null;
     favicon: string | null;
     youtubeId?: string | null;
     fullWidth?: boolean;
 }) {
     const [faviconFailed, setFaviconFailed] = useState(false);
     const [thumbnailFailed, setThumbnailFailed] = useState(false);
+    const [imageFailed, setImageFailed] = useState(false);
     let hostname = url;
 
     try {
@@ -79,6 +84,54 @@ export function LinkCard({
         );
     }
 
+    if (image && !imageFailed) {
+        const panelClass = getPanelClass({ fullWidth, noPadding: true });
+
+        return (
+            <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${panelClass} block overflow-hidden hover:bg-white/20`}
+            >
+                <img
+                    src={image}
+                    alt=""
+                    className="aspect-video w-full object-cover"
+                    onError={() => setImageFailed(true)}
+                />
+                <div className="flex items-center gap-3 px-4 py-3">
+                    {showFavicon && (
+                        <img
+                            src={favicon}
+                            alt=""
+                            className="h-5 w-5 shrink-0 rounded"
+                            onError={() => {
+                                markFavicon404(favicon);
+                                setFaviconFailed(true);
+                            }}
+                        />
+                    )}
+                    <div className="min-w-0 flex-1">
+                        {title && (
+                            <p className="truncate font-semibold text-white/90">
+                                {title}
+                            </p>
+                        )}
+                        {description && (
+                            <p className="line-clamp-2 text-white/60 text-xs">
+                                {description}
+                            </p>
+                        )}
+                        <p className="truncate text-white/50 text-xs">
+                            {hostname}
+                        </p>
+                    </div>
+                </div>
+            </a>
+        );
+    }
+
     const panelClass = getPanelClass({ fullWidth });
 
     return (
@@ -93,7 +146,7 @@ export function LinkCard({
                     <img
                         src={favicon}
                         alt=""
-                        className="h-5 w-5 flex-shrink-0 rounded"
+                        className="h-5 w-5 shrink-0 rounded"
                         onError={() => {
                             markFavicon404(favicon);
                             setFaviconFailed(true);
@@ -104,6 +157,11 @@ export function LinkCard({
                     {title && (
                         <p className="truncate font-semibold text-white/90">
                             {title}
+                        </p>
+                    )}
+                    {description && (
+                        <p className="line-clamp-2 text-white/60 text-xs">
+                            {description}
                         </p>
                     )}
                     <p className="truncate text-white/50 text-xs">{hostname}</p>

@@ -19,6 +19,8 @@ function makePost(id: string): Post {
         original_url: '',
         link_url: null,
         link_title: null,
+        link_description: null,
+        link_image: null,
         link_favicon: null,
         link_youtube_id: null,
         reply_to: null,

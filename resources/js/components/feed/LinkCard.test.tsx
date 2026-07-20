@@ -15,6 +15,8 @@ describe('LinkCard', () => {
             <LinkCard
                 url="https://example.com"
                 title="Example"
+                description={null}
+                image={null}
                 favicon="https://example.com/favicon.ico"
             />,
         );
@@ -31,6 +33,8 @@ describe('LinkCard', () => {
             <LinkCard
                 url="https://example.com"
                 title="Example"
+                description={null}
+                image={null}
                 favicon="https://example.com/favicon.ico"
             />,
         );
@@ -56,6 +60,8 @@ describe('LinkCard', () => {
             <LinkCard
                 url="https://example.com"
                 title="Example"
+                description={null}
+                image={null}
                 favicon="https://example.com/favicon.ico"
             />,
         );
@@ -69,6 +75,8 @@ describe('LinkCard', () => {
             <LinkCard
                 url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                 title="A Video"
+                description={null}
+                image={null}
                 favicon={null}
                 youtubeId="dQw4w9WgXcQ"
             />,
@@ -88,6 +96,8 @@ describe('LinkCard', () => {
             <LinkCard
                 url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                 title="A Video"
+                description={null}
+                image={null}
                 favicon={null}
                 youtubeId="dQw4w9WgXcQ"
             />,
@@ -107,11 +117,77 @@ describe('LinkCard', () => {
             <LinkCard
                 url="https://example.com/article"
                 title="Example"
+                description={null}
+                image={null}
                 favicon={null}
             />,
         );
 
         expect(container.querySelector('img')).not.toBeInTheDocument();
         expect(container.textContent).toContain('example.com');
+    });
+
+    it('renders the preview image and description when both are present', async () => {
+        const { LinkCard } = await import('./LinkCard');
+        const { container } = render(
+            <LinkCard
+                url="https://example.com/article"
+                title="An Article"
+                description="A short summary of the article."
+                image="https://example.com/og.jpg"
+                favicon={null}
+            />,
+        );
+
+        expect(container.querySelector('img')).toHaveAttribute(
+            'src',
+            'https://example.com/og.jpg',
+        );
+        expect(container.textContent).toContain('An Article');
+        expect(container.textContent).toContain(
+            'A short summary of the article.',
+        );
+        expect(container.textContent).toContain('example.com');
+    });
+
+    it('falls back to the text-only card when the preview image fails to load', async () => {
+        const { LinkCard } = await import('./LinkCard');
+        const { container } = render(
+            <LinkCard
+                url="https://example.com/article"
+                title="An Article"
+                description="A short summary of the article."
+                image="https://example.com/og.jpg"
+                favicon={null}
+            />,
+        );
+
+        const img = container.querySelector('img');
+        expect(img).not.toBeNull();
+        fireEvent.error(img as HTMLImageElement);
+
+        expect(container.querySelector('img')).not.toBeInTheDocument();
+        expect(container.textContent).toContain('An Article');
+        expect(container.textContent).toContain(
+            'A short summary of the article.',
+        );
+    });
+
+    it('renders the description in the text-only card when there is no image', async () => {
+        const { LinkCard } = await import('./LinkCard');
+        const { container } = render(
+            <LinkCard
+                url="https://example.com/article"
+                title="An Article"
+                description="A short summary of the article."
+                image={null}
+                favicon={null}
+            />,
+        );
+
+        expect(container.querySelector('img')).not.toBeInTheDocument();
+        expect(container.textContent).toContain(
+            'A short summary of the article.',
+        );
     });
 });

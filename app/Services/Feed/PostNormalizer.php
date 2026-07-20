@@ -54,6 +54,8 @@ class PostNormalizer
             'original_url' => $this->safeUrl($source['url']),
             'link_url' => $linkUrl,
             'link_title' => $card ? ($card['title'] ?? null) : null,
+            'link_description' => $card ? (($card['description'] ?? '') ?: null) : null,
+            'link_image' => $card ? ($this->safeUrl($card['image'] ?? '') ?: null) : null,
             'link_favicon' => $this->faviconUrl($linkUrl),
             'link_youtube_id' => $this->youtubeVideoId($linkUrl),
             'reply_to' => $this->mastodonReplyTo($parentStatus, $host, $mentionsEnabled),
@@ -122,6 +124,8 @@ class PostNormalizer
             'original_url' => $this->blueskyPostUrl($author['handle'], $post['uri']),
             'link_url' => $linkUrl,
             'link_title' => $externalData['title'] ?? null,
+            'link_description' => $externalData['description'] ?? null,
+            'link_image' => $externalData['image'] ?? null,
             'link_favicon' => $this->faviconUrl($linkUrl),
             'link_youtube_id' => $this->youtubeVideoId($linkUrl),
             'reply_to' => $this->blueskyReplyTo($feedPost['reply']['parent'] ?? null, $mentionsEnabled),
@@ -671,26 +675,30 @@ class PostNormalizer
         }
         $type = $embed['$type'] ?? '';
         if ($type === 'app.bsky.embed.external#view') {
-            $ext = $embed['external'] ?? [];
-
-            return [
-                'url' => $this->safeUrl($ext['uri'] ?? '') ?: null,
-                'title' => $ext['title'] ?? null,
-            ];
+            return $this->blueskyExternalFields($embed['external'] ?? []);
         }
         if ($type === 'app.bsky.embed.recordWithMedia#view') {
             $media = $embed['media'] ?? null;
             if (($media['$type'] ?? '') === 'app.bsky.embed.external#view') {
-                $ext = $media['external'] ?? [];
-
-                return [
-                    'url' => $this->safeUrl($ext['uri'] ?? '') ?: null,
-                    'title' => $ext['title'] ?? null,
-                ];
+                return $this->blueskyExternalFields($media['external'] ?? []);
             }
         }
 
         return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $ext
+     * @return array{url: ?string, title: ?string, description: ?string, image: ?string}
+     */
+    private function blueskyExternalFields(array $ext): array
+    {
+        return [
+            'url' => $this->safeUrl($ext['uri'] ?? '') ?: null,
+            'title' => $ext['title'] ?? null,
+            'description' => ($ext['description'] ?? '') ?: null,
+            'image' => $this->safeUrl($ext['thumb'] ?? '') ?: null,
+        ];
     }
 
     private function blueskyLabels(array $post): array

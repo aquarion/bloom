@@ -698,6 +698,92 @@ it('prefers bluesky external embed url over text url', function () {
     expect($post['link_url'])->toBe('https://embed-url.com/article');
 });
 
+it('uses bluesky external embed description and thumb as link_description and link_image', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'article', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.external#view',
+                'external' => [
+                    'uri' => 'https://embed-url.com/article',
+                    'title' => 'Article',
+                    'description' => 'A short summary',
+                    'thumb' => 'https://cdn.bsky.app/img/thumbnail.jpg',
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_description'])->toBe('A short summary')
+        ->and($post['link_image'])->toBe('https://cdn.bsky.app/img/thumbnail.jpg');
+});
+
+it('normalizes an empty bluesky external embed description to null', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'article', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.external#view',
+                'external' => ['uri' => 'https://embed-url.com/article', 'title' => 'Article', 'description' => ''],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_description'])->toBeNull()
+        ->and($post['link_image'])->toBeNull();
+});
+
+it('sets link_description and link_image to null when bluesky post has no external embed', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'just text', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_description'])->toBeNull()
+        ->and($post['link_image'])->toBeNull();
+});
+
+it('uses bluesky recordWithMedia external description and thumb as link_description and link_image', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'article', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.recordWithMedia#view',
+                'media' => [
+                    '$type' => 'app.bsky.embed.external#view',
+                    'external' => [
+                        'uri' => 'https://embed-url.com/article',
+                        'title' => 'Article',
+                        'description' => 'Media summary',
+                        'thumb' => 'https://cdn.bsky.app/img/media-thumb.jpg',
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_description'])->toBe('Media summary')
+        ->and($post['link_image'])->toBe('https://cdn.bsky.app/img/media-thumb.jpg');
+});
+
 it('uses mastodon card title as link_title', function () {
     $status = [
         'id' => '1',
@@ -717,6 +803,87 @@ it('uses mastodon card title as link_title', function () {
     $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['link_title'])->toBe('An Example Article');
+});
+
+it('uses mastodon card description and image as link_description and link_image', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Check this out https://example.com/article</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => [
+            'url' => 'https://example.com/article',
+            'title' => 'An Example Article',
+            'description' => 'Some description',
+            'image' => 'https://example.com/og.jpg',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_description'])->toBe('Some description')
+        ->and($post['link_image'])->toBe('https://example.com/og.jpg');
+});
+
+it('normalizes an empty mastodon card description to null', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Check this out https://example.com/article</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => [
+            'url' => 'https://example.com/article',
+            'title' => 'Article',
+            'description' => '',
+            'image' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_description'])->toBeNull()
+        ->and($post['link_image'])->toBeNull();
+});
+
+it('rejects an unsafe mastodon card image scheme', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Check this out https://example.com/article</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => [
+            'url' => 'https://example.com/article',
+            'title' => 'Article',
+            'description' => 'desc',
+            'image' => 'javascript:alert(1)',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_image'])->toBeNull();
+});
+
+it('sets link_description and link_image to null when mastodon post has no link', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Just a plain post</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_description'])->toBeNull()
+        ->and($post['link_image'])->toBeNull();
 });
 
 it('prefers mastodon card url over extracted link_url', function () {

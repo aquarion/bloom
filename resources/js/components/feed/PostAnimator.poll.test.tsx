@@ -58,6 +58,7 @@ const basePost: Post = {
     link_url: null,
     link_title: null,
     link_favicon: null,
+    link_youtube_id: null,
     reply_to: null,
     quoted_post: null,
     boosted_by: null,
@@ -163,6 +164,7 @@ describe('PostAnimator — poll rendering', () => {
                     link_url: 'https://example.com/article',
                     link_title: 'An article',
                     link_favicon: null,
+                    link_youtube_id: null,
                     reply_to: {
                         author_name: 'Reply Author',
                         author_handle: '@reply@mastodon.example',

@@ -65,6 +65,7 @@ const makePost = (id: string): Post => ({
     link_url: null,
     link_title: null,
     link_favicon: null,
+    link_youtube_id: null,
     reply_to: null,
     quoted_post: null,
     boosted_by: null,

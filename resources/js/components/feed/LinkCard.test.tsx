@@ -62,4 +62,56 @@ describe('LinkCard', () => {
 
         expect(container.querySelector('img')).not.toBeInTheDocument();
     });
+
+    it('renders a youtube thumbnail and play button when youtubeId is present', async () => {
+        const { LinkCard } = await import('./LinkCard');
+        const { container } = render(
+            <LinkCard
+                url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                title="A Video"
+                favicon={null}
+                youtubeId="dQw4w9WgXcQ"
+            />,
+        );
+
+        expect(container.querySelector('img')).toHaveAttribute(
+            'src',
+            'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+        );
+        expect(container.querySelector('svg')).toBeInTheDocument();
+        expect(container.textContent).toContain('A Video');
+    });
+
+    it('falls back to the generic card when the youtube thumbnail fails to load', async () => {
+        const { LinkCard } = await import('./LinkCard');
+        const { container } = render(
+            <LinkCard
+                url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                title="A Video"
+                favicon={null}
+                youtubeId="dQw4w9WgXcQ"
+            />,
+        );
+
+        const img = container.querySelector('img');
+        expect(img).not.toBeNull();
+        fireEvent.error(img as HTMLImageElement);
+
+        expect(container.querySelector('img')).not.toBeInTheDocument();
+        expect(container.textContent).toContain('youtube.com');
+    });
+
+    it('renders the generic card when youtubeId is absent', async () => {
+        const { LinkCard } = await import('./LinkCard');
+        const { container } = render(
+            <LinkCard
+                url="https://example.com/article"
+                title="Example"
+                favicon={null}
+            />,
+        );
+
+        expect(container.querySelector('img')).not.toBeInTheDocument();
+        expect(container.textContent).toContain('example.com');
+    });
 });

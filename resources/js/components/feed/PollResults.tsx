@@ -23,6 +23,7 @@ export function PollResults({
     originalUrl: string;
 }) {
     const total = poll.votes_count;
+    const ownVotes = new Set(poll.own_votes);
 
     return (
         <div className={PANEL_CLASS}>
@@ -38,12 +39,11 @@ export function PollResults({
                         !votesHidden && total > 0
                             ? Math.round((votes / total) * 100)
                             : 0;
-                    const isOwnVote =
-                        poll.voted && poll.own_votes.includes(index);
+                    const isOwnVote = poll.voted && ownVotes.has(index);
 
                     return (
                         <div
-                            key={index}
+                            key={option.title}
                             data-testid={`poll-option-${index}`}
                             data-voted={isOwnVote}
                             className={`relative overflow-hidden rounded border px-2 py-1.5 ${
@@ -61,11 +61,11 @@ export function PollResults({
                             <div className="relative flex items-center justify-between gap-2">
                                 <span className="flex items-center gap-1.5">
                                     {isOwnVote && (
-                                        <Check className="size-3.5 flex-shrink-0" />
+                                        <Check className="size-3.5 shrink-0" />
                                     )}
                                     {option.title}
                                 </span>
-                                <span className="flex-shrink-0 text-white/50">
+                                <span className="shrink-0 text-white/50">
                                     {votesHidden
                                         ? 'votes hidden'
                                         : `${votes} votes (${pct}%)`}

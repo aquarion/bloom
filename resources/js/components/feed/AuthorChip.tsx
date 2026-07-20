@@ -30,7 +30,7 @@ export function AuthorChip({
             <img
                 src={avatar || bloom}
                 alt={name}
-                className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
+                className="h-10 w-10 shrink-0 rounded-full object-cover"
             />
             <div className="min-w-0 flex-1">
                 <p className="truncate font-bold text-white text-xs leading-tight">
@@ -40,7 +40,7 @@ export function AuthorChip({
                             data-testid="cw-marker"
                             className="ml-1.5 inline-flex items-center gap-1 font-normal text-red-400"
                         >
-                            <TriangleAlert className="size-3 flex-shrink-0" />
+                            <TriangleAlert className="size-3 shrink-0" />
                             {cwLabel}
                         </span>
                     )}

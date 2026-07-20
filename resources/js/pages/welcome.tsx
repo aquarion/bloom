@@ -146,7 +146,7 @@ function WelcomeView({
                 {/* Chrome layer */}
                 <div className="pointer-events-none absolute inset-0 z-20 flex flex-col">
                     {/* Top: Bloom CTA centred over a gradient for contrast */}
-                    <div className="bg-gradient-to-b from-black/70 to-transparent">
+                    <div className="bg-linear-to-b from-black/70 to-transparent">
                         <div className="pointer-events-auto mx-auto flex max-w-xs flex-col items-center gap-3 px-6 pt-10 pb-8">
                             <div className="flex items-center gap-2">
                                 <AppLogoIcon
@@ -196,7 +196,7 @@ function WelcomeView({
                     {/* Bottom: attribution + source badge */}
                     <div className="pointer-events-auto flex items-center gap-2 px-4 pt-2 pb-6">
                         <Attribution post={current} />
-                        <div className="ml-auto flex-shrink-0">
+                        <div className="ml-auto shrink-0">
                             <SourceBadge post={current} />
                         </div>
                     </div>

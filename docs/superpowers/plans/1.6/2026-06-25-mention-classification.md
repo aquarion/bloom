@@ -1711,7 +1711,7 @@ export function MentionChips({ mentions }: { mentions: Mention[] }) {
                     href={mention.profile_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="max-w-[12rem]"
+                    className="max-w-48"
                 >
                     <AuthorChip
                         name={mention.display_name}

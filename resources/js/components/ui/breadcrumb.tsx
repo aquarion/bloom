@@ -13,7 +13,7 @@ function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
 		<ol
 			data-slot="breadcrumb-list"
 			className={cn(
-				"text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm break-words sm:gap-2.5",
+				"text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm wrap-break-word sm:gap-2.5",
 				className,
 			)}
 			{...props}
@@ -53,6 +53,11 @@ function BreadcrumbPage({ className, ...props }: React.ComponentProps<"span">) {
 	return (
 		<span
 			data-slot="breadcrumb-page"
+			// Current page is intentionally non-navigable; role="link" + aria-disabled
+			// matches the WAI-ARIA breadcrumb pattern for "styled like a link, not
+			// interactive." A real <a> with no href would be worse: non-focusable and
+			// implies navigation to the current page.
+			// react-doctor-disable-next-line react-doctor/prefer-tag-over-role
 			role="link"
 			aria-disabled="true"
 			aria-current="page"

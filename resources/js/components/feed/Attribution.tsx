@@ -81,7 +81,7 @@ export function Attribution({
                         />
                     </div>
                 )}
-                <Quote className="size-4 flex-shrink-0 text-white/30" />
+                <Quote className="size-4 shrink-0 text-white/30" />
                 <a
                     href={post.original_url}
                     target="_blank"
@@ -105,7 +105,7 @@ export function Attribution({
     if (post.boosted_by) {
         const label = (
             <Repeat2
-                className="size-4 flex-shrink-0"
+                className="size-4 shrink-0"
                 role="img"
                 aria-label={post.source === 'mastodon' ? 'Boosted' : 'Reposted'}
             />
@@ -129,7 +129,7 @@ export function Attribution({
                         cwLabel={mainCwLabel}
                     />
                 </a>
-                <span className="flex-shrink-0 text-white/30">{label}</span>
+                <span className="shrink-0 text-white/30">{label}</span>
                 <div className="flex min-w-0 items-center gap-2">
                     <AuthorChip
                         name={post.boosted_by}

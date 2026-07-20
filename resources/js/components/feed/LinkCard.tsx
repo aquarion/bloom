@@ -51,7 +51,9 @@ export function LinkCard({
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={title ? `${title} (YouTube video)` : 'YouTube video'}
+                aria-label={
+                    title ? `${title} (YouTube video)` : 'YouTube video'
+                }
                 className={`${panelClass} block overflow-hidden hover:bg-white/20`}
             >
                 <div className="relative aspect-video w-full bg-black/60">
@@ -93,7 +95,7 @@ export function LinkCard({
                     <img
                         src={favicon}
                         alt=""
-                        className="h-5 w-5 flex-shrink-0 rounded"
+                        className="h-5 w-5 shrink-0 rounded"
                         onError={() => {
                             markFavicon404(favicon);
                             setFaviconFailed(true);

@@ -8,12 +8,12 @@ export function MentionAvatarChip({ mention }: { mention: Mention }) {
             target="_blank"
             rel="noopener noreferrer"
             title={mention.display_name}
-            className="flex-shrink-0"
+            className="shrink-0"
         >
             <img
                 src={mention.avatar || bloom}
                 alt={mention.display_name}
-                className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
+                className="h-10 w-10 shrink-0 rounded-full object-cover"
             />
         </a>
     );

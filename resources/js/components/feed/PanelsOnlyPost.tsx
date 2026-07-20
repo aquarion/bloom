@@ -78,6 +78,7 @@ export function PanelsOnlyPost({
                         url={post.link_url}
                         title={post.link_title}
                         favicon={post.link_favicon}
+                        youtubeId={post.link_youtube_id}
                     />
                 )}
             </div>

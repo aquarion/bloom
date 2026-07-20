@@ -809,6 +809,103 @@ it('sets link_favicon to null when bluesky post has no external embed', function
     expect($post['link_favicon'])->toBeNull();
 });
 
+it('extracts link_youtube_id from a mastodon card watch url', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => ['url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=30s', 'title' => 'A Video', 'description' => '', 'image' => null],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_youtube_id'])->toBe('dQw4w9WgXcQ');
+});
+
+it('extracts link_youtube_id from a bluesky external embed watch url', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'video', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.external#view',
+                'external' => ['uri' => 'https://youtu.be/dQw4w9WgXcQ', 'title' => 'A Video', 'description' => ''],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_youtube_id'])->toBe('dQw4w9WgXcQ');
+});
+
+it('extracts link_youtube_id from a youtube shorts url', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => ['url' => 'https://m.youtube.com/shorts/dQw4w9WgXcQ', 'title' => 'A Short', 'description' => '', 'image' => null],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_youtube_id'])->toBe('dQw4w9WgXcQ');
+});
+
+it('sets link_youtube_id to null for non-youtube links', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => ['url' => 'https://example.com/article', 'title' => 'Article', 'description' => '', 'image' => null],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_youtube_id'])->toBeNull();
+});
+
+it('sets link_youtube_id to null when there is no link at all', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Just a plain post</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_youtube_id'])->toBeNull();
+});
+
+it('rejects a malformed youtube watch url with no video id', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => ['url' => 'https://www.youtube.com/watch?list=PL123', 'title' => 'Playlist', 'description' => '', 'image' => null],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_youtube_id'])->toBeNull();
+});
+
 it('includes author identity and url in mastodon reply_to', function () {
     $parent = [
         'url' => 'https://mastodon.social/@original/456',

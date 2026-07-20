@@ -88,6 +88,7 @@ export function MediaPost({
                                 title={post.link_title}
                                 fullWidth
                                 favicon={post.link_favicon}
+                                youtubeId={post.link_youtube_id}
                             />
                         )}
                     </div>

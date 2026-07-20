@@ -55,6 +55,7 @@ class PostNormalizer
             'link_url' => $linkUrl,
             'link_title' => $card ? ($card['title'] ?? null) : null,
             'link_favicon' => $this->faviconUrl($linkUrl),
+            'link_youtube_id' => $this->youtubeVideoId($linkUrl),
             'reply_to' => $this->mastodonReplyTo($parentStatus, $host, $mentionsEnabled),
             'quoted_post' => $this->mastodonQuotedPost($source, $host, $quoteStatus, $mentionsEnabled),
             'poll' => $this->normalizeMastodonPoll($source),
@@ -122,6 +123,7 @@ class PostNormalizer
             'link_url' => $linkUrl,
             'link_title' => $externalData['title'] ?? null,
             'link_favicon' => $this->faviconUrl($linkUrl),
+            'link_youtube_id' => $this->youtubeVideoId($linkUrl),
             'reply_to' => $this->blueskyReplyTo($feedPost['reply']['parent'] ?? null, $mentionsEnabled),
             'quoted_post' => $this->blueskyQuotedPost($post['embed'] ?? null, $mentionsEnabled),
             'boosted_by' => $booster,
@@ -833,6 +835,54 @@ class PostNormalizer
         $domain = parse_url($linkUrl, PHP_URL_HOST);
 
         return $domain ? "https://favicone.com/{$domain}" : null;
+    }
+
+    /**
+     * Extracts an 11-character YouTube video ID from watch/shorts/embed/live
+     * links (any youtube.com subdomain) and youtu.be short links.
+     */
+    private function youtubeVideoId(?string $linkUrl): ?string
+    {
+        if (! $linkUrl) {
+            return null;
+        }
+
+        $host = parse_url($linkUrl, PHP_URL_HOST);
+
+        if (! $host) {
+            return null;
+        }
+
+        $host = strtolower(preg_replace('/^www\./', '', $host));
+        $path = parse_url($linkUrl, PHP_URL_PATH) ?? '';
+
+        if ($host === 'youtu.be') {
+            $id = trim($path, '/');
+
+            return $this->isValidYoutubeId($id) ? $id : null;
+        }
+
+        if (! in_array($host, ['youtube.com', 'm.youtube.com', 'music.youtube.com'], true)) {
+            return null;
+        }
+
+        if ($path === '/watch') {
+            parse_str(parse_url($linkUrl, PHP_URL_QUERY) ?? '', $query);
+            $id = $query['v'] ?? null;
+
+            return $id && $this->isValidYoutubeId($id) ? $id : null;
+        }
+
+        if (preg_match('#^/(?:shorts|embed|live)/([^/?]+)#', $path, $matches)) {
+            return $this->isValidYoutubeId($matches[1]) ? $matches[1] : null;
+        }
+
+        return null;
+    }
+
+    private function isValidYoutubeId(string $id): bool
+    {
+        return (bool) preg_match('/^[A-Za-z0-9_-]{11}$/', $id);
     }
 
     /**

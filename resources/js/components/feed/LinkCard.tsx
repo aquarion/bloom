@@ -1,5 +1,5 @@
 import { Play } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getPanelClass } from './panel-class';
 
 const FAVICON_404_KEY = 'bloom:favicon404s:v1';
@@ -33,6 +33,11 @@ export function LinkCard({
 }) {
     const [faviconFailed, setFaviconFailed] = useState(false);
     const [thumbnailFailed, setThumbnailFailed] = useState(false);
+
+    useEffect(() => {
+        setThumbnailFailed(false);
+    }, [youtubeId]);
+
     let hostname = url;
 
     try {
@@ -51,6 +56,7 @@ export function LinkCard({
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={title ? `${title} (YouTube video)` : 'YouTube video'}
                 className={`${panelClass} block overflow-hidden hover:bg-white/20`}
             >
                 <div className="relative aspect-video w-full bg-black/60">
@@ -60,7 +66,10 @@ export function LinkCard({
                         className="h-full w-full object-cover"
                         onError={() => setThumbnailFailed(true)}
                     />
-                    <div className="absolute inset-0 flex items-center justify-center">
+                    <div
+                        aria-hidden="true"
+                        className="absolute inset-0 flex items-center justify-center"
+                    >
                         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/70">
                             <Play className="ml-0.5 h-6 w-6 fill-white text-white" />
                         </div>

@@ -839,7 +839,8 @@ class PostNormalizer
 
     /**
      * Extracts an 11-character YouTube video ID from watch/shorts/embed/live
-     * links (any youtube.com subdomain) and youtu.be short links.
+     * links on youtube.com, m.youtube.com, or music.youtube.com, and from
+     * youtu.be short links.
      */
     private function youtubeVideoId(?string $linkUrl): ?string
     {

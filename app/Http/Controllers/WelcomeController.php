@@ -74,7 +74,10 @@ class WelcomeController extends Controller
             ->json();
 
         $normalised = array_map(
-            fn (array $status) => $this->normalizer->fromMastodon($status, $instance, mentionsEnabled: false),
+            fn (array $status) => array_merge(
+                $this->normalizer->fromMastodon($status, $instance, mentionsEnabled: false),
+                ['feed_type' => 'public_mastodon', 'feed_name' => $instance],
+            ),
             $statuses,
         );
 
@@ -87,12 +90,15 @@ class WelcomeController extends Controller
     private function fallbackPosts(): array
     {
         $now = now()->toIso8601String();
+        $instance = config('feed.welcome_instance', 'mastodon.social');
 
         return [
             [
                 'id' => 'welcome_1',
                 'source' => 'mastodon',
                 'source_handle' => '',
+                'feed_type' => 'public_mastodon',
+                'feed_name' => $instance,
                 'author_name' => 'example_user',
                 'author_handle' => '@example_user@example.social',
                 'author_avatar' => '',
@@ -117,6 +123,8 @@ class WelcomeController extends Controller
                 'id' => 'welcome_2',
                 'source' => 'mastodon',
                 'source_handle' => '',
+                'feed_type' => 'public_mastodon',
+                'feed_name' => $instance,
                 'author_name' => 'example_user2',
                 'author_handle' => '@example_user2@example.social',
                 'author_avatar' => '',
@@ -141,6 +149,8 @@ class WelcomeController extends Controller
                 'id' => 'welcome_3',
                 'source' => 'bluesky',
                 'source_handle' => '',
+                'feed_type' => 'bluesky_feed',
+                'feed_name' => null,
                 'author_name' => 'example_user3',
                 'author_handle' => '@example_user3.bsky.social',
                 'author_avatar' => '',

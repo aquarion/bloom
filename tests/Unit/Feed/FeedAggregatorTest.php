@@ -1108,7 +1108,9 @@ it('fetches public mastodon timeline without authentication', function () {
 
     expect($result['posts'])->toHaveCount(1)
         ->and($result['posts'][0]['source'])->toBe('mastodon')
-        ->and($result['posts'][0]['source_instance'])->toBe('social.example');
+        ->and($result['posts'][0]['source_instance'])->toBe('social.example')
+        ->and($result['posts'][0]['feed_type'])->toBe('public_mastodon')
+        ->and($result['posts'][0]['feed_name'])->toBe('social.example');
 });
 
 it('falls back to home account when public mastodon returns 401', function () {
@@ -1193,7 +1195,49 @@ it('fetches bluesky algorithmic feed using home account credentials', function (
     $result = $aggregator->fetch($user);
 
     expect($result['posts'])->toHaveCount(1)
-        ->and($result['posts'][0]['source'])->toBe('bluesky');
+        ->and($result['posts'][0]['source'])->toBe('bluesky')
+        ->and($result['posts'][0]['feed_type'])->toBe('bluesky_feed')
+        ->and($result['posts'][0]['feed_name'])->toBe('Whats Hot');
+});
+
+it('tags home account posts with feed_type home and a null feed_name', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'feed_type' => 'home',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $status = [
+        'id' => '1',
+        'created_at' => now()->toIso8601String(),
+        'in_reply_to_id' => null,
+        'url' => 'https://fosstodon.org/@author/1',
+        'content' => '<p>a home post</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$status]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['feed_type'])->toBe('home')
+        ->and($result['posts'][0]['feed_name'])->toBeNull();
 });
 
 it('does not drop algorithmic feed posts when combined feeds exceed the old default buffer', function () {

@@ -72,6 +72,10 @@ export interface Post extends CwFields {
     source: 'mastodon' | 'bluesky';
     source_handle: string | null;
     source_instance: string | null;
+    /** Absent on older cached payloads; treat as 'home' when missing. */
+    feed_type?: 'home' | 'public_mastodon' | 'bluesky_feed';
+    /** Display name for a public feed (instance host, or feed name) — null on 'home' posts. */
+    feed_name?: string | null;
     author_name: string;
     author_handle: string;
     author_avatar: string;

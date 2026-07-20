@@ -43,3 +43,19 @@ it('returns json for xhr requests', function () {
 it('redirects guests to login', function () {
     $this->get(route('feed'))->assertRedirect(route('login'));
 });
+
+it('enables mentions for users without the beta tester role', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $mockAggregator = Mockery::mock(FeedAggregator::class);
+    $mockAggregator->shouldReceive('fetch')
+        ->once()
+        ->with($user, 20, null, true)
+        ->andReturn([
+            'posts' => [],
+            'next_cursor' => null,
+        ]);
+    app()->instance(FeedAggregator::class, $mockAggregator);
+
+    $this->actingAs($user)->withoutVite()->get(route('feed'))->assertOk();
+});

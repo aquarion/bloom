@@ -105,7 +105,7 @@ export function LinkCard({
                         <img
                             src={favicon}
                             alt=""
-                            className="h-5 w-5 flex-shrink-0 rounded"
+                            className="h-5 w-5 shrink-0 rounded"
                             onError={() => {
                                 markFavicon404(favicon);
                                 setFaviconFailed(true);
@@ -146,7 +146,7 @@ export function LinkCard({
                     <img
                         src={favicon}
                         alt=""
-                        className="h-5 w-5 flex-shrink-0 rounded"
+                        className="h-5 w-5 shrink-0 rounded"
                         onError={() => {
                             markFavicon404(favicon);
                             setFaviconFailed(true);

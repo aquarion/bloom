@@ -62,6 +62,20 @@ it('passes normalised posts from the public timeline', function () {
     );
 });
 
+it('tags posts with public_mastodon feed metadata for the source badge', function () {
+    Http::fake([
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([
+            mastodonStatus('1', 'Hello Fediverse'),
+        ]),
+    ]);
+
+    $this->withoutVite()->get('/')->assertInertia(
+        fn ($page) => $page->component('welcome', false)
+            ->where('initialPosts.0.feed_type', 'public_mastodon')
+            ->where('initialPosts.0.feed_name', config('feed.welcome_instance'))
+    );
+});
+
 it('filters out posts with an empty body', function () {
     Http::fake([
         config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([

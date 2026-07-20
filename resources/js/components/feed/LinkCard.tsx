@@ -1,5 +1,5 @@
 import { Play } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { getPanelClass } from './panel-class';
 
 const FAVICON_404_KEY = 'bloom:favicon404s:v1';
@@ -33,11 +33,6 @@ export function LinkCard({
 }) {
     const [faviconFailed, setFaviconFailed] = useState(false);
     const [thumbnailFailed, setThumbnailFailed] = useState(false);
-
-    useEffect(() => {
-        setThumbnailFailed(false);
-    }, [youtubeId]);
-
     let hostname = url;
 
     try {

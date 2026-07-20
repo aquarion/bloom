@@ -84,6 +84,7 @@ export function MediaPost({
                         )}
                         {post.link_url && (
                             <LinkCard
+                                key={post.link_url}
                                 url={post.link_url}
                                 title={post.link_title}
                                 fullWidth

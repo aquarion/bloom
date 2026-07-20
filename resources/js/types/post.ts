@@ -82,6 +82,8 @@ export interface Post extends CwFields {
     original_url: string;
     link_url: string | null;
     link_title: string | null;
+    link_description: string | null;
+    link_image: string | null;
     link_favicon: string | null;
     link_youtube_id: string | null;
     reply_to: ReplyTo | null;

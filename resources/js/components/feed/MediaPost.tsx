@@ -87,6 +87,8 @@ export function MediaPost({
                                 key={post.link_url}
                                 url={post.link_url}
                                 title={post.link_title}
+                                description={post.link_description}
+                                image={post.link_image}
                                 fullWidth
                                 favicon={post.link_favicon}
                                 youtubeId={post.link_youtube_id}

@@ -52,6 +52,8 @@ const makePost = (overrides: Partial<Post> = {}): Post => ({
     original_url: 'https://bsky.app/test',
     link_url: null,
     link_title: null,
+    link_description: null,
+    link_image: null,
     link_favicon: null,
     link_youtube_id: null,
     reply_to: null,

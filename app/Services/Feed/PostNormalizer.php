@@ -146,7 +146,7 @@ class PostNormalizer
      * with no label taxonomy, unlike Bluesky's moderation labels — so every self-applied
      * Mastodon CW buckets into the catch-all 'generic' category.
      *
-     * @return array{cw_text: ?string, cw_is_author_level: bool, cw_label_source: ?string, cw_category: ?string, sensitive_media: bool}
+     * @return array{cw_text: ?string, cw_is_author_level: bool, cw_label_source: ?string, cw_category: ?string, cw_categories: array<int, string>, sensitive_media: bool}
      */
     private function mastodonCwFields(array $source): array
     {
@@ -157,6 +157,7 @@ class PostNormalizer
             'cw_is_author_level' => false,
             'cw_label_source' => $hasSpoilerText ? 'self' : null,
             'cw_category' => $hasSpoilerText ? 'generic' : null,
+            'cw_categories' => $hasSpoilerText ? ['generic'] : [],
             'sensitive_media' => (bool) ($source['sensitive'] ?? false),
         ];
     }
@@ -761,9 +762,35 @@ class PostNormalizer
             return ! empty($l) ? ['text' => $l[0], 'category' => 'generic'] : ['text' => null, 'category' => null];
         };
 
+        // Unlike $resolveCw above (which picks a single priority-ordered category for display
+        // text), this collects every distinct category touched by the label set. A post can
+        // carry labels from more than one category at once (e.g. 'porn' + 'self-harm') — using
+        // only the single priority-picked category to decide whitelist suppression would let an
+        // 'adult'-only whitelist silently also suppress an unrelated 'safety' warning.
+        $resolveCwCategories = function (array $l) use ($adultLabels, $graphicLabels, $safetyLabelMap): array {
+            $categories = [];
+            if (array_intersect($l, $adultLabels)) {
+                $categories[] = 'adult';
+            }
+            if (array_intersect($l, $graphicLabels)) {
+                $categories[] = 'graphic';
+            }
+            if (array_intersect(array_keys($safetyLabelMap), $l)) {
+                $categories[] = 'safety';
+            }
+            // Any label not already classified above (moderation-mapped or entirely
+            // unrecognised) collapses to 'generic', matching $resolveCw's fallback.
+            if (array_diff($l, $adultLabels, $graphicLabels, array_keys($safetyLabelMap))) {
+                $categories[] = 'generic';
+            }
+
+            return $categories;
+        };
+
         $resolved = $resolveCw($labels);
         $cwText = $resolved['text'];
         $cwCategory = $resolved['category'];
+        $cwCategories = $resolveCwCategories($labels);
         // Author-level when the post itself carries no cw-worthy labels —
         // the CW exists only because the author's profile is labelled.
         $cwIsAuthorLevel = $cwText !== null && $resolveCw($postLabels)['text'] === null;
@@ -790,6 +817,7 @@ class PostNormalizer
             'cw_is_author_level' => $cwIsAuthorLevel,
             'cw_label_source' => $cwLabelSource,
             'cw_category' => $cwCategory,
+            'cw_categories' => $cwCategories,
             'sensitive_media' => ! empty(array_intersect($labels, $mediaLabels)),
         ];
     }

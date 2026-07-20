@@ -63,7 +63,7 @@ export function FeedChrome({
                 <button
                     type="button"
                     onClick={onTogglePanel}
-                    className={`flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white ${panelOpen ? 'relative z-51' : ''}`}
+                    className={`flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60 hover:bg-white/20 hover:text-white ${panelOpen ? 'relative z-[51]' : ''}`}
                     aria-label="Open navigation"
                     aria-expanded={panelOpen}
                     aria-haspopup="dialog"

@@ -43,7 +43,7 @@ export function PollResults({
 
                     return (
                         <div
-                            key={option.title}
+                            key={`${poll.id}-${index}`}
                             data-testid={`poll-option-${index}`}
                             data-voted={isOwnVote}
                             className={`relative overflow-hidden rounded border px-2 py-1.5 ${

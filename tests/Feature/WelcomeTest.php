@@ -169,6 +169,34 @@ it('never applies mention classification for anonymous welcome page visitors', f
     );
 });
 
+it('filters out posts with a content warning', function () {
+    Http::fake([
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([
+            array_merge(mastodonStatus('1', 'Spoiler warning post'), ['spoiler_text' => 'Content warning']),
+            mastodonStatus('2', 'Has a body'),
+        ]),
+    ]);
+
+    $this->withoutVite()->get('/')->assertInertia(
+        fn ($page) => $page->has('initialPosts', 1)
+            ->where('initialPosts.0.body', 'Has a body')
+    );
+});
+
+it('filters out posts with sensitive media', function () {
+    Http::fake([
+        config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([
+            array_merge(mastodonStatus('1', 'Sensitive media post'), ['sensitive' => true]),
+            mastodonStatus('2', 'Has a body'),
+        ]),
+    ]);
+
+    $this->withoutVite()->get('/')->assertInertia(
+        fn ($page) => $page->has('initialPosts', 1)
+            ->where('initialPosts.0.body', 'Has a body')
+    );
+});
+
 it('falls back to hardcoded posts when all fetched posts are filtered out and cache is empty', function () {
     Http::fake([
         config('feed.welcome_instance').'/api/v1/timelines/public*' => Http::response([

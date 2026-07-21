@@ -45,7 +45,8 @@ function CwOverlay({
                             : `has been labelled as posting ${cwText.toLowerCase()}`}
                     </p>
                     <p className="mb-4 max-w-sm text-sm text-white/60">
-                        Revealing will unhide all their posts for this session
+                        Revealing will show this author now and remember your
+                        choice for next time
                     </p>
                 </>
             ) : (

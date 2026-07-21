@@ -26,6 +26,7 @@ class FeedController extends Controller
             'debugEnabled' => Config::get('app.debug', false),
             'cwBehavior' => $user->getPreference('cw_behavior', 'blur'),
             'sensitiveMediaBehavior' => $user->getPreference('sensitive_media_behavior', 'blur'),
+            'cwAuthorWhitelist' => $user->getPreference('cw_author_whitelist', []),
         ]);
     }
 }

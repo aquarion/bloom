@@ -46,7 +46,15 @@ export default function FeedSettings({
         cw_behavior: preferences.cw_behavior,
         sensitive_media_behavior: preferences.sensitive_media_behavior,
         cw_label_whitelist: preferences.cw_label_whitelist,
+        cw_author_whitelist: preferences.cw_author_whitelist,
     });
+
+    function removeWhitelistedAuthor(handle: string) {
+        setData(
+            'cw_author_whitelist',
+            data.cw_author_whitelist.filter((h) => h !== handle),
+        );
+    }
 
     // Laravel's `field.*` array validation reports errors as indexed keys
     // (`cw_label_whitelist.0`), not the bare field name — find the first one
@@ -270,6 +278,43 @@ export default function FeedSettings({
                         </p>
                     )}
                 </div>
+
+                {/* Always-shown authors */}
+                {data.cw_author_whitelist.length > 0 && (
+                    <div className="space-y-2">
+                        <Label>Always-shown authors</Label>
+                        <p className="text-muted-foreground text-xs">
+                            Revealing an author-level content warning in the
+                            feed adds them here — their posts skip the warning
+                            from now on.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {data.cw_author_whitelist.map((handle) => (
+                                <span
+                                    key={handle}
+                                    className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
+                                >
+                                    {handle}
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            removeWhitelistedAuthor(handle)
+                                        }
+                                        className="text-muted-foreground hover:text-foreground"
+                                        aria-label={`Remove "${handle}"`}
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                        {errors.cw_author_whitelist && (
+                            <p className="text-destructive text-sm">
+                                {errors.cw_author_whitelist}
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 {/* Sensitive media behavior */}
                 <div className="space-y-2">

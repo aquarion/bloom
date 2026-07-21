@@ -52,7 +52,15 @@ export function CwStateProvider({
     // it, but a ref mutation happens exactly once per reveal() call and is visible
     // immediately to the next call, so it can't double-POST even if two reveal()s
     // for the same author land in the same batched update.
-    const persistedAuthorsRef = useRef(new Set<string>(initialAuthorWhitelist));
+    // useRef(initialValue) evaluates initialValue on every render (only the first
+    // is kept), so the Set is constructed lazily here instead of passed inline.
+    const persistedAuthorsRef = useRef<Set<string> | null>(null);
+
+    if (persistedAuthorsRef.current === null) {
+        persistedAuthorsRef.current = new Set<string>(initialAuthorWhitelist);
+    }
+
+    const persistedAuthors = persistedAuthorsRef.current;
 
     const isRevealed = (post: CwLike) =>
         revealedPostIds.has(post.id) || revealedAuthors.has(post.author_handle);
@@ -64,8 +72,8 @@ export function CwStateProvider({
         // future posts from them — a post-level accept must stay scoped to that one
         // post, or an unrelated later CW from the same author would be silently skipped.
         if (post.cw_is_author_level) {
-            if (!persistedAuthorsRef.current.has(post.author_handle)) {
-                persistedAuthorsRef.current.add(post.author_handle);
+            if (!persistedAuthors.has(post.author_handle)) {
+                persistedAuthors.add(post.author_handle);
                 persistAuthorWhitelist(post.author_handle);
             }
 

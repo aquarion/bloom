@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Models\SocialAccount;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -30,6 +31,8 @@ class FeedSettingsController extends Controller
             'sensitive_media_behavior' => ['required', Rule::in(['skip', 'blur', 'show'])],
             'cw_label_whitelist' => ['nullable', 'array'],
             'cw_label_whitelist.*' => [Rule::in(['adult', 'graphic', 'safety', 'generic'])],
+            'cw_author_whitelist' => ['nullable', 'array'],
+            'cw_author_whitelist.*' => ['string', 'max:255'],
         ]);
 
         $user = $request->user();
@@ -38,6 +41,9 @@ class FeedSettingsController extends Controller
         $prefs['cw_behavior'] = $validated['cw_behavior'];
         $prefs['sensitive_media_behavior'] = $validated['sensitive_media_behavior'];
         $prefs['cw_label_whitelist'] = $validated['cw_label_whitelist'] ?? [];
+        if (array_key_exists('cw_author_whitelist', $validated)) {
+            $prefs['cw_author_whitelist'] = $validated['cw_author_whitelist'];
+        }
         if (array_key_exists('max_age_days', $validated)) {
             $prefs['max_age_days'] = $validated['max_age_days'];
         }
@@ -48,6 +54,28 @@ class FeedSettingsController extends Controller
         }
 
         return redirect()->route('feed.settings.edit')->with('status', 'feed-settings-updated');
+    }
+
+    /**
+     * Persists a single author-level CW reveal from the feed so it stays revealed
+     * on future visits, without disturbing the immersive feed page's own state —
+     * called via a plain fetch from useCwState, not an Inertia visit.
+     */
+    public function whitelistAuthor(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'author_handle' => ['required', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        $whitelist = $user->getPreference('cw_author_whitelist', []);
+
+        if (! in_array($validated['author_handle'], $whitelist, true)) {
+            $whitelist[] = $validated['author_handle'];
+            $user->setPreference('cw_author_whitelist', $whitelist);
+        }
+
+        return response()->json(null, 204);
     }
 
     public function updateAccount(Request $request, SocialAccount $account): RedirectResponse

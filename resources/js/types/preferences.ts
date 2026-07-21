@@ -8,4 +8,5 @@ export interface FeedPreferences {
     cw_behavior: ContentBehavior;
     sensitive_media_behavior: ContentBehavior;
     cw_label_whitelist: CwCategory[];
+    cw_author_whitelist: string[];
 }

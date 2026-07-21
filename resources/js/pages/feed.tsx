@@ -24,9 +24,10 @@ export default function Feed(props: {
     debugEnabled: boolean;
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
+    cwAuthorWhitelist: string[];
 }) {
     return (
-        <CwStateProvider>
+        <CwStateProvider initialAuthorWhitelist={props.cwAuthorWhitelist}>
             <FeedView {...props} />
         </CwStateProvider>
     );

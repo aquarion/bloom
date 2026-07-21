@@ -92,6 +92,7 @@ const defaultProps = {
     debugEnabled: false,
     cwBehavior: 'show' as const,
     sensitiveMediaBehavior: 'show' as const,
+    cwAuthorWhitelist: [] as string[],
 };
 
 describe('Feed', () => {

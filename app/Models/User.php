@@ -26,6 +26,7 @@ class User extends Authenticatable
         'cw_behavior' => 'blur',
         'sensitive_media_behavior' => 'blur',
         'cw_label_whitelist' => [],
+        'cw_author_whitelist' => [],
     ];
 
     protected $casts = [

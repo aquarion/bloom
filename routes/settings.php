@@ -69,6 +69,7 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::get('settings/feed', [FeedSettingsController::class, 'edit'])->name('feed.settings.edit');
     Route::put('settings/feed', [FeedSettingsController::class, 'update'])->name('feed.settings.update');
     Route::put('settings/connections/{account}/feed', [FeedSettingsController::class, 'updateAccount'])->name('connections.feed.update');
+    Route::post('settings/feed/whitelisted-authors', [FeedSettingsController::class, 'whitelistAuthor'])->name('feed.settings.whitelist-author');
 
     // Passkey management — register routes excluded from EnsurePasskeyExists
     Route::get('settings/passkeys/register/options', [PasskeyController::class, 'registerOptions'])

@@ -346,6 +346,7 @@ it('sets quoted_post for bluesky record embeds', function () {
         'cw_is_author_level' => false,
         'cw_label_source' => null,
         'cw_category' => null,
+        'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => null,
     ]);
@@ -384,6 +385,7 @@ it('sets quoted_post for bluesky recordWithMedia embeds', function () {
         'cw_is_author_level' => false,
         'cw_label_source' => null,
         'cw_category' => null,
+        'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => null,
     ]);
@@ -1106,6 +1108,7 @@ it('includes author identity and url in mastodon reply_to', function () {
         'cw_is_author_level' => false,
         'cw_label_source' => null,
         'cw_category' => null,
+        'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => null,
     ]);
@@ -1223,6 +1226,7 @@ it('includes author identity and url in bluesky reply_to', function () {
         'cw_is_author_level' => false,
         'cw_label_source' => null,
         'cw_category' => null,
+        'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => null,
     ]);
@@ -1571,6 +1575,7 @@ it('sets quoted_post from inline mastodon quote field', function () {
         'cw_is_author_level' => false,
         'cw_label_source' => null,
         'cw_category' => null,
+        'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => '2024-01-14T09:00:00.000Z',
     ]);
@@ -1612,6 +1617,7 @@ it('sets quoted_post from pre-fetched quote status when no inline quote field', 
         'cw_is_author_level' => false,
         'cw_label_source' => null,
         'cw_category' => null,
+        'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => '2024-01-14T09:00:00.000Z',
     ]);
@@ -3243,6 +3249,58 @@ it('sets cw_category to null when bluesky has no labels', function () {
     expect($post['cw_category'])->toBeNull();
 });
 
+it('includes every touched category in cw_categories for a multi-label bluesky post', function () {
+    // 'porn' (adult) + 'self-harm' (safety) — cw_category (display) priority-picks
+    // 'adult' alone, but cw_categories must retain 'safety' too so a whitelist covering
+    // only 'adult' can't silently also suppress the unrelated safety warning.
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'porn'], ['val' => 'self-harm']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_category'])->toBe('adult')
+        ->and($post['cw_categories'])->toEqualCanonicalizing(['adult', 'safety']);
+});
+
+it('sets cw_categories to a single-element array for a single-label bluesky post', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'gore']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_categories'])->toBe(['graphic']);
+});
+
+it('sets cw_categories to an empty array when bluesky has no labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_categories'])->toBe([]);
+});
+
 it('sets cw_category to generic for mastodon spoiler_text', function () {
     $status = [
         'id' => '1',
@@ -3262,7 +3320,8 @@ it('sets cw_category to generic for mastodon spoiler_text', function () {
 
     $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
-    expect($post['cw_category'])->toBe('generic');
+    expect($post['cw_category'])->toBe('generic')
+        ->and($post['cw_categories'])->toBe(['generic']);
 });
 
 it('sets cw_category to null when mastodon spoiler_text is empty', function () {
@@ -3284,7 +3343,8 @@ it('sets cw_category to null when mastodon spoiler_text is empty', function () {
 
     $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
-    expect($post['cw_category'])->toBeNull();
+    expect($post['cw_category'])->toBeNull()
+        ->and($post['cw_categories'])->toBe([]);
 });
 
 it('extracts cw_text from a bluesky reply_to parent with its own labels', function () {

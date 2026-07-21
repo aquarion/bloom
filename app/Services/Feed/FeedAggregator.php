@@ -392,11 +392,19 @@ class FeedAggregator
     }
 
     /**
+     * A post can carry labels from more than one CW category at once (e.g. Bluesky 'porn' +
+     * 'self-harm' collapses to a single display cw_category but touches both 'adult' and
+     * 'safety'). Only clear the CW when every category it touches is whitelisted — checking
+     * just the single display cw_category would let whitelisting 'adult' alone silently also
+     * suppress an unrelated, non-whitelisted 'safety' warning.
+     *
      * @param  array<int, string>  $whitelist
      */
     private function clearCwFieldsIfWhitelisted(array $node, array $whitelist): array
     {
-        if (! in_array($node['cw_category'] ?? null, $whitelist, true)) {
+        $categories = $node['cw_categories'] ?? [];
+
+        if (empty($categories) || array_diff($categories, $whitelist)) {
             return $node;
         }
 
@@ -405,6 +413,7 @@ class FeedAggregator
             'cw_is_author_level' => false,
             'cw_label_source' => null,
             'cw_category' => null,
+            'cw_categories' => [],
         ]);
     }
 

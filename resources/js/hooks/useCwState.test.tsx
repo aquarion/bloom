@@ -80,6 +80,25 @@ describe('CwStateProvider', () => {
         });
     });
 
+    it('persists only once when two reveal() calls for the same new author are batched together', () => {
+        const { result } = renderHook(() => useCwState(), {
+            wrapper: wrapperWithWhitelist(),
+        });
+
+        // Simulates two reveal() calls landing in the same React update (e.g. a
+        // rapid double click) before either commits.
+        act(() => {
+            result.current.reveal(
+                makeCwLike({ id: 'post-1', cw_is_author_level: true }),
+            );
+            result.current.reveal(
+                makeCwLike({ id: 'post-2', cw_is_author_level: true }),
+            );
+        });
+
+        expect(fetch).toHaveBeenCalledTimes(1);
+    });
+
     it('does not persist a post-level (non-author) reveal', () => {
         const { result } = renderHook(() => useCwState(), {
             wrapper: wrapperWithWhitelist(),

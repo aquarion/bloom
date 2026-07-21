@@ -1,4 +1,4 @@
-import { createContext, use, useState } from 'react';
+import { createContext, use, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import FeedSettingsController from '@/actions/App/Http/Controllers/Settings/FeedSettingsController';
 import { getXsrfToken } from '@/lib/csrf';
@@ -46,6 +46,13 @@ export function CwStateProvider({
     const [revealedAuthors, setRevealedAuthors] = useState(
         () => new Set<string>(initialAuthorWhitelist),
     );
+    // Tracks which authors we've already dispatched a persist call for, kept as a
+    // ref (mutated synchronously, outside React's update queue) rather than in the
+    // state updater below — a state updater must stay pure since React may replay
+    // it, but a ref mutation happens exactly once per reveal() call and is visible
+    // immediately to the next call, so it can't double-POST even if two reveal()s
+    // for the same author land in the same batched update.
+    const persistedAuthorsRef = useRef(new Set<string>(initialAuthorWhitelist));
 
     const isRevealed = (post: CwLike) =>
         revealedPostIds.has(post.id) || revealedAuthors.has(post.author_handle);
@@ -57,16 +64,12 @@ export function CwStateProvider({
         // future posts from them — a post-level accept must stay scoped to that one
         // post, or an unrelated later CW from the same author would be silently skipped.
         if (post.cw_is_author_level) {
-            setRevealedAuthors((prev) => {
-                // Check against prev, not the closed-over revealedAuthors, so two
-                // reveal() calls batched into the same update (e.g. a rapid double
-                // click) can't both see "not yet revealed" and double-POST.
-                if (!prev.has(post.author_handle)) {
-                    persistAuthorWhitelist(post.author_handle);
-                }
+            if (!persistedAuthorsRef.current.has(post.author_handle)) {
+                persistedAuthorsRef.current.add(post.author_handle);
+                persistAuthorWhitelist(post.author_handle);
+            }
 
-                return new Set(prev).add(post.author_handle);
-            });
+            setRevealedAuthors((prev) => new Set(prev).add(post.author_handle));
         }
     };
 

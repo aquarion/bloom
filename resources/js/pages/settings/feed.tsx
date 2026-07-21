@@ -48,6 +48,13 @@ export default function FeedSettings({
         cw_label_whitelist: preferences.cw_label_whitelist,
     });
 
+    // Laravel's `field.*` array validation reports errors as indexed keys
+    // (`cw_label_whitelist.0`), not the bare field name — find the first one
+    // so an invalid entry's message actually reaches the user.
+    const cwLabelWhitelistError = Object.entries(errors).find(([key]) =>
+        key.startsWith('cw_label_whitelist'),
+    )?.[1];
+
     function toggleCwLabelWhitelist(category: CwCategory, checked: boolean) {
         setData(
             'cw_label_whitelist',
@@ -257,9 +264,9 @@ export default function FeedSettings({
                             );
                         })}
                     </div>
-                    {errors.cw_label_whitelist && (
+                    {cwLabelWhitelistError && (
                         <p className="text-destructive text-sm">
-                            {errors.cw_label_whitelist}
+                            {cwLabelWhitelistError}
                         </p>
                     )}
                 </div>

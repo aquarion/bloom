@@ -42,7 +42,7 @@ class FeedSettingsController extends Controller
         $prefs['sensitive_media_behavior'] = $validated['sensitive_media_behavior'];
         $prefs['cw_label_whitelist'] = $validated['cw_label_whitelist'] ?? [];
         if (array_key_exists('cw_author_whitelist', $validated)) {
-            $prefs['cw_author_whitelist'] = $validated['cw_author_whitelist'];
+            $prefs['cw_author_whitelist'] = $validated['cw_author_whitelist'] ?? [];
         }
         if (array_key_exists('max_age_days', $validated)) {
             $prefs['max_age_days'] = $validated['max_age_days'];

@@ -36,7 +36,7 @@ it('updates user feed preferences', function () {
         ->and($user->getPreference('cw_author_whitelist'))->toBe(['@alice@mastodon.social']);
 });
 
-it('removes an author from cw_author_whitelist when omitted on update', function () {
+it('clears cw_author_whitelist when submitted as an empty array', function () {
     $user = User::factory()->withPasskey()->create([
         'feed_preferences' => ['cw_author_whitelist' => ['@alice@mastodon.social']],
     ]);
@@ -48,6 +48,24 @@ it('removes an author from cw_author_whitelist when omitted on update', function
         'sensitive_media_behavior' => 'show',
         'cw_label_whitelist' => [],
         'cw_author_whitelist' => [],
+    ]);
+
+    $user->refresh();
+    expect($user->getPreference('cw_author_whitelist'))->toBe([]);
+});
+
+it('coerces a null cw_author_whitelist to an empty array', function () {
+    $user = User::factory()->withPasskey()->create([
+        'feed_preferences' => ['cw_author_whitelist' => ['@alice@mastodon.social']],
+    ]);
+
+    $this->actingAs($user)->put(route('feed.settings.update'), [
+        'max_age_days' => 14,
+        'mute_words' => [],
+        'cw_behavior' => 'blur',
+        'sensitive_media_behavior' => 'show',
+        'cw_label_whitelist' => [],
+        'cw_author_whitelist' => null,
     ]);
 
     $user->refresh();

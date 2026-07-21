@@ -57,11 +57,16 @@ export function CwStateProvider({
         // future posts from them — a post-level accept must stay scoped to that one
         // post, or an unrelated later CW from the same author would be silently skipped.
         if (post.cw_is_author_level) {
-            if (!revealedAuthors.has(post.author_handle)) {
-                persistAuthorWhitelist(post.author_handle);
-            }
+            setRevealedAuthors((prev) => {
+                // Check against prev, not the closed-over revealedAuthors, so two
+                // reveal() calls batched into the same update (e.g. a rapid double
+                // click) can't both see "not yet revealed" and double-POST.
+                if (!prev.has(post.author_handle)) {
+                    persistAuthorWhitelist(post.author_handle);
+                }
 
-            setRevealedAuthors((prev) => new Set(prev).add(post.author_handle));
+                return new Set(prev).add(post.author_handle);
+            });
         }
     };
 

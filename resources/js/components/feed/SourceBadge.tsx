@@ -15,7 +15,9 @@ export function SourceBadge({ post }: { post: Post }) {
     const Icon = ICONS[post.source];
     const isPublicFeed = post.feed_type && post.feed_type !== 'home';
     const label = isPublicFeed
-        ? [PROVIDER_LABELS[post.source], post.feed_name].filter(Boolean).join(' — ')
+        ? [PROVIDER_LABELS[post.source], post.feed_name]
+              .filter(Boolean)
+              .join(' — ')
         : post.source_handle;
 
     return (

@@ -62,7 +62,9 @@ describe('SourceBadge', () => {
             />,
         );
 
-        expect(screen.getByText('Mastodon — mastodon.social')).toBeInTheDocument();
+        expect(
+            screen.getByText('Mastodon — mastodon.social'),
+        ).toBeInTheDocument();
     });
 
     it('shows "Provider — Feed Name" for a Bluesky algorithmic feed post', () => {

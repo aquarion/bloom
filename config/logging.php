@@ -123,6 +123,19 @@ return [
             'handler' => NullHandler::class,
         ],
 
+        // Explicitly defined rather than left to HandleExceptions's lazy runtime
+        // self-configuration (which copies 'deprecations' above into here the first
+        // time a deprecation fires). Under Octane's persistent worker, that runtime
+        // mutation can end up applied to a different request/container than the one
+        // that later resolves this channel, so it silently falls back to the
+        // emergency logger instead of actually logging (or discarding) the warning —
+        // seen on staging via a web-auth/webauthn-lib deprecation during passkey
+        // login. Defining it here avoids the runtime step entirely.
+        'deprecations' => [
+            'driver' => 'monolog',
+            'handler' => NullHandler::class,
+        ],
+
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],

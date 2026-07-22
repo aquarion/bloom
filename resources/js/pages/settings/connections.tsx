@@ -121,23 +121,7 @@ export default function Connections({
                     )}
                 </>
             ),
-        },
-        secondary: {
-            heading: 'Public timelines',
-            connections: mastodonPublic,
-            renderLabel: (c) => (
-                <p className="text-muted-foreground text-sm">
-                    {c.instance_url}
-                    {c.auth_failed_at && (
-                        <span className="ml-2 text-amber-600 text-xs">
-                            (requires auth — add account above)
-                        </span>
-                    )}
-                </p>
-            ),
-        },
-        addForms: (
-            <>
+            addForm: (
                 <div className="rounded-md border bg-muted/50 p-4">
                     <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
                         Add account
@@ -163,7 +147,22 @@ export default function Connections({
                         )}
                     </Form>
                 </div>
-
+            ),
+        },
+        secondary: {
+            heading: 'Public timelines',
+            connections: mastodonPublic,
+            renderLabel: (c) => (
+                <p className="text-muted-foreground text-sm">
+                    {c.instance_url}
+                    {c.auth_failed_at && (
+                        <span className="ml-2 text-amber-600 text-xs">
+                            (requires auth — add account above)
+                        </span>
+                    )}
+                </p>
+            ),
+            addForm: (
                 <div className="rounded-md border bg-muted/50 p-4">
                     <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
                         Add public timeline
@@ -196,8 +195,8 @@ export default function Connections({
                         )}
                     </Form>
                 </div>
-            </>
-        ),
+            ),
+        },
     };
 
     const blueskyConfig: ProviderSectionConfig<BlueskyConnection> = {
@@ -209,34 +208,7 @@ export default function Connections({
             ReauthForm: BlueskyReauthForm,
             showFeedSettings: true,
             renderLabel: (c) => <strong>{c.handle}</strong>,
-        },
-        secondary: {
-            heading: 'Algorithmic feeds',
-            connections: blueskyFeedConnections,
-            renderLabel: (c) => (
-                <div className="flex items-center gap-2">
-                    <Avatar className="size-6 shrink-0">
-                        <AvatarImage src={c.feed_avatar ?? undefined} alt="" />
-                        <AvatarFallback>
-                            <SiBluesky className="size-3" />
-                        </AvatarFallback>
-                    </Avatar>
-                    {c.feed_settings?.feed_name && (
-                        <p className="truncate text-sm">
-                            {c.feed_settings.feed_name}
-                            {c.feed_creator_handle && (
-                                <span className="text-muted-foreground">
-                                    {' '}
-                                    — by @{c.feed_creator_handle}
-                                </span>
-                            )}
-                        </p>
-                    )}
-                </div>
-            ),
-        },
-        addForms: (
-            <>
+            addForm: (
                 <div className="rounded-md border bg-muted/50 p-4">
                     <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
                         Add account
@@ -292,24 +264,46 @@ export default function Connections({
                         )}
                     </Form>
                 </div>
-
-                {hasBlueskyHomeAccount && (
-                    <div className="rounded-md border bg-muted/50 p-4">
-                        <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
-                            Add algorithmic feed
+            ),
+        },
+        secondary: {
+            heading: 'Algorithmic feeds',
+            connections: blueskyFeedConnections,
+            renderLabel: (c) => (
+                <div className="flex items-center gap-2">
+                    <Avatar className="size-6 shrink-0">
+                        <AvatarImage src={c.feed_avatar ?? undefined} alt="" />
+                        <AvatarFallback>
+                            <SiBluesky className="size-3" />
+                        </AvatarFallback>
+                    </Avatar>
+                    {c.feed_name && (
+                        <p className="truncate text-sm">
+                            {c.feed_name}
+                            {c.feed_creator_handle && (
+                                <span className="text-muted-foreground">
+                                    {' '}
+                                    — by @{c.feed_creator_handle}
+                                </span>
+                            )}
                         </p>
-                        <p className="mb-3 text-muted-foreground text-xs">
-                            Browse or search Bluesky's curated feeds.
-                        </p>
-                        <Button asChild>
-                            <Link href={blueskyFeeds.browse()}>
-                                Browse feeds
-                            </Link>
-                        </Button>
-                    </div>
-                )}
-            </>
-        ),
+                    )}
+                </div>
+            ),
+            addForm: hasBlueskyHomeAccount && (
+                <div className="rounded-md border bg-muted/50 p-4">
+                    <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                        Add algorithmic feed
+                    </p>
+                    <p className="mb-3 text-muted-foreground text-xs">
+                        Browse or search Bluesky's curated feeds.
+                    </p>
+                    <Button asChild>
+                        <Link href={blueskyFeeds.browse()}>Browse feeds</Link>
+                    </Button>
+                </div>
+            ),
+        },
     };
 
     const statusMessage = status ? STATUS_MESSAGES[status] : undefined;

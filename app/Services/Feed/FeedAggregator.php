@@ -200,7 +200,7 @@ class FeedAggregator
                 continue;
             }
 
-            $feedName = $this->resolveFeedName($account);
+            $feedName = $account->feed_name;
             $normalised = array_map(function (array $post) use ($account, $feedName) {
                 $post['feed_type'] = $account->feed_type;
                 $post['feed_name'] = $feedName;
@@ -264,34 +264,6 @@ class FeedAggregator
         $nextCursor = ! empty($deduped) ? base64_encode(json_encode($cursors)) : null;
 
         return ['posts' => $deduped, 'next_cursor' => $nextCursor];
-    }
-
-    /**
-     * Public-facing name shown in the "[icon] [Provider] — [Feed Name]" badge for
-     * non-home feeds (#219). Home accounts don't need a feed name — the badge falls
-     * back to the account's own handle for those.
-     */
-    private function resolveFeedName(SocialAccount $account): ?string
-    {
-        return match ($account->feed_type) {
-            'public_mastodon' => parse_url($account->instance_url ?? '', PHP_URL_HOST) ?: $account->instance_url,
-            // Feeds connected via the picker (or backfilled) carry Bluesky's real registered
-            // display name in feed_settings.feed_name — prefer that over the guessed slug.
-            'bluesky_feed' => $account->getPreference('feed_name')
-                ?: $this->humanizeFeedSlug((string) $account->getPreference('feed_uri', '')),
-            default => null,
-        };
-    }
-
-    private function humanizeFeedSlug(string $feedUri): ?string
-    {
-        $slug = basename($feedUri);
-
-        if ($slug === '' || $slug === '.') {
-            return null;
-        }
-
-        return ucwords(str_replace(['-', '_'], ' ', $slug));
     }
 
     private function resolveMaxAgeDays(User $user, SocialAccount $account): ?int

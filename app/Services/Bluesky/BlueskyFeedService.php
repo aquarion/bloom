@@ -3,6 +3,7 @@
 namespace App\Services\Bluesky;
 
 use App\Models\SocialAccount;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -15,6 +16,10 @@ class BlueskyFeedService
     private const TIMELINE_TTL = 120; // 2 minutes
 
     private const PROFILE_TTL = 86400; // 24 hours
+
+    private const DISCOVERY_TTL = 300; // 5 minutes
+
+    private const FEED_GENERATOR_TTL = 86400; // 24 hours
 
     public function __construct(private BlueskyAuthService $auth) {}
 
@@ -70,6 +75,97 @@ class BlueskyFeedService
         $result['posts'] = $this->enrichWithBanners($result['posts'], $account);
 
         return $result;
+    }
+
+    /**
+     * Browse or search Bluesky's discoverable feed generators.
+     *
+     * @return array<int, array{uri: string, display_name: string, description: ?string, avatar: string, creator_handle: ?string, like_count: int}>
+     */
+    public function searchFeedGenerators(SocialAccount $account, ?string $query, int $limit = 10): array
+    {
+        $params = ['limit' => $limit];
+        if ($query !== null && $query !== '') {
+            $params['query'] = $query;
+        }
+
+        $cacheKey = 'bluesky:feed-generators:'.md5($query ?? '').':'.$limit;
+
+        return Cache::remember($cacheKey, self::DISCOVERY_TTL, function () use ($account, $params) {
+            $response = $this->request($account, fn (string $token) => Http::withToken($token)
+                ->get(self::BASE.'/app.bsky.unspecced.getPopularFeedGenerators', $params)
+                ->throw()
+                ->json()
+            );
+
+            return array_map(
+                fn (array $view) => $this->mapFeedGeneratorView($view),
+                $response['feeds'] ?? [],
+            );
+        });
+    }
+
+    /**
+     * Resolve a single feed generator's metadata by its AT URI, so a manually
+     * pasted URI can be validated and named the same way a picked-from-search
+     * one is. Returns null when the feed doesn't exist or the lookup fails.
+     *
+     * @return array{uri: string, display_name: string, description: ?string, avatar: string, creator_handle: ?string, like_count: int}|null
+     */
+    public function resolveFeedGenerator(SocialAccount $account, string $feedUri): ?array
+    {
+        $cacheKey = 'bluesky:feed-generator:'.md5($feedUri);
+        $sentinel = '__unresolved__';
+
+        // Laravel's Cache::get() treats a stored null the same as a cache miss, so a
+        // "not found" result is cached as false (never a valid return value here)
+        // rather than null — otherwise the negative-cache would never take effect.
+        $cached = Cache::get($cacheKey, $sentinel);
+        if ($cached !== $sentinel) {
+            return $cached === false ? null : $cached;
+        }
+
+        try {
+            $response = $this->request($account, fn (string $token) => Http::withToken($token)
+                ->get(self::BASE.'/app.bsky.feed.getFeedGenerator', ['feed' => $feedUri])
+                ->throw()
+                ->json()
+            );
+        } catch (RequestException|ConnectionException $e) {
+            Cache::put($cacheKey, false, 300);
+
+            return null;
+        }
+
+        $view = $response['view'] ?? null;
+        $resolved = is_array($view) ? $this->mapFeedGeneratorView($view) : null;
+
+        // An empty displayName means the API omitted it — not a usable name. Treat it the
+        // same as an unresolved feed so it doesn't get persisted as a blank feed_name (which
+        // would also block whereNull('feed_settings->feed_name') from ever backfilling it).
+        if ($resolved !== null && $resolved['display_name'] === '') {
+            $resolved = null;
+        }
+
+        Cache::put($cacheKey, $resolved ?? false, $resolved ? self::FEED_GENERATOR_TTL : 300);
+
+        return $resolved;
+    }
+
+    /**
+     * @param  array<string, mixed>  $view
+     * @return array{uri: string, display_name: string, description: ?string, avatar: string, creator_handle: ?string, like_count: int}
+     */
+    private function mapFeedGeneratorView(array $view): array
+    {
+        return [
+            'uri' => $view['uri'] ?? '',
+            'display_name' => $view['displayName'] ?? '',
+            'description' => $view['description'] ?? null,
+            'avatar' => $this->safeUrl($view['avatar'] ?? ''),
+            'creator_handle' => $view['creator']['handle'] ?? null,
+            'like_count' => $view['likeCount'] ?? 0,
+        ];
     }
 
     /**

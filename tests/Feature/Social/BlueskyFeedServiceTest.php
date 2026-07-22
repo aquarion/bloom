@@ -5,6 +5,7 @@ use App\Models\User;
 use App\Services\Bluesky\BlueskyAuthService;
 use App\Services\Bluesky\BlueskyFeedService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -554,4 +555,166 @@ it('calls getFeed with the correct feed uri and returns posts and cursor', funct
     Http::assertSent(fn ($request) => str_contains($request->url(), 'getFeed') &&
         str_contains($request->url(), 'whats-hot')
     );
+});
+
+it('searches popular feed generators and maps their fields', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'valid-token',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.unspecced.getPopularFeedGenerators*' => Http::response([
+            'feeds' => [[
+                'uri' => 'at://did:plc:test/app.bsky.feed.generator/whats-hot',
+                'displayName' => "What's Hot",
+                'description' => 'Popular posts',
+                'avatar' => 'https://cdn.bsky.app/avatar.jpg',
+                'creator' => ['did' => 'did:plc:test', 'handle' => 'bsky.app'],
+                'likeCount' => 42,
+            ]],
+        ]),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $results = $service->searchFeedGenerators($account, 'news', 5);
+
+    expect($results)->toHaveCount(1)
+        ->and($results[0])->toBe([
+            'uri' => 'at://did:plc:test/app.bsky.feed.generator/whats-hot',
+            'display_name' => "What's Hot",
+            'description' => 'Popular posts',
+            'avatar' => 'https://cdn.bsky.app/avatar.jpg',
+            'creator_handle' => 'bsky.app',
+            'like_count' => 42,
+        ]);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), 'getPopularFeedGenerators') &&
+        str_contains($request->url(), 'query=news')
+    );
+});
+
+it('caches feed generator search results', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'valid-token',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.unspecced.getPopularFeedGenerators*' => Http::response(['feeds' => []]),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $service->searchFeedGenerators($account, null, 6);
+    $service->searchFeedGenerators($account, null, 6);
+
+    Http::assertSentCount(1);
+});
+
+it('resolves a single feed generator by uri', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'valid-token',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getFeedGenerator*' => Http::response([
+            'view' => [
+                'uri' => 'at://did:plc:test/app.bsky.feed.generator/whats-hot',
+                'displayName' => "What's Hot",
+                'creator' => ['handle' => 'bsky.app'],
+            ],
+            'isOnline' => true,
+            'isValid' => true,
+        ]),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveFeedGenerator($account, 'at://did:plc:test/app.bsky.feed.generator/whats-hot');
+
+    expect($resolved)->not->toBeNull()
+        ->and($resolved['display_name'])->toBe("What's Hot")
+        ->and($resolved['creator_handle'])->toBe('bsky.app');
+});
+
+it('returns null when a feed generator cannot be resolved', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'valid-token',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getFeedGenerator*' => Http::response(['error' => 'NotFound'], 400),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveFeedGenerator($account, 'at://did:plc:missing/app.bsky.feed.generator/nope');
+
+    expect($resolved)->toBeNull();
+});
+
+it('returns null instead of throwing when the feed generator lookup cannot connect', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'valid-token',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getFeedGenerator*' => function () {
+            throw new ConnectionException('Could not connect to host.');
+        },
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveFeedGenerator($account, 'at://did:plc:test/app.bsky.feed.generator/whats-hot');
+
+    expect($resolved)->toBeNull();
+});
+
+it('treats an empty displayName as an unresolved feed generator', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'valid-token',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getFeedGenerator*' => Http::response([
+            'view' => [
+                'uri' => 'at://did:plc:test/app.bsky.feed.generator/whats-hot',
+                'creator' => ['handle' => 'bsky.app'],
+                // displayName omitted, as some malformed/legacy feed generator records do.
+            ],
+            'isOnline' => true,
+            'isValid' => true,
+        ]),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $resolved = $service->resolveFeedGenerator($account, 'at://did:plc:test/app.bsky.feed.generator/whats-hot');
+
+    expect($resolved)->toBeNull();
 });

@@ -40,7 +40,7 @@ class SocialAccountFactory extends Factory
         ]);
     }
 
-    public function blueskyFeed(string $feedUri = 'at://did:plc:test/app.bsky.feed.generator/whats-hot'): static
+    public function blueskyFeed(string $feedUri = 'at://did:plc:test/app.bsky.feed.generator/whats-hot', ?string $feedName = null): static
     {
         return $this->state([
             'provider' => 'bluesky',
@@ -48,7 +48,10 @@ class SocialAccountFactory extends Factory
             'instance_url' => 'https://pds.example',
             'access_token' => null,
             'handle' => null,
-            'feed_settings' => ['feed_uri' => $feedUri],
+            'feed_settings' => array_filter([
+                'feed_uri' => $feedUri,
+                'feed_name' => $feedName,
+            ], fn ($value) => $value !== null),
         ]);
     }
 }

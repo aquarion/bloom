@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasJsonPreferences;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,6 +20,8 @@ class SocialAccount extends Model
     ];
 
     protected $hidden = ['access_token', 'token_secret'];
+
+    protected $appends = ['feed_name'];
 
     protected $casts = [
         'access_token' => 'encrypted',  // pragma: allowlist secret
@@ -37,6 +40,38 @@ class SocialAccount extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Public-facing name for a non-home feed — the instance host for a public
+     * Mastodon timeline, or (for a Bluesky algorithmic feed) the real display
+     * name Bluesky's API returned when the feed was connected, falling back to
+     * a humanized slug from the feed URI for feeds connected before that
+     * resolution existed. Null for home accounts, which show their own handle
+     * instead. Shared by the feed's SourceBadge (#219) and the connections
+     * settings page, so both surfaces agree on a feed's display name.
+     */
+    protected function feedName(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => match ($this->feed_type) {
+                'public_mastodon' => parse_url($this->instance_url ?? '', PHP_URL_HOST) ?: $this->instance_url,
+                'bluesky_feed' => $this->getPreference('feed_name')
+                    ?: $this->humanizeFeedSlug((string) $this->getPreference('feed_uri', '')),
+                default => null,
+            },
+        );
+    }
+
+    private function humanizeFeedSlug(string $feedUri): ?string
+    {
+        $slug = basename($feedUri);
+
+        if ($slug === '' || $slug === '.') {
+            return null;
+        }
+
+        return ucwords(str_replace(['-', '_'], ' ', $slug));
     }
 
     /** @return array{provider: string, feed_type: string, instance_url: ?string, handle: ?string} */

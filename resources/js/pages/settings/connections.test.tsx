@@ -16,6 +16,13 @@ type FormRenderProps = {
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    Link: ({
+        href,
+        children,
+    }: {
+        href: string | { url: string };
+        children: ReactNode;
+    }) => <a href={typeof href === 'string' ? href : href.url}>{children}</a>,
     Form: ({
         action,
         method,
@@ -82,14 +89,9 @@ vi.mock('@/routes/connections', () => ({
     },
 }));
 
-vi.mock('@/routes/connections/bluesky-feed', () => ({
+vi.mock('@/routes/connections/bluesky-feeds', () => ({
     default: {
-        store: {
-            form: () => ({
-                action: '/auth/connections/bluesky-feed',
-                method: 'post',
-            }),
-        },
+        browse: () => ({ url: '/settings/connections/bluesky-feeds' }),
     },
 }));
 
@@ -137,6 +139,7 @@ const makeConnection = (
     handle: '@alice@fosstodon.org',
     instance_url: 'https://fosstodon.org',
     auth_failed_at: null,
+    feed_name: null,
     feed_settings: null,
     ...overrides,
 });
@@ -150,6 +153,7 @@ const makeBlueskyConnection = (
     handle: 'alice.bsky.social',
     instance_url: null,
     auth_failed_at: null,
+    feed_name: null,
     feed_settings: null,
     ...overrides,
 });
@@ -268,27 +272,59 @@ describe('Connections', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('shows the add-feed form once a bluesky home account exists', () => {
+    it('shows the add-feed link once a bluesky home account exists', () => {
         const connection = makeBlueskyConnection();
         render(<Connections connections={[connection]} />);
 
         expect(screen.getByText('Add algorithmic feed')).toBeInTheDocument();
-        expect(screen.getByLabelText('Feed URL')).toBeInTheDocument();
+        const link = screen.getByText('Browse feeds');
+        expect(link.closest('a')).toHaveAttribute(
+            'href',
+            '/settings/connections/bluesky-feeds',
+        );
     });
 
-    it('renders a bluesky algorithmic feed row in the secondary list', () => {
+    it('renders a bluesky algorithmic feed row with its resolved name and live-resolved owner, without the raw uri or placeholder text', () => {
         const connection = makeBlueskyConnection({
             id: 11,
             feed_type: 'bluesky_feed',
             handle: null,
+            feed_name: "What's Hot",
+            feed_avatar: 'https://cdn.bsky.app/avatar.jpg',
+            feed_creator_handle: 'bsky.app',
             feed_settings: { feed_uri: 'at://did:plc:abc/feed/whats-hot' },
         });
         render(<Connections connections={[connection]} />);
 
         const row = screen.getByTestId('account-11');
+        expect(within(row).getByText("What's Hot")).toBeInTheDocument();
+        expect(within(row).getByText(/by @bsky\.app/)).toBeInTheDocument();
         expect(
-            within(row).getByText('at://did:plc:abc/feed/whats-hot'),
-        ).toBeInTheDocument();
+            within(row).queryByText('at://did:plc:abc/feed/whats-hot'),
+        ).not.toBeInTheDocument();
+        expect(
+            within(row).queryByText(/algorithmic feed/i),
+        ).not.toBeInTheDocument();
+    });
+
+    it('renders just the bluesky icon when no name resolved, with no raw uri or placeholder text', () => {
+        const connection = makeBlueskyConnection({
+            id: 12,
+            feed_type: 'bluesky_feed',
+            handle: null,
+            feed_name: null,
+            feed_settings: { feed_uri: 'at://did:plc:abc/feed/whats-hot' },
+        });
+        render(<Connections connections={[connection]} />);
+
+        const row = screen.getByTestId('account-12');
+        expect(
+            within(row).queryByText('at://did:plc:abc/feed/whats-hot'),
+        ).not.toBeInTheDocument();
+        expect(within(row).queryByText('Unnamed feed')).not.toBeInTheDocument();
+        expect(
+            within(row).queryByText(/algorithmic feed/i),
+        ).not.toBeInTheDocument();
     });
 
     it('submits the disconnect form for the correct primary account', async () => {

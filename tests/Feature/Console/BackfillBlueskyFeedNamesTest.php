@@ -2,7 +2,14 @@
 
 use App\Models\SocialAccount;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+
+beforeEach(function () {
+    // resolveFeedGenerator() caches by feed URI, and other test files resolve the
+    // same example URIs — flush so those don't leak into these assertions.
+    Cache::flush();
+});
 
 test('resolves and stores names for feeds missing them', function () {
     $user = User::factory()->create();

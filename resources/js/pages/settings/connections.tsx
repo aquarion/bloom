@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { SiBluesky, SiMastodon } from 'react-icons/si';
 import Heading from '@/components/heading';
 import InstanceCombobox from '@/components/InstanceCombobox';
@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import SettingsPageLayout from '@/layouts/settings-page-layout';
 import bluesky from '@/routes/bluesky';
 import { edit } from '@/routes/connections';
-import blueskyFeed from '@/routes/connections/bluesky-feed';
+import blueskyFeeds from '@/routes/connections/bluesky-feeds';
 import publicMastodon from '@/routes/connections/public-mastodon';
 import mastodon from '@/routes/mastodon';
 
@@ -97,7 +97,7 @@ export default function Connections({
         (c): c is BlueskyConnection =>
             c.provider === 'bluesky' && c.feed_type === 'home',
     );
-    const blueskyFeeds = connections.filter(
+    const blueskyFeedConnections = connections.filter(
         (c): c is BlueskyConnection =>
             c.provider === 'bluesky' && c.feed_type === 'bluesky_feed',
     );
@@ -211,12 +211,15 @@ export default function Connections({
         },
         secondary: {
             heading: 'Algorithmic feeds',
-            connections: blueskyFeeds,
-            renderLabel: (c) => (
-                <p className="font-mono text-muted-foreground text-xs">
-                    {c.feed_settings?.feed_uri}
-                </p>
-            ),
+            connections: blueskyFeedConnections,
+            renderLabel: (c) =>
+                c.feed_settings?.feed_name ? (
+                    <p className="text-sm">{c.feed_settings.feed_name}</p>
+                ) : (
+                    <p className="font-mono text-muted-foreground text-xs">
+                        {c.feed_settings?.feed_uri}
+                    </p>
+                ),
         },
         addForms: (
             <>
@@ -282,32 +285,13 @@ export default function Connections({
                             Add algorithmic feed
                         </p>
                         <p className="mb-3 text-muted-foreground text-xs">
-                            Subscribe to a Bluesky curated feed. Paste the feed
-                            URL from bsky.app.
+                            Browse or search Bluesky's curated feeds.
                         </p>
-                        <Form
-                            {...blueskyFeed.store.form()}
-                            className="space-y-3"
-                        >
-                            {({ processing, errors }) => (
-                                <>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="feed_url">
-                                            Feed URL
-                                        </Label>
-                                        <Input
-                                            id="feed_url"
-                                            name="feed_url"
-                                            placeholder="https://bsky.app/profile/did:plc:.../feed/..."
-                                        />
-                                        <InputError message={errors.feed_url} />
-                                    </div>
-                                    <Button type="submit" disabled={processing}>
-                                        Add feed
-                                    </Button>
-                                </>
-                            )}
-                        </Form>
+                        <Button asChild>
+                            <Link href={blueskyFeeds.browse()}>
+                                Browse feeds
+                            </Link>
+                        </Button>
                     </div>
                 )}
             </>

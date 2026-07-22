@@ -116,9 +116,12 @@ class BlueskyFeedService
         $cacheKey = 'bluesky:feed-generator:'.md5($feedUri);
         $sentinel = '__unresolved__';
 
+        // Laravel's Cache::get() treats a stored null the same as a cache miss, so a
+        // "not found" result is cached as false (never a valid return value here)
+        // rather than null — otherwise the negative-cache would never take effect.
         $cached = Cache::get($cacheKey, $sentinel);
         if ($cached !== $sentinel) {
-            return $cached ?: null;
+            return $cached === false ? null : $cached;
         }
 
         try {
@@ -128,7 +131,7 @@ class BlueskyFeedService
                 ->json()
             );
         } catch (RequestException $e) {
-            Cache::put($cacheKey, null, 300);
+            Cache::put($cacheKey, false, 300);
 
             return null;
         }
@@ -136,7 +139,7 @@ class BlueskyFeedService
         $view = $response['view'] ?? null;
         $resolved = is_array($view) ? $this->mapFeedGeneratorView($view) : null;
 
-        Cache::put($cacheKey, $resolved, $resolved ? self::FEED_GENERATOR_TTL : 300);
+        Cache::put($cacheKey, $resolved ?? false, $resolved ? self::FEED_GENERATOR_TTL : 300);
 
         return $resolved;
     }

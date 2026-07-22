@@ -3,9 +3,17 @@
 use App\Models\SocialAccount;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    // resolveFeedGenerator() caches by feed URI; several tests below resolve the
+    // same URI to different outcomes, so a leftover cache entry from an earlier
+    // test would leak into a later one under the array cache driver.
+    Cache::flush();
+});
 
 it('disconnects a bluesky account by id', function () {
     $user = User::factory()->withPasskey()->create();

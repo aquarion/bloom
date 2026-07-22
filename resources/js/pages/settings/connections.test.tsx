@@ -16,6 +16,13 @@ type FormRenderProps = {
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    Link: ({
+        href,
+        children,
+    }: {
+        href: string | { url: string };
+        children: ReactNode;
+    }) => <a href={typeof href === 'string' ? href : href.url}>{children}</a>,
     Form: ({
         action,
         method,
@@ -82,14 +89,9 @@ vi.mock('@/routes/connections', () => ({
     },
 }));
 
-vi.mock('@/routes/connections/bluesky-feed', () => ({
+vi.mock('@/routes/connections/bluesky-feeds', () => ({
     default: {
-        store: {
-            form: () => ({
-                action: '/auth/connections/bluesky-feed',
-                method: 'post',
-            }),
-        },
+        browse: () => ({ url: '/settings/connections/bluesky-feeds' }),
     },
 }));
 
@@ -268,15 +270,19 @@ describe('Connections', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('shows the add-feed form once a bluesky home account exists', () => {
+    it('shows the add-feed link once a bluesky home account exists', () => {
         const connection = makeBlueskyConnection();
         render(<Connections connections={[connection]} />);
 
         expect(screen.getByText('Add algorithmic feed')).toBeInTheDocument();
-        expect(screen.getByLabelText('Feed URL')).toBeInTheDocument();
+        const link = screen.getByText('Browse feeds');
+        expect(link.closest('a')).toHaveAttribute(
+            'href',
+            '/settings/connections/bluesky-feeds',
+        );
     });
 
-    it('renders a bluesky algorithmic feed row in the secondary list', () => {
+    it('renders a bluesky algorithmic feed row with its raw uri when no name is stored', () => {
         const connection = makeBlueskyConnection({
             id: 11,
             feed_type: 'bluesky_feed',
@@ -289,6 +295,22 @@ describe('Connections', () => {
         expect(
             within(row).getByText('at://did:plc:abc/feed/whats-hot'),
         ).toBeInTheDocument();
+    });
+
+    it('renders a bluesky algorithmic feed row with its stored name', () => {
+        const connection = makeBlueskyConnection({
+            id: 12,
+            feed_type: 'bluesky_feed',
+            handle: null,
+            feed_settings: {
+                feed_uri: 'at://did:plc:abc/feed/whats-hot',
+                feed_name: "What's Hot",
+            },
+        });
+        render(<Connections connections={[connection]} />);
+
+        const row = screen.getByTestId('account-12');
+        expect(within(row).getByText("What's Hot")).toBeInTheDocument();
     });
 
     it('submits the disconnect form for the correct primary account', async () => {

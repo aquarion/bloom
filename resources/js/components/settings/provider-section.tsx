@@ -36,6 +36,7 @@ export interface BlueskyConnection
         max_posts?: number;
         max_age_days?: number | null;
         feed_uri?: string;
+        feed_name?: string;
     } | null;
 }
 

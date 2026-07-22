@@ -1,7 +1,13 @@
 import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { CwStateProvider } from '@/hooks/useCwState';
 import type { Post } from '@/types/post';
 import { PostAnimator } from './PostAnimator';
+
+function renderWithCw(children: ReactNode) {
+    return render(<CwStateProvider>{children}</CwStateProvider>);
+}
 
 // Mock GSAP so the "fade panels in" effect runs its callback synchronously,
 // mirroring the approach used in PostAnimator.test.tsx.
@@ -51,7 +57,10 @@ const basePost: Post = {
     original_url: 'https://mastodon.example/@user/1',
     link_url: null,
     link_title: null,
+    link_description: null,
+    link_image: null,
     link_favicon: null,
+    link_youtube_id: null,
     reply_to: null,
     quoted_post: null,
     boosted_by: null,
@@ -64,6 +73,7 @@ const basePost: Post = {
     cw_text: null,
     cw_is_author_level: false,
     cw_label_source: null,
+    cw_category: null,
     sensitive_media: false,
 };
 
@@ -83,14 +93,16 @@ const poll = {
 
 describe('PostAnimator — poll rendering', () => {
     it('renders poll results for a poll-only post (no body, no media)', () => {
-        render(<PostAnimator post={{ ...basePost, poll }} colors={null} />);
+        renderWithCw(
+            <PostAnimator post={{ ...basePost, poll }} colors={null} />,
+        );
 
         expect(screen.getByText('Yes')).toBeInTheDocument();
         expect(screen.getByText('No')).toBeInTheDocument();
     });
 
     it('renders poll results alongside body text', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={{ ...basePost, body: 'What do you think?', poll }}
                 colors={null}
@@ -101,7 +113,7 @@ describe('PostAnimator — poll rendering', () => {
     });
 
     it('renders poll results on an image post', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={{
                     ...basePost,
@@ -124,7 +136,7 @@ describe('PostAnimator — poll rendering', () => {
     });
 
     it('renders nothing but does not crash for a post with no body, no media, and no poll', () => {
-        const { container } = render(
+        const { container } = renderWithCw(
             <PostAnimator post={basePost} colors={null} />,
         );
 
@@ -134,7 +146,7 @@ describe('PostAnimator — poll rendering', () => {
     it('calls onReady for a poll-only post', () => {
         const onReady = vi.fn();
 
-        render(
+        renderWithCw(
             <PostAnimator
                 post={{ ...basePost, poll }}
                 colors={null}
@@ -146,14 +158,17 @@ describe('PostAnimator — poll rendering', () => {
     });
 
     it('renders poll results alongside a reply context panel and a link card in the same panel stack', () => {
-        render(
+        renderWithCw(
             <PostAnimator
                 post={{
                     ...basePost,
                     poll,
                     link_url: 'https://example.com/article',
                     link_title: 'An article',
+                    link_description: null,
+                    link_image: null,
                     link_favicon: null,
+                    link_youtube_id: null,
                     reply_to: {
                         author_name: 'Reply Author',
                         author_handle: '@reply@mastodon.example',
@@ -162,6 +177,11 @@ describe('PostAnimator — poll rendering', () => {
                         body: 'This is the parent post',
                         created_at: new Date().toISOString(),
                         chip_mentions: [],
+                        cw_text: null,
+                        cw_is_author_level: false,
+                        cw_label_source: null,
+                        cw_category: null,
+                        sensitive_media: false,
                     },
                 }}
                 colors={null}

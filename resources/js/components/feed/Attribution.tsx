@@ -1,10 +1,19 @@
 import { Quote, Repeat2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useCwState } from '@/hooks/useCwState';
+import { isCwLabelVisible, nestedCwLike } from '@/lib/cw';
 import { absoluteTime, timeSince } from '@/lib/time-since';
 import type { Post } from '@/types/post';
+import type { ContentBehavior } from '@/types/preferences';
 import { AuthorChip } from './AuthorChip';
 
-export function Attribution({ post }: { post: Post }) {
+export function Attribution({
+    post,
+    cwBehavior = 'show',
+}: {
+    post: Post;
+    cwBehavior?: ContentBehavior;
+}) {
     // eslint-disable-next-line @eslint-react/use-state
     const [, setTick] = useState(0);
     useEffect(() => {
@@ -12,6 +21,16 @@ export function Attribution({ post }: { post: Post }) {
 
         return () => clearInterval(id);
     }, []);
+
+    const { isRevealed } = useCwState();
+    const mainCwLabel = isCwLabelVisible(post, cwBehavior, isRevealed)
+        ? post.cw_text
+        : null;
+    const quotedCwLabel =
+        post.quoted_post &&
+        isCwLabelVisible(nestedCwLike(post.quoted_post), cwBehavior, isRevealed)
+            ? post.quoted_post.cw_text
+            : null;
 
     if (post.quoted_post) {
         return (
@@ -38,6 +57,7 @@ export function Attribution({ post }: { post: Post }) {
                                     ? absoluteTime(post.quoted_post.created_at)
                                     : undefined
                             }
+                            cwLabel={quotedCwLabel}
                         />
                     </a>
                 ) : (
@@ -57,10 +77,11 @@ export function Attribution({ post }: { post: Post }) {
                                     ? absoluteTime(post.quoted_post.created_at)
                                     : undefined
                             }
+                            cwLabel={quotedCwLabel}
                         />
                     </div>
                 )}
-                <Quote className="size-4 flex-shrink-0 text-white/30" />
+                <Quote className="size-4 shrink-0 text-white/30" />
                 <a
                     href={post.original_url}
                     target="_blank"
@@ -74,6 +95,7 @@ export function Attribution({ post }: { post: Post }) {
                         account={post.author_handle}
                         time={timeSince(post.created_at)}
                         absoluteTime={absoluteTime(post.created_at)}
+                        cwLabel={mainCwLabel}
                     />
                 </a>
             </div>
@@ -83,7 +105,7 @@ export function Attribution({ post }: { post: Post }) {
     if (post.boosted_by) {
         const label = (
             <Repeat2
-                className="size-4 flex-shrink-0"
+                className="size-4 shrink-0"
                 role="img"
                 aria-label={post.source === 'mastodon' ? 'Boosted' : 'Reposted'}
             />
@@ -104,9 +126,10 @@ export function Attribution({ post }: { post: Post }) {
                         account={post.author_handle}
                         time={timeSince(post.created_at)}
                         absoluteTime={absoluteTime(post.created_at)}
+                        cwLabel={mainCwLabel}
                     />
                 </a>
-                <span className="flex-shrink-0 text-white/30">{label}</span>
+                <span className="shrink-0 text-white/30">{label}</span>
                 <div className="flex min-w-0 items-center gap-2">
                     <AuthorChip
                         name={post.boosted_by}
@@ -137,6 +160,7 @@ export function Attribution({ post }: { post: Post }) {
             account={post.author_handle}
             time={timeSince(post.created_at)}
             absoluteTime={absoluteTime(post.created_at)}
+            cwLabel={mainCwLabel}
         />
     );
 

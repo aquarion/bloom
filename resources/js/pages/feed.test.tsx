@@ -66,7 +66,10 @@ const makePost = (id: string): Post => ({
     original_url: 'https://example.com',
     link_url: null,
     link_title: null,
+    link_description: null,
+    link_image: null,
     link_favicon: null,
+    link_youtube_id: null,
     reply_to: null,
     quoted_post: null,
     boosted_by: null,
@@ -79,6 +82,7 @@ const makePost = (id: string): Post => ({
     cw_text: null,
     cw_is_author_level: false,
     cw_label_source: null,
+    cw_category: null,
     sensitive_media: false,
 });
 
@@ -88,6 +92,7 @@ const defaultProps = {
     debugEnabled: false,
     cwBehavior: 'show' as const,
     sensitiveMediaBehavior: 'show' as const,
+    cwAuthorWhitelist: [] as string[],
 };
 
 describe('Feed', () => {

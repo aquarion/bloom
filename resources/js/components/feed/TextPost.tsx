@@ -8,6 +8,7 @@ import { EmojiText } from '@/lib/emoji-text';
 import type { PostColors } from '@/lib/post-colors';
 import { postColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
+import type { ContentBehavior } from '@/types/preferences';
 import { useAutoFitText } from '@/hooks/useAutoFitText';
 import { ContextPanel } from './ContextPanel';
 import { LinkCard } from './LinkCard';
@@ -23,11 +24,13 @@ export function TextPost({
     body,
     colors,
     onReady,
+    cwBehavior = 'show',
 }: {
     post: Post;
     body: string;
     colors: PostColors | null;
     onReady?: () => void;
+    cwBehavior?: ContentBehavior;
 }) {
     const textRef = useRef<HTMLDivElement>(null);
     const panelsRef = useRef<HTMLDivElement>(null);
@@ -123,25 +126,17 @@ export function TextPost({
                         {post.reply_to && (
                             <ContextPanel
                                 icon={<Reply className="size-3.5" />}
-                                author_name={post.reply_to.author_name}
-                                author_avatar={post.reply_to.author_avatar}
-                                author_handle={post.reply_to.author_handle}
                                 emojis={post.emojis}
-                                body={post.reply_to.body}
-                                original_url={post.reply_to.original_url}
-                                chip_mentions={post.reply_to.chip_mentions}
+                                cwBehavior={cwBehavior}
+                                {...post.reply_to}
                             />
                         )}
                         {post.quoted_post && (
                             <ContextPanel
                                 icon={<Quote className="size-3.5" />}
-                                author_name={post.quoted_post.author_name}
-                                author_avatar={post.quoted_post.author_avatar}
-                                author_handle={post.quoted_post.author_handle}
                                 emojis={post.emojis}
-                                body={post.quoted_post.body}
-                                original_url={post.quoted_post.original_url}
-                                chip_mentions={post.quoted_post.chip_mentions}
+                                cwBehavior={cwBehavior}
+                                {...post.quoted_post}
                             />
                         )}
                     </div>
@@ -186,9 +181,13 @@ export function TextPost({
                 )}
                 {post.link_url && (
                     <LinkCard
+                        key={post.link_url}
                         url={post.link_url}
                         title={post.link_title}
+                        description={post.link_description}
+                        image={post.link_image}
                         favicon={post.link_favicon}
+                        youtubeId={post.link_youtube_id}
                     />
                 )}
                 {post.hashtags.length > 0 && (

@@ -794,6 +794,202 @@ it('filters out posts containing muted words', function () {
         ->and($result['posts'][0]['id'])->toBe('mastodon_1');
 });
 
+it('suppresses cw_text for whitelisted categories without dropping the post', function () {
+    $user = User::factory()->create(['feed_preferences' => [
+        'cw_label_whitelist' => ['adult'],
+        'max_age_days' => null,
+    ]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $makeBlueskyPost = fn (string $rkey, array $labels) => [
+        'post' => [
+            'uri' => "at://did:plc:abc/app.bsky.feed.post/{$rkey}",
+            'record' => ['text' => "post {$rkey}", 'createdAt' => now()->toIso8601String()],
+            'author' => ['displayName' => 'Me', 'handle' => 'me.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => $labels,
+            'embed' => null,
+        ],
+    ];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn([
+        'posts' => [
+            $makeBlueskyPost('whitelisted', [['val' => 'sexual']]),
+            $makeBlueskyPost('not-whitelisted', [['val' => 'gore']]),
+        ],
+        'cursor' => null,
+    ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    $whitelisted = collect($result['posts'])->firstWhere('id', 'bluesky_at://did:plc:abc/app.bsky.feed.post/whitelisted');
+    $notWhitelisted = collect($result['posts'])->firstWhere('id', 'bluesky_at://did:plc:abc/app.bsky.feed.post/not-whitelisted');
+
+    expect($result['posts'])->toHaveCount(2)
+        ->and($whitelisted['cw_text'])->toBeNull()
+        ->and($whitelisted['cw_category'])->toBeNull()
+        // Whitelisting only suppresses the CW overlay — sensitive_media is a separate,
+        // independently-controlled blur (sensitive_media_behavior) and must survive.
+        ->and($whitelisted['sensitive_media'])->toBeTrue()
+        ->and($notWhitelisted['cw_text'])->toBe('Graphic media')
+        ->and($notWhitelisted['cw_category'])->toBe('graphic');
+});
+
+it('whitelisting generic does not suppress cw_text for the separate safety category', function () {
+    $user = User::factory()->create(['feed_preferences' => [
+        'cw_label_whitelist' => ['generic'],
+        'max_age_days' => null,
+    ]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn([
+        'posts' => [[
+            'post' => [
+                'uri' => 'at://did:plc:abc/app.bsky.feed.post/threat',
+                'record' => ['text' => 'post', 'createdAt' => now()->toIso8601String()],
+                'author' => ['displayName' => 'Me', 'handle' => 'me.bsky.social', 'avatar' => ''],
+                'labels' => [['val' => 'threat']],
+                'embed' => null,
+            ],
+        ]],
+        'cursor' => null,
+    ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'][0]['cw_text'])->toBe('threatening content')
+        ->and($result['posts'][0]['cw_category'])->toBe('safety');
+});
+
+it('does not suppress a CW when only one of a multi-category post\'s categories is whitelisted', function () {
+    // Regression for a review finding on #239: a post with both 'porn' (adult) and
+    // 'self-harm' (safety) labels used to collapse to a single display cw_category
+    // ('adult'), so whitelisting only 'adult' silently cleared the CW entirely —
+    // unblurring the post despite its non-whitelisted safety label.
+    $user = User::factory()->create(['feed_preferences' => [
+        'cw_label_whitelist' => ['adult'],
+        'max_age_days' => null,
+    ]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn([
+        'posts' => [[
+            'post' => [
+                'uri' => 'at://did:plc:abc/app.bsky.feed.post/multi',
+                'record' => ['text' => 'post', 'createdAt' => now()->toIso8601String()],
+                'author' => ['displayName' => 'Me', 'handle' => 'me.bsky.social', 'avatar' => ''],
+                'labels' => [['val' => 'porn'], ['val' => 'self-harm']],
+                'embed' => null,
+            ],
+        ]],
+        'cursor' => null,
+    ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'][0]['cw_text'])->not->toBeNull()
+        ->and($result['posts'][0]['cw_category'])->not->toBeNull();
+});
+
+it('suppresses a multi-category CW once every touched category is whitelisted', function () {
+    $user = User::factory()->create(['feed_preferences' => [
+        'cw_label_whitelist' => ['adult', 'safety'],
+        'max_age_days' => null,
+    ]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn([
+        'posts' => [[
+            'post' => [
+                'uri' => 'at://did:plc:abc/app.bsky.feed.post/multi',
+                'record' => ['text' => 'post', 'createdAt' => now()->toIso8601String()],
+                'author' => ['displayName' => 'Me', 'handle' => 'me.bsky.social', 'avatar' => ''],
+                'labels' => [['val' => 'porn'], ['val' => 'self-harm']],
+                'embed' => null,
+            ],
+        ]],
+        'cursor' => null,
+    ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'][0]['cw_text'])->toBeNull()
+        ->and($result['posts'][0]['cw_category'])->toBeNull()
+        ->and($result['posts'][0]['cw_categories'])->toBe([]);
+});
+
+it('suppresses cw_text on a whitelisted quoted_post without touching the top-level post', function () {
+    $user = User::factory()->create(['feed_preferences' => [
+        'cw_label_whitelist' => ['adult'],
+        'max_age_days' => null,
+    ]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@me.bsky.social',
+    ]);
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn([
+        'posts' => [[
+            'post' => [
+                'uri' => 'at://did:plc:abc/app.bsky.feed.post/quoter',
+                'record' => ['text' => 'check this out', 'createdAt' => now()->toIso8601String()],
+                'author' => ['displayName' => 'Me', 'handle' => 'me.bsky.social', 'avatar' => ''],
+                'labels' => [['val' => 'gore']],
+                'embed' => [
+                    '$type' => 'app.bsky.embed.record#view',
+                    'record' => [
+                        '$type' => 'app.bsky.embed.record#viewRecord',
+                        'uri' => 'at://did:plc:bob/app.bsky.feed.post/0',
+                        'author' => ['did' => 'did:plc:bob', 'handle' => 'bob.bsky.social', 'displayName' => 'Bob'],
+                        'value' => ['text' => 'nsfw quoted post', 'createdAt' => now()->toIso8601String()],
+                        'labels' => [['val' => 'porn', 'src' => 'did:plc:bob']],
+                    ],
+                ],
+            ],
+        ]],
+        'cursor' => null,
+    ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['cw_text'])->toBe('Graphic media')
+        ->and($result['posts'][0]['cw_category'])->toBe('graphic')
+        ->and($result['posts'][0]['quoted_post']['cw_text'])->toBeNull()
+        ->and($result['posts'][0]['quoted_post']['cw_category'])->toBeNull();
+});
+
 it('applies age cutoff to bluesky posts', function () {
     $user = User::factory()->create(['feed_preferences' => ['max_age_days' => 7]]);
     SocialAccount::factory()->create([
@@ -983,7 +1179,9 @@ it('fetches public mastodon timeline without authentication', function () {
 
     expect($result['posts'])->toHaveCount(1)
         ->and($result['posts'][0]['source'])->toBe('mastodon')
-        ->and($result['posts'][0]['source_instance'])->toBe('social.example');
+        ->and($result['posts'][0]['source_instance'])->toBe('social.example')
+        ->and($result['posts'][0]['feed_type'])->toBe('public_mastodon')
+        ->and($result['posts'][0]['feed_name'])->toBe('social.example');
 });
 
 it('falls back to home account when public mastodon returns 401', function () {
@@ -1068,7 +1266,49 @@ it('fetches bluesky algorithmic feed using home account credentials', function (
     $result = $aggregator->fetch($user);
 
     expect($result['posts'])->toHaveCount(1)
-        ->and($result['posts'][0]['source'])->toBe('bluesky');
+        ->and($result['posts'][0]['source'])->toBe('bluesky')
+        ->and($result['posts'][0]['feed_type'])->toBe('bluesky_feed')
+        ->and($result['posts'][0]['feed_name'])->toBe('Whats Hot');
+});
+
+it('tags home account posts with feed_type home and a null feed_name', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'feed_type' => 'home',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $status = [
+        'id' => '1',
+        'created_at' => now()->toIso8601String(),
+        'in_reply_to_id' => null,
+        'url' => 'https://fosstodon.org/@author/1',
+        'content' => '<p>a home post</p>',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'Author', 'acct' => 'author', 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$status]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['feed_type'])->toBe('home')
+        ->and($result['posts'][0]['feed_name'])->toBeNull();
 });
 
 it('does not drop algorithmic feed posts when combined feeds exceed the old default buffer', function () {

@@ -108,6 +108,27 @@ it('normalises a bluesky feed view post to unified post format', function () {
         ->and($post['media'][0]['alt_text'])->toBe('Sky photo');
 });
 
+it('falls back to handle when bluesky post author has no displayName key at all', function () {
+    // Bluesky's displayName is optional — an account that never set one omits the key
+    // entirely rather than sending an empty string, which threw "Undefined array key"
+    // in production when accessed without a null coalesce.
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'hello bluesky', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => [
+                'handle' => 'alice.bsky.social',
+                'avatar' => 'https://cdn.bsky.app/avatar.jpg',
+            ],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['author_name'])->toBe('alice.bsky.social');
+});
+
 it('does not double-append instance to federated mastodon author handle', function () {
     $status = [
         'id' => '1',
@@ -321,6 +342,12 @@ it('sets quoted_post for bluesky record embeds', function () {
         'original_url' => 'https://bsky.app/profile/quoted.bsky.social/post/quoteid',
         'body' => 'quoted body',
         'chip_mentions' => [],
+        'cw_text' => null,
+        'cw_is_author_level' => false,
+        'cw_label_source' => null,
+        'cw_category' => null,
+        'cw_categories' => [],
+        'sensitive_media' => false,
         'created_at' => null,
     ]);
 });
@@ -354,6 +381,12 @@ it('sets quoted_post for bluesky recordWithMedia embeds', function () {
         'original_url' => 'https://bsky.app/profile/quoted.bsky.social/post/mediaquote',
         'body' => 'quoted body with media',
         'chip_mentions' => [],
+        'cw_text' => null,
+        'cw_is_author_level' => false,
+        'cw_label_source' => null,
+        'cw_category' => null,
+        'cw_categories' => [],
+        'sensitive_media' => false,
         'created_at' => null,
     ]);
 });
@@ -667,6 +700,92 @@ it('prefers bluesky external embed url over text url', function () {
     expect($post['link_url'])->toBe('https://embed-url.com/article');
 });
 
+it('uses bluesky external embed description and thumb as link_description and link_image', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'article', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.external#view',
+                'external' => [
+                    'uri' => 'https://embed-url.com/article',
+                    'title' => 'Article',
+                    'description' => 'A short summary',
+                    'thumb' => 'https://cdn.bsky.app/img/thumbnail.jpg',
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_description'])->toBe('A short summary')
+        ->and($post['link_image'])->toBe('https://cdn.bsky.app/img/thumbnail.jpg');
+});
+
+it('normalizes an empty bluesky external embed description to null', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'article', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.external#view',
+                'external' => ['uri' => 'https://embed-url.com/article', 'title' => 'Article', 'description' => ''],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_description'])->toBeNull()
+        ->and($post['link_image'])->toBeNull();
+});
+
+it('sets link_description and link_image to null when bluesky post has no external embed', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'just text', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_description'])->toBeNull()
+        ->and($post['link_image'])->toBeNull();
+});
+
+it('uses bluesky recordWithMedia external description and thumb as link_description and link_image', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'article', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.recordWithMedia#view',
+                'media' => [
+                    '$type' => 'app.bsky.embed.external#view',
+                    'external' => [
+                        'uri' => 'https://embed-url.com/article',
+                        'title' => 'Article',
+                        'description' => 'Media summary',
+                        'thumb' => 'https://cdn.bsky.app/img/media-thumb.jpg',
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_description'])->toBe('Media summary')
+        ->and($post['link_image'])->toBe('https://cdn.bsky.app/img/media-thumb.jpg');
+});
+
 it('uses mastodon card title as link_title', function () {
     $status = [
         'id' => '1',
@@ -686,6 +805,87 @@ it('uses mastodon card title as link_title', function () {
     $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
 
     expect($post['link_title'])->toBe('An Example Article');
+});
+
+it('uses mastodon card description and image as link_description and link_image', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Check this out https://example.com/article</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => [
+            'url' => 'https://example.com/article',
+            'title' => 'An Example Article',
+            'description' => 'Some description',
+            'image' => 'https://example.com/og.jpg',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_description'])->toBe('Some description')
+        ->and($post['link_image'])->toBe('https://example.com/og.jpg');
+});
+
+it('normalizes an empty mastodon card description to null', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Check this out https://example.com/article</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => [
+            'url' => 'https://example.com/article',
+            'title' => 'Article',
+            'description' => '',
+            'image' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_description'])->toBeNull()
+        ->and($post['link_image'])->toBeNull();
+});
+
+it('rejects an unsafe mastodon card image scheme', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Check this out https://example.com/article</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => [
+            'url' => 'https://example.com/article',
+            'title' => 'Article',
+            'description' => 'desc',
+            'image' => 'javascript:alert(1)',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_image'])->toBeNull();
+});
+
+it('sets link_description and link_image to null when mastodon post has no link', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Just a plain post</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_description'])->toBeNull()
+        ->and($post['link_image'])->toBeNull();
 });
 
 it('prefers mastodon card url over extracted link_url', function () {
@@ -778,6 +978,103 @@ it('sets link_favicon to null when bluesky post has no external embed', function
     expect($post['link_favicon'])->toBeNull();
 });
 
+it('extracts link_youtube_id from a mastodon card watch url', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => ['url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=30s', 'title' => 'A Video', 'description' => '', 'image' => null],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_youtube_id'])->toBe('dQw4w9WgXcQ');
+});
+
+it('extracts link_youtube_id from a bluesky external embed watch url', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'video', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => [
+                '$type' => 'app.bsky.embed.external#view',
+                'external' => ['uri' => 'https://youtu.be/dQw4w9WgXcQ', 'title' => 'A Video', 'description' => ''],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['link_youtube_id'])->toBe('dQw4w9WgXcQ');
+});
+
+it('extracts link_youtube_id from a youtube shorts url', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => ['url' => 'https://m.youtube.com/shorts/dQw4w9WgXcQ', 'title' => 'A Short', 'description' => '', 'image' => null],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_youtube_id'])->toBe('dQw4w9WgXcQ');
+});
+
+it('sets link_youtube_id to null for non-youtube links', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => ['url' => 'https://example.com/article', 'title' => 'Article', 'description' => '', 'image' => null],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_youtube_id'])->toBeNull();
+});
+
+it('sets link_youtube_id to null when there is no link at all', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>Just a plain post</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_youtube_id'])->toBeNull();
+});
+
+it('rejects a malformed youtube watch url with no video id', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>check this out</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'card' => ['url' => 'https://www.youtube.com/watch?list=PL123', 'title' => 'Playlist', 'description' => '', 'image' => null],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['link_youtube_id'])->toBeNull();
+});
+
 it('includes author identity and url in mastodon reply_to', function () {
     $parent = [
         'url' => 'https://mastodon.social/@original/456',
@@ -807,6 +1104,12 @@ it('includes author identity and url in mastodon reply_to', function () {
         'original_url' => 'https://mastodon.social/@original/456',
         'body' => 'This is the parent post body',
         'chip_mentions' => [],
+        'cw_text' => null,
+        'cw_is_author_level' => false,
+        'cw_label_source' => null,
+        'cw_category' => null,
+        'cw_categories' => [],
+        'sensitive_media' => false,
         'created_at' => null,
     ]);
 });
@@ -919,6 +1222,12 @@ it('includes author identity and url in bluesky reply_to', function () {
         'original_url' => 'https://bsky.app/profile/bob.bsky.social/post/parent456',
         'body' => 'parent body text',
         'chip_mentions' => [],
+        'cw_text' => null,
+        'cw_is_author_level' => false,
+        'cw_label_source' => null,
+        'cw_category' => null,
+        'cw_categories' => [],
+        'sensitive_media' => false,
         'created_at' => null,
     ]);
 });
@@ -1262,6 +1571,12 @@ it('sets quoted_post from inline mastodon quote field', function () {
         'original_url' => 'https://mastodon.social/@author/99',
         'body' => 'the quoted post',
         'chip_mentions' => [],
+        'cw_text' => null,
+        'cw_is_author_level' => false,
+        'cw_label_source' => null,
+        'cw_category' => null,
+        'cw_categories' => [],
+        'sensitive_media' => false,
         'created_at' => '2024-01-14T09:00:00.000Z',
     ]);
 });
@@ -1298,6 +1613,12 @@ it('sets quoted_post from pre-fetched quote status when no inline quote field', 
         'original_url' => 'https://mastodon.social/@author/99',
         'body' => 'the quoted post',
         'chip_mentions' => [],
+        'cw_text' => null,
+        'cw_is_author_level' => false,
+        'cw_label_source' => null,
+        'cw_category' => null,
+        'cw_categories' => [],
+        'sensitive_media' => false,
         'created_at' => '2024-01-14T09:00:00.000Z',
     ]);
 });
@@ -2830,4 +3151,327 @@ it('logs a warning for each non-array entry in a mastodon poll options list', fu
     ];
 
     (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+});
+
+it('sets cw_category to adult for bluesky adult content labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'sexual']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_category'])->toBe('adult');
+});
+
+it('sets cw_category to graphic for bluesky graphic media labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'gore']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_category'])->toBe('graphic');
+});
+
+it('sets cw_category to generic for bluesky moderation labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'rude']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_category'])->toBe('generic');
+});
+
+it('sets cw_category to safety for bluesky threat, intolerant, and self-harm labels', function (string $label) {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => $label]],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_category'])->toBe('safety');
+})->with(['threat', 'intolerant', 'self-harm']);
+
+it('sets cw_category to generic for unknown bluesky labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'custom-warning']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_category'])->toBe('generic');
+});
+
+it('sets cw_category to null when bluesky has no labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_category'])->toBeNull();
+});
+
+it('includes every touched category in cw_categories for a multi-label bluesky post', function () {
+    // 'porn' (adult) + 'self-harm' (safety) — cw_category (display) priority-picks
+    // 'adult' alone, but cw_categories must retain 'safety' too so a whitelist covering
+    // only 'adult' can't silently also suppress the unrelated safety warning.
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'porn'], ['val' => 'self-harm']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_category'])->toBe('adult')
+        ->and($post['cw_categories'])->toEqualCanonicalizing(['adult', 'safety']);
+});
+
+it('sets cw_categories to a single-element array for a single-label bluesky post', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [['val' => 'gore']],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_categories'])->toBe(['graphic']);
+});
+
+it('sets cw_categories to an empty array when bluesky has no labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz',
+            'record' => ['text' => 'some text', 'createdAt' => '2024-01-01T00:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [],
+            'embed' => null,
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['cw_categories'])->toBe([]);
+});
+
+it('sets cw_category to generic for mastodon spoiler_text', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>hello</p>',
+        'created_at' => '2024-01-01T00:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'spoiler_text' => 'CW: politics',
+        'sensitive' => false,
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => 'https://mastodon.example/av.jpg'],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['cw_category'])->toBe('generic')
+        ->and($post['cw_categories'])->toBe(['generic']);
+});
+
+it('sets cw_category to null when mastodon spoiler_text is empty', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>hello</p>',
+        'created_at' => '2024-01-01T00:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => 'https://mastodon.example/av.jpg'],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['cw_category'])->toBeNull()
+        ->and($post['cw_categories'])->toBe([]);
+});
+
+it('extracts cw_text from a bluesky reply_to parent with its own labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => ['text' => 'reply', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+        ],
+        'reply' => [
+            'parent' => [
+                'uri' => 'at://did:plc:alice/app.bsky.feed.post/0',
+                'author' => ['did' => 'did:plc:alice', 'handle' => 'alice.bsky.social', 'displayName' => 'Alice'],
+                'record' => ['text' => 'nsfw parent post', 'createdAt' => '2024-01-15T10:00:00.000Z'],
+                'labels' => [['val' => 'porn', 'src' => 'did:plc:alice']],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['reply_to']['cw_text'])->toBe('Adult content')
+        ->and($post['reply_to']['cw_category'])->toBe('adult')
+        ->and($post['reply_to']['cw_label_source'])->toBe('self')
+        ->and($post['reply_to']['sensitive_media'])->toBeTrue();
+});
+
+it('leaves cw_text null on a bluesky reply_to parent with no labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => ['text' => 'reply', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+        ],
+        'reply' => [
+            'parent' => [
+                'uri' => 'at://did:plc:alice/app.bsky.feed.post/0',
+                'author' => ['did' => 'did:plc:alice', 'handle' => 'alice.bsky.social', 'displayName' => 'Alice'],
+                'record' => ['text' => 'ordinary parent post', 'createdAt' => '2024-01-15T10:00:00.000Z'],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['reply_to']['cw_text'])->toBeNull()
+        ->and($post['reply_to']['cw_category'])->toBeNull();
+});
+
+it('extracts cw_text from a bluesky quoted_post record with its own labels', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:user/app.bsky.feed.post/1',
+            'author' => ['handle' => 'user.bsky.social', 'displayName' => 'User'],
+            'record' => ['text' => 'check this out', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'embed' => [
+                '$type' => 'app.bsky.embed.record#view',
+                'record' => [
+                    '$type' => 'app.bsky.embed.record#viewRecord',
+                    'uri' => 'at://did:plc:bob/app.bsky.feed.post/0',
+                    'author' => ['did' => 'did:plc:bob', 'handle' => 'bob.bsky.social', 'displayName' => 'Bob'],
+                    'value' => ['text' => 'graphic quoted post', 'createdAt' => '2024-01-15T10:00:00.000Z'],
+                    'labels' => [['val' => 'gore', 'src' => 'did:plc:bob']],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['quoted_post']['cw_text'])->toBe('Graphic media')
+        ->and($post['quoted_post']['cw_category'])->toBe('graphic')
+        ->and($post['quoted_post']['cw_label_source'])->toBe('self');
+});
+
+it('extracts cw_text from a mastodon reply_to parent with its own spoiler_text', function () {
+    $parentStatus = [
+        'account' => ['display_name' => 'Alice', 'acct' => 'alice', 'avatar' => ''],
+        'url' => 'https://mastodon.example/@alice/0',
+        'content' => '<p>original</p>',
+        'created_at' => '2024-01-15T09:00:00.000Z',
+        'spoiler_text' => 'CW: spoilers',
+        'sensitive' => true,
+    ];
+    $status = [
+        'id' => '1',
+        'content' => '<p>reply</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'in_reply_to_id' => '0',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parentStatus);
+
+    expect($post['reply_to']['cw_text'])->toBe('CW: spoilers')
+        ->and($post['reply_to']['cw_category'])->toBe('generic')
+        ->and($post['reply_to']['cw_label_source'])->toBe('self')
+        ->and($post['reply_to']['sensitive_media'])->toBeTrue();
+});
+
+it('extracts cw_text from a mastodon quoted_post with its own spoiler_text', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>look at this</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'mentions' => [],
+        'quote' => [
+            'quoted_status' => [
+                'account' => ['display_name' => 'Bob', 'acct' => 'bob', 'avatar' => ''],
+                'url' => 'https://mastodon.example/@bob/2',
+                'content' => '<p>quoted content</p>',
+                'created_at' => '2024-01-15T09:00:00.000Z',
+                'spoiler_text' => 'CW: quoted spoiler',
+                'sensitive' => false,
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['quoted_post']['cw_text'])->toBe('CW: quoted spoiler')
+        ->and($post['quoted_post']['cw_category'])->toBe('generic')
+        ->and($post['quoted_post']['cw_label_source'])->toBe('self');
 });

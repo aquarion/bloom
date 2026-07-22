@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -14,6 +15,23 @@ import {
 } from '@/components/ui/select';
 import SettingsPageLayout from '@/layouts/settings-page-layout';
 import type { ContentBehavior, FeedPreferences } from '@/types/preferences';
+import type { CwCategory } from '@/types/post';
+
+const CW_LABEL_OPTIONS: {
+    value: CwCategory;
+    label: string;
+    warning?: string;
+}[] = [
+    { value: 'adult', label: 'Adult content' },
+    { value: 'graphic', label: 'Graphic media' },
+    {
+        value: 'safety',
+        label: 'Self-harm & threats',
+        warning:
+            'You will stop seeing warnings for self-harm, threats, and intolerance.',
+    },
+    { value: 'generic', label: 'Content warning (generic)' },
+];
 
 export default function FeedSettings({
     preferences,
@@ -27,7 +45,32 @@ export default function FeedSettings({
         mute_words: preferences.mute_words,
         cw_behavior: preferences.cw_behavior,
         sensitive_media_behavior: preferences.sensitive_media_behavior,
+        cw_label_whitelist: preferences.cw_label_whitelist,
+        cw_author_whitelist: preferences.cw_author_whitelist,
     });
+
+    function removeWhitelistedAuthor(handle: string) {
+        setData(
+            'cw_author_whitelist',
+            data.cw_author_whitelist.filter((h) => h !== handle),
+        );
+    }
+
+    // Laravel's `field.*` array validation reports errors as indexed keys
+    // (`cw_label_whitelist.0`), not the bare field name — find the first one
+    // so an invalid entry's message actually reaches the user.
+    const cwLabelWhitelistError = Object.entries(errors).find(([key]) =>
+        key.startsWith('cw_label_whitelist'),
+    )?.[1];
+
+    function toggleCwLabelWhitelist(category: CwCategory, checked: boolean) {
+        setData(
+            'cw_label_whitelist',
+            checked
+                ? [...data.cw_label_whitelist, category]
+                : data.cw_label_whitelist.filter((c) => c !== category),
+        );
+    }
 
     const [muteInput, setMuteInput] = useState('');
 
@@ -192,6 +235,86 @@ export default function FeedSettings({
                         </p>
                     )}
                 </div>
+
+                {/* CW label whitelist */}
+                <div className="space-y-2">
+                    <Label>Always show these content warning types</Label>
+                    <p className="text-muted-foreground text-xs">
+                        Posts labelled with a whitelisted type skip the content
+                        warning above entirely.
+                    </p>
+                    <div className="space-y-2">
+                        {CW_LABEL_OPTIONS.map((option) => {
+                            const checked = data.cw_label_whitelist.includes(
+                                option.value,
+                            );
+
+                            return (
+                                <div key={option.value}>
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <Checkbox
+                                            checked={checked}
+                                            onCheckedChange={(next) =>
+                                                toggleCwLabelWhitelist(
+                                                    option.value,
+                                                    next === true,
+                                                )
+                                            }
+                                        />
+                                        {option.label}
+                                    </label>
+                                    {checked && option.warning && (
+                                        <p className="mt-1 ml-6 text-destructive text-xs">
+                                            {option.warning}
+                                        </p>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {cwLabelWhitelistError && (
+                        <p className="text-destructive text-sm">
+                            {cwLabelWhitelistError}
+                        </p>
+                    )}
+                </div>
+
+                {/* Always-shown authors */}
+                {data.cw_author_whitelist.length > 0 && (
+                    <div className="space-y-2">
+                        <Label>Always-shown authors</Label>
+                        <p className="text-muted-foreground text-xs">
+                            Revealing an author-level content warning in the
+                            feed adds them here — their posts skip the warning
+                            from now on.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {data.cw_author_whitelist.map((handle) => (
+                                <span
+                                    key={handle}
+                                    className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
+                                >
+                                    {handle}
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            removeWhitelistedAuthor(handle)
+                                        }
+                                        className="text-muted-foreground hover:text-foreground"
+                                        aria-label={`Remove "${handle}"`}
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                        {errors.cw_author_whitelist && (
+                            <p className="text-destructive text-sm">
+                                {errors.cw_author_whitelist}
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 {/* Sensitive media behavior */}
                 <div className="space-y-2">

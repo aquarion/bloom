@@ -21,6 +21,8 @@ it('updates user feed preferences', function () {
         'mute_words' => ['spam', 'giveaway'],
         'cw_behavior' => 'skip',
         'sensitive_media_behavior' => 'show',
+        'cw_label_whitelist' => ['adult', 'safety', 'generic'],
+        'cw_author_whitelist' => ['@alice@mastodon.social'],
     ]);
 
     $response->assertRedirect();
@@ -29,7 +31,45 @@ it('updates user feed preferences', function () {
     expect($user->getPreference('max_age_days'))->toBe(14)
         ->and($user->getPreference('mute_words'))->toBe(['spam', 'giveaway'])
         ->and($user->getPreference('cw_behavior'))->toBe('skip')
-        ->and($user->getPreference('sensitive_media_behavior'))->toBe('show');
+        ->and($user->getPreference('sensitive_media_behavior'))->toBe('show')
+        ->and($user->getPreference('cw_label_whitelist'))->toBe(['adult', 'safety', 'generic'])
+        ->and($user->getPreference('cw_author_whitelist'))->toBe(['@alice@mastodon.social']);
+});
+
+it('clears cw_author_whitelist when submitted as an empty array', function () {
+    $user = User::factory()->withPasskey()->create([
+        'feed_preferences' => ['cw_author_whitelist' => ['@alice@mastodon.social']],
+    ]);
+
+    $this->actingAs($user)->put(route('feed.settings.update'), [
+        'max_age_days' => 14,
+        'mute_words' => [],
+        'cw_behavior' => 'blur',
+        'sensitive_media_behavior' => 'show',
+        'cw_label_whitelist' => [],
+        'cw_author_whitelist' => [],
+    ]);
+
+    $user->refresh();
+    expect($user->getPreference('cw_author_whitelist'))->toBe([]);
+});
+
+it('coerces a null cw_author_whitelist to an empty array', function () {
+    $user = User::factory()->withPasskey()->create([
+        'feed_preferences' => ['cw_author_whitelist' => ['@alice@mastodon.social']],
+    ]);
+
+    $this->actingAs($user)->put(route('feed.settings.update'), [
+        'max_age_days' => 14,
+        'mute_words' => [],
+        'cw_behavior' => 'blur',
+        'sensitive_media_behavior' => 'show',
+        'cw_label_whitelist' => [],
+        'cw_author_whitelist' => null,
+    ]);
+
+    $user->refresh();
+    expect($user->getPreference('cw_author_whitelist'))->toBe([]);
 });
 
 it('validates feed preferences input', function () {
@@ -45,8 +85,74 @@ it('validates feed preferences input', function () {
     $response->assertSessionHasErrors('cw_behavior');
 });
 
+it('rejects an invalid cw_label_whitelist entry', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $response = $this->actingAs($user)->put(route('feed.settings.update'), [
+        'max_age_days' => 14,
+        'mute_words' => [],
+        'cw_behavior' => 'blur',
+        'sensitive_media_behavior' => 'show',
+        'cw_label_whitelist' => ['not-a-real-category'],
+    ]);
+
+    $response->assertSessionHasErrors('cw_label_whitelist.0');
+});
+
 it('redirects guests away from feed settings', function () {
     $this->get(route('feed.settings.edit'))->assertRedirect(route('login'));
+});
+
+it('adds an author to cw_author_whitelist', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $response = $this->actingAs($user)->postJson(route('feed.settings.whitelist-author'), [
+        'author_handle' => '@alice@mastodon.social',
+    ]);
+
+    $response->assertNoContent();
+
+    $user->refresh();
+    expect($user->getPreference('cw_author_whitelist'))->toBe(['@alice@mastodon.social']);
+});
+
+it('does not duplicate an author already in cw_author_whitelist', function () {
+    $user = User::factory()->withPasskey()->create([
+        'feed_preferences' => ['cw_author_whitelist' => ['@alice@mastodon.social']],
+    ]);
+
+    $this->actingAs($user)->postJson(route('feed.settings.whitelist-author'), [
+        'author_handle' => '@alice@mastodon.social',
+    ])->assertNoContent();
+
+    $user->refresh();
+    expect($user->getPreference('cw_author_whitelist'))->toBe(['@alice@mastodon.social']);
+});
+
+it('appends a second author to an existing cw_author_whitelist', function () {
+    $user = User::factory()->withPasskey()->create([
+        'feed_preferences' => ['cw_author_whitelist' => ['@alice@mastodon.social']],
+    ]);
+
+    $this->actingAs($user)->postJson(route('feed.settings.whitelist-author'), [
+        'author_handle' => '@bob.bsky.social',
+    ])->assertNoContent();
+
+    $user->refresh();
+    expect($user->getPreference('cw_author_whitelist'))->toBe(['@alice@mastodon.social', '@bob.bsky.social']);
+});
+
+it('requires author_handle to whitelist an author', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $this->actingAs($user)->postJson(route('feed.settings.whitelist-author'), [])
+        ->assertJsonValidationErrors('author_handle');
+});
+
+it('rejects whitelisting an author for guests', function () {
+    $this->postJson(route('feed.settings.whitelist-author'), [
+        'author_handle' => '@alice@mastodon.social',
+    ])->assertUnauthorized();
 });
 
 it('updates per-account feed settings', function () {

@@ -388,7 +388,7 @@ export function AuthorChip({
             <img
                 src={avatar}
                 alt={name}
-                className="h-7 w-7 flex-shrink-0 rounded-full object-cover"
+                className="h-7 w-7 shrink-0 rounded-full object-cover"
             />
             <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-bold text-white">

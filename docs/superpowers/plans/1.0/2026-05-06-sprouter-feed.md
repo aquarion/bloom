@@ -1692,7 +1692,7 @@ export function Attribution({ post }: { post: Post }) {
             <img
                 src={post.author_avatar}
                 alt={post.author_name}
-                className="h-7 w-7 flex-shrink-0 rounded-full object-cover"
+                className="h-7 w-7 shrink-0 rounded-full object-cover"
             />
             <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-bold text-white">{post.author_name}</p>
@@ -2021,7 +2021,7 @@ export function PostCard({
                 <Attribution post={post} />
                 <button
                     onClick={onTogglePause}
-                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-lg leading-none"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-lg leading-none"
                     aria-label={paused ? 'Resume' : 'Pause'}
                 >
                     {paused ? '▶️' : '⏸'}

@@ -200,6 +200,14 @@ class FeedAggregator
                 continue;
             }
 
+            $feedName = $this->resolveFeedName($account);
+            $normalised = array_map(function (array $post) use ($account, $feedName) {
+                $post['feed_type'] = $account->feed_type;
+                $post['feed_name'] = $feedName;
+
+                return $post;
+            }, $normalised);
+
             $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
             $posts = $posts->concat($normalised);
             if ($nextCursor) {
@@ -250,9 +258,37 @@ class FeedAggregator
         $muteWords = $user->getPreference('mute_words', []);
         $deduped = $this->applyMuteWords($deduped, $muteWords);
 
+        $cwLabelWhitelist = $user->getPreference('cw_label_whitelist', []);
+        $deduped = $this->applyCwWhitelist($deduped, $cwLabelWhitelist);
+
         $nextCursor = ! empty($deduped) ? base64_encode(json_encode($cursors)) : null;
 
         return ['posts' => $deduped, 'next_cursor' => $nextCursor];
+    }
+
+    /**
+     * Public-facing name shown in the "[icon] [Provider] — [Feed Name]" badge for
+     * non-home feeds (#219). Home accounts don't need a feed name — the badge falls
+     * back to the account's own handle for those.
+     */
+    private function resolveFeedName(SocialAccount $account): ?string
+    {
+        return match ($account->feed_type) {
+            'public_mastodon' => parse_url($account->instance_url ?? '', PHP_URL_HOST) ?: $account->instance_url,
+            'bluesky_feed' => $this->humanizeFeedSlug((string) $account->getPreference('feed_uri', '')),
+            default => null,
+        };
+    }
+
+    private function humanizeFeedSlug(string $feedUri): ?string
+    {
+        $slug = basename($feedUri);
+
+        if ($slug === '' || $slug === '.') {
+            return null;
+        }
+
+        return ucwords(str_replace(['-', '_'], ' ', $slug));
     }
 
     private function resolveMaxAgeDays(User $user, SocialAccount $account): ?int
@@ -326,6 +362,59 @@ class FeedAggregator
 
             return true;
         }));
+    }
+
+    /**
+     * Unlike applyMuteWords(), a whitelisted CW category doesn't remove the post —
+     * it just suppresses the CW fields so PostContent no longer shows an overlay for it,
+     * on both the post itself and any nested reply/quoted post carrying the same category.
+     */
+    private function applyCwWhitelist(array $posts, array $whitelist): array
+    {
+        if (empty($whitelist)) {
+            return $posts;
+        }
+
+        return array_map(fn (array $post) => $this->suppressWhitelistedCw($post, $whitelist), $posts);
+    }
+
+    private function suppressWhitelistedCw(array $post, array $whitelist): array
+    {
+        $post = $this->clearCwFieldsIfWhitelisted($post, $whitelist);
+
+        foreach (['reply_to', 'quoted_post'] as $nestedKey) {
+            if (is_array($post[$nestedKey] ?? null)) {
+                $post[$nestedKey] = $this->clearCwFieldsIfWhitelisted($post[$nestedKey], $whitelist);
+            }
+        }
+
+        return $post;
+    }
+
+    /**
+     * A post can carry labels from more than one CW category at once (e.g. Bluesky 'porn' +
+     * 'self-harm' collapses to a single display cw_category but touches both 'adult' and
+     * 'safety'). Only clear the CW when every category it touches is whitelisted — checking
+     * just the single display cw_category would let whitelisting 'adult' alone silently also
+     * suppress an unrelated, non-whitelisted 'safety' warning.
+     *
+     * @param  array<int, string>  $whitelist
+     */
+    private function clearCwFieldsIfWhitelisted(array $node, array $whitelist): array
+    {
+        $categories = $node['cw_categories'] ?? [];
+
+        if (empty($categories) || array_diff($categories, $whitelist)) {
+            return $node;
+        }
+
+        return array_merge($node, [
+            'cw_text' => null,
+            'cw_is_author_level' => false,
+            'cw_label_source' => null,
+            'cw_category' => null,
+            'cw_categories' => [],
+        ]);
     }
 
     private function fetchMastodonStatuses(SocialAccount $account, array $statuses, callable $idExtractor): array

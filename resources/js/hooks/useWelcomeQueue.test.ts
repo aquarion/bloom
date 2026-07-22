@@ -19,7 +19,10 @@ function makePost(id: string): Post {
         original_url: '',
         link_url: null,
         link_title: null,
+        link_description: null,
+        link_image: null,
         link_favicon: null,
+        link_youtube_id: null,
         reply_to: null,
         quoted_post: null,
         boosted_by: null,
@@ -32,6 +35,7 @@ function makePost(id: string): Post {
         cw_text: null,
         cw_is_author_level: false,
         cw_label_source: null,
+        cw_category: null,
         sensitive_media: false,
     };
 }

@@ -54,7 +54,10 @@ class PostNormalizer
             'original_url' => $this->safeUrl($source['url']),
             'link_url' => $linkUrl,
             'link_title' => $card ? ($card['title'] ?? null) : null,
+            'link_description' => $card ? (($card['description'] ?? '') ?: null) : null,
+            'link_image' => $card ? ($this->safeUrl($card['image'] ?? '') ?: null) : null,
             'link_favicon' => $this->faviconUrl($linkUrl),
+            'link_youtube_id' => $this->youtubeVideoId($linkUrl),
             'reply_to' => $this->mastodonReplyTo($parentStatus, $host, $mentionsEnabled),
             'quoted_post' => $this->mastodonQuotedPost($source, $host, $quoteStatus, $mentionsEnabled),
             'poll' => $this->normalizeMastodonPoll($source),
@@ -67,10 +70,7 @@ class PostNormalizer
                 fn ($t) => mb_strtolower($t['name'] ?? '', 'UTF-8'),
                 $source['tags'] ?? []
             ))), 'mastodon', $host),
-            'cw_text' => ($hasSpoilerText = isset($source['spoiler_text']) && $source['spoiler_text'] !== '') ? $source['spoiler_text'] : null,
-            'cw_is_author_level' => false,
-            'cw_label_source' => $hasSpoilerText ? 'self' : null,
-            'sensitive_media' => (bool) ($source['sensitive'] ?? false),
+            ...$this->mastodonCwFields($source),
         ];
     }
 
@@ -114,7 +114,7 @@ class PostNormalizer
             'source' => 'bluesky',
             'source_handle' => $sourceHandle,
             'source_instance' => null,
-            'author_name' => $author['displayName'] ?: $author['handle'],
+            'author_name' => ($author['displayName'] ?? '') ?: $author['handle'],
             'author_handle' => '@'.$author['handle'],
             'author_avatar' => $this->safeUrl($author['avatar'] ?? ''),
             'author_banner' => $this->safeUrl($author['banner'] ?? '') ?: null,
@@ -124,7 +124,10 @@ class PostNormalizer
             'original_url' => $this->blueskyPostUrl($author['handle'], $post['uri']),
             'link_url' => $linkUrl,
             'link_title' => $externalData['title'] ?? null,
+            'link_description' => $externalData['description'] ?? null,
+            'link_image' => $externalData['image'] ?? null,
             'link_favicon' => $this->faviconUrl($linkUrl),
+            'link_youtube_id' => $this->youtubeVideoId($linkUrl),
             'reply_to' => $this->blueskyReplyTo($feedPost['reply']['parent'] ?? null, $mentionsEnabled),
             'quoted_post' => $this->blueskyQuotedPost($post['embed'] ?? null, $mentionsEnabled),
             'boosted_by' => $booster,
@@ -133,11 +136,29 @@ class PostNormalizer
             'boosted_by_created_at' => $repostBy ? ($reason['indexedAt'] ?? null) : null,
             'emojis' => [],
             'hashtags' => $this->hashtagLinks($hashtags, 'bluesky', null),
-            'cw_text' => $labelData['cw_text'],
-            'cw_is_author_level' => $labelData['cw_is_author_level'],
-            'cw_label_source' => $labelData['cw_label_source'],
-            'sensitive_media' => $labelData['sensitive_media'],
+            ...$labelData,
             'chip_mentions' => $mentionResult['chip_mentions'],
+        ];
+    }
+
+    /**
+     * Mastodon's content-warning is a single freeform author-authored string (`spoiler_text`)
+     * with no label taxonomy, unlike Bluesky's moderation labels — so every self-applied
+     * Mastodon CW buckets into the catch-all 'generic' category.
+     *
+     * @return array{cw_text: ?string, cw_is_author_level: bool, cw_label_source: ?string, cw_category: ?string, cw_categories: array<int, string>, sensitive_media: bool}
+     */
+    private function mastodonCwFields(array $source): array
+    {
+        $hasSpoilerText = isset($source['spoiler_text']) && $source['spoiler_text'] !== '';
+
+        return [
+            'cw_text' => $hasSpoilerText ? $source['spoiler_text'] : null,
+            'cw_is_author_level' => false,
+            'cw_label_source' => $hasSpoilerText ? 'self' : null,
+            'cw_category' => $hasSpoilerText ? 'generic' : null,
+            'cw_categories' => $hasSpoilerText ? ['generic'] : [],
+            'sensitive_media' => (bool) ($source['sensitive'] ?? false),
         ];
     }
 
@@ -202,6 +223,7 @@ class PostNormalizer
             'author_avatar' => $this->safeUrl($parent['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($parent['url'] ?? ''),
             ...$this->buildNestedMastodonBody($parent['content'], $parent['mentions'] ?? [], $mentionsEnabled),
+            ...$this->mastodonCwFields($parent),
             'created_at' => $parent['created_at'] ?? null,
         ];
     }
@@ -228,6 +250,7 @@ class PostNormalizer
             'author_avatar' => $this->safeUrl($raw['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($raw['url'] ?? ''),
             ...$this->buildNestedMastodonBody($raw['content'] ?? '', $raw['mentions'] ?? [], $mentionsEnabled),
+            ...$this->mastodonCwFields($raw),
             'created_at' => $raw['created_at'] ?? null,
         ];
     }
@@ -306,6 +329,7 @@ class PostNormalizer
             'author_avatar' => $this->safeUrl($parent['author']['avatar'] ?? ''),
             'original_url' => $this->blueskyPostUrl($handle, $parent['uri'] ?? ''),
             ...$this->buildNestedBlueskyBody($parent['record']['text'], $parent['record']['facets'] ?? [], $mentionsEnabled),
+            ...$this->blueskyLabels($parent),
             'created_at' => $parent['record']['createdAt'] ?? null,
         ];
     }
@@ -343,6 +367,7 @@ class PostNormalizer
             'author_avatar' => $this->safeUrl($record['author']['avatar'] ?? ''),
             'original_url' => $this->blueskyPostUrl($handle, $record['uri'] ?? ''),
             ...$this->buildNestedBlueskyBody($text, $record['value']['facets'] ?? [], $mentionsEnabled),
+            ...$this->blueskyLabels($record),
             'created_at' => $record['value']['createdAt'] ?? null,
         ];
     }
@@ -651,26 +676,30 @@ class PostNormalizer
         }
         $type = $embed['$type'] ?? '';
         if ($type === 'app.bsky.embed.external#view') {
-            $ext = $embed['external'] ?? [];
-
-            return [
-                'url' => $this->safeUrl($ext['uri'] ?? '') ?: null,
-                'title' => $ext['title'] ?? null,
-            ];
+            return $this->blueskyExternalFields($embed['external'] ?? []);
         }
         if ($type === 'app.bsky.embed.recordWithMedia#view') {
             $media = $embed['media'] ?? null;
             if (($media['$type'] ?? '') === 'app.bsky.embed.external#view') {
-                $ext = $media['external'] ?? [];
-
-                return [
-                    'url' => $this->safeUrl($ext['uri'] ?? '') ?: null,
-                    'title' => $ext['title'] ?? null,
-                ];
+                return $this->blueskyExternalFields($media['external'] ?? []);
             }
         }
 
         return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $ext
+     * @return array{url: ?string, title: ?string, description: ?string, image: ?string}
+     */
+    private function blueskyExternalFields(array $ext): array
+    {
+        return [
+            'url' => $this->safeUrl($ext['uri'] ?? '') ?: null,
+            'title' => $ext['title'] ?? null,
+            'description' => ($ext['description'] ?? '') ?: null,
+            'image' => $this->safeUrl($ext['thumb'] ?? '') ?: null,
+        ];
     }
 
     private function blueskyLabels(array $post): array
@@ -693,36 +722,78 @@ class PostNormalizer
         $graphicLabels = ['graphic-media', 'gore'];
         $mediaLabels = array_merge($adultLabels, $graphicLabels);
 
-        $moderationLabelMap = [
-            'rude' => 'rude content',
+        // Kept in its own whitelist category, distinct from 'generic' — a user who
+        // whitelists low-stakes noise (spam, impersonation, misleading, unrecognised
+        // labels) shouldn't silently also stop seeing self-harm/threat/intolerance warnings.
+        $safetyLabelMap = [
             'threat' => 'threatening content',
             'intolerant' => 'intolerant content',
             'self-harm' => 'self-harm content',
+        ];
+
+        $moderationLabelMap = [
+            'rude' => 'rude content',
             'spam' => 'spam',
             'impersonation' => 'impersonation',
             'misleading' => 'misleading content',
         ];
 
-        $resolveCwText = function (array $l) use ($adultLabels, $graphicLabels, $moderationLabelMap): ?string {
+        // 'adult', 'graphic', and 'safety' map to dedicated whitelist entries (#169); every
+        // other bucket — remaining moderation labels and unrecognised raw labels alike —
+        // collapses to 'generic' since there's no finer-grained whitelist entry for them.
+        $resolveCw = function (array $l) use ($adultLabels, $graphicLabels, $safetyLabelMap, $moderationLabelMap): array {
             if (array_intersect($l, $adultLabels)) {
-                return 'Adult content';
+                return ['text' => 'Adult content', 'category' => 'adult'];
             }
             if (array_intersect($l, $graphicLabels)) {
-                return 'Graphic media';
+                return ['text' => 'Graphic media', 'category' => 'graphic'];
+            }
+            foreach ($l as $label) {
+                if (isset($safetyLabelMap[$label])) {
+                    return ['text' => $safetyLabelMap[$label], 'category' => 'safety'];
+                }
             }
             foreach ($l as $label) {
                 if (isset($moderationLabelMap[$label])) {
-                    return $moderationLabelMap[$label];
+                    return ['text' => $moderationLabelMap[$label], 'category' => 'generic'];
                 }
             }
 
-            return ! empty($l) ? $l[0] : null;
+            return ! empty($l) ? ['text' => $l[0], 'category' => 'generic'] : ['text' => null, 'category' => null];
         };
 
-        $cwText = $resolveCwText($labels);
+        // Unlike $resolveCw above (which picks a single priority-ordered category for display
+        // text), this collects every distinct category touched by the label set. A post can
+        // carry labels from more than one category at once (e.g. 'porn' + 'self-harm') — using
+        // only the single priority-picked category to decide whitelist suppression would let an
+        // 'adult'-only whitelist silently also suppress an unrelated 'safety' warning.
+        $resolveCwCategories = function (array $l) use ($adultLabels, $graphicLabels, $safetyLabelMap): array {
+            $categories = [];
+            if (array_intersect($l, $adultLabels)) {
+                $categories[] = 'adult';
+            }
+            if (array_intersect($l, $graphicLabels)) {
+                $categories[] = 'graphic';
+            }
+            if (array_intersect(array_keys($safetyLabelMap), $l)) {
+                $categories[] = 'safety';
+            }
+            // Any label not already classified above (moderation-mapped or entirely
+            // unrecognised) collapses to 'generic', matching $resolveCw's fallback.
+            if (array_diff($l, $adultLabels, $graphicLabels, array_keys($safetyLabelMap))) {
+                $categories[] = 'generic';
+            }
+
+            return $categories;
+        };
+
+        $resolved = $resolveCw($labels);
+        $cwText = $resolved['text'];
+        $cwCategory = $resolved['category'];
+        $cwCategories = $resolveCwCategories($labels);
         // Author-level when the post itself carries no cw-worthy labels —
         // the CW exists only because the author's profile is labelled.
-        $cwIsAuthorLevel = $cwText !== null && $resolveCwText($postLabels) === null;
+        $cwIsAuthorLevel = $cwText !== null && $resolveCw($postLabels)['text'] === null;
 
         $cwLabelSource = null;
         if ($cwText !== null) {
@@ -745,6 +816,8 @@ class PostNormalizer
             'cw_text' => $cwText,
             'cw_is_author_level' => $cwIsAuthorLevel,
             'cw_label_source' => $cwLabelSource,
+            'cw_category' => $cwCategory,
+            'cw_categories' => $cwCategories,
             'sensitive_media' => ! empty(array_intersect($labels, $mediaLabels)),
         ];
     }
@@ -798,6 +871,55 @@ class PostNormalizer
         $domain = parse_url($linkUrl, PHP_URL_HOST);
 
         return $domain ? "https://favicone.com/{$domain}" : null;
+    }
+
+    /**
+     * Extracts an 11-character YouTube video ID from watch/shorts/embed/live
+     * links on youtube.com, m.youtube.com, or music.youtube.com, and from
+     * youtu.be short links.
+     */
+    private function youtubeVideoId(?string $linkUrl): ?string
+    {
+        if (! $linkUrl) {
+            return null;
+        }
+
+        $host = parse_url($linkUrl, PHP_URL_HOST);
+
+        if (! $host) {
+            return null;
+        }
+
+        $host = strtolower(preg_replace('/^www\./', '', $host));
+        $path = parse_url($linkUrl, PHP_URL_PATH) ?? '';
+
+        if ($host === 'youtu.be') {
+            $id = trim($path, '/');
+
+            return $this->isValidYoutubeId($id) ? $id : null;
+        }
+
+        if (! in_array($host, ['youtube.com', 'm.youtube.com', 'music.youtube.com'], true)) {
+            return null;
+        }
+
+        if ($path === '/watch') {
+            parse_str(parse_url($linkUrl, PHP_URL_QUERY) ?? '', $query);
+            $id = $query['v'] ?? null;
+
+            return $id && $this->isValidYoutubeId($id) ? $id : null;
+        }
+
+        if (preg_match('#^/(?:shorts|embed|live)/([^/?]+)#', $path, $matches)) {
+            return $this->isValidYoutubeId($matches[1]) ? $matches[1] : null;
+        }
+
+        return null;
+    }
+
+    private function isValidYoutubeId(string $id): bool
+    {
+        return (bool) preg_match('/^[A-Za-z0-9_-]{11}$/', $id);
     }
 
     /**

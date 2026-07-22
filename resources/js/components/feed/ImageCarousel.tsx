@@ -94,7 +94,7 @@ export function ImageCarousel({
                     return (
                         <div
                             key={item.url ?? item.preview_url}
-                            className="flex w-full flex-shrink-0 items-center justify-center"
+                            className="flex w-full shrink-0 items-center justify-center"
                         >
                             {src && (
                                 <img

@@ -74,7 +74,7 @@ export function MentionAvatarChip({ mention }: { mention: Mention }) {
             <img
                 src={mention.avatar || bloom}
                 alt={mention.display_name}
-                className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
+                className="h-10 w-10 shrink-0 rounded-full object-cover"
             />
         </a>
     );
@@ -103,9 +103,9 @@ export function MentionAvatarChip({ mention }: { mention: Mention }) {
 
 ### 5. `@` icon prefix
 
-Mirrors the existing relationship icons in `Attribution.tsx` (`Quote`, `Repeat2` from `lucide-react`, both rendered `size-4 flex-shrink-0 text-white/30`) so the mention-chip row reads as "these accounts are mentioned" rather than appearing unexplained next to the post's own attribution.
+Mirrors the existing relationship icons in `Attribution.tsx` (`Quote`, `Repeat2` from `lucide-react`, both rendered `size-4 shrink-0 text-white/30`) so the mention-chip row reads as "these accounts are mentioned" rather than appearing unexplained next to the post's own attribution.
 
-Add a fixed-width `AtSign` icon (`lucide-react`, same `size-4 flex-shrink-0 text-white/30` styling) immediately before each `<MentionChips>` usage, as a sibling in the surrounding markup — *not* inside `MentionChips` itself:
+Add a fixed-width `AtSign` icon (`lucide-react`, same `size-4 shrink-0 text-white/30` styling) immediately before each `<MentionChips>` usage, as a sibling in the surrounding markup — *not* inside `MentionChips` itself:
 
 - `resources/js/pages/feed.tsx`: in the attribution row, before `<MentionChips mentions={current.chip_mentions} />`.
 - `resources/js/components/feed/PostAnimator.tsx`: in `ContextPanel`'s rendered content, before `<MentionChips mentions={chip_mentions} />`.

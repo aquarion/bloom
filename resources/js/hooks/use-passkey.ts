@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getXsrfToken } from '@/lib/csrf';
 import { dashboard } from '@/routes';
 import { confirm as confirmRoute } from '@/routes/passkey';
 import {
@@ -73,16 +74,6 @@ function serializeCredential(
     }
 
     return base;
-}
-
-function getXsrfToken(): string {
-    const token = document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1];
-
-    if (!token) {
-        throw new Error('Session expired. Please refresh the page.');
-    }
-
-    return decodeURIComponent(token);
 }
 
 type WebAuthnCredentialDescriptor = {

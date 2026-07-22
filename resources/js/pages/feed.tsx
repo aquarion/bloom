@@ -4,6 +4,7 @@ import { FeedChrome } from '@/components/feed/FeedChrome';
 import { PostBackground } from '@/components/feed/PostBackground';
 import { PostContent } from '@/components/feed/PostContent';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
+import { CwStateProvider } from '@/hooks/useCwState';
 import { useFeedQueue } from '@/hooks/useFeedQueue';
 import { useFeedTransition } from '@/hooks/useFeedTransition';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -17,7 +18,22 @@ function extractFirstLink(html: string): string | null {
     return match?.[1] ?? null;
 }
 
-export default function Feed({
+export default function Feed(props: {
+    initialPosts: Post[];
+    initialCursor: string | null;
+    debugEnabled: boolean;
+    cwBehavior: 'skip' | 'blur' | 'show';
+    sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
+    cwAuthorWhitelist: string[];
+}) {
+    return (
+        <CwStateProvider initialAuthorWhitelist={props.cwAuthorWhitelist}>
+            <FeedView {...props} />
+        </CwStateProvider>
+    );
+}
+
+function FeedView({
     initialPosts,
     initialCursor,
     debugEnabled,
@@ -39,9 +55,6 @@ export default function Feed({
     const [paused, setPaused] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [panelOpen, setPanelOpen] = useState(false);
-    const [revealedAuthors, setRevealedAuthors] = useState(
-        () => new Set<string>(),
-    );
 
     const {
         isSupported: wakeLockSupported,
@@ -80,10 +93,6 @@ export default function Feed({
         goBack();
         resetCarouselProgress();
         setPaused(true);
-    };
-
-    const handleRevealAuthor = (handle: string) => {
-        setRevealedAuthors((prev) => new Set(prev).add(handle));
     };
 
     const openPost = () => {
@@ -168,12 +177,6 @@ export default function Feed({
                         cwBehavior={cwBehavior}
                         sensitiveMediaBehavior={sensitiveMediaBehavior}
                         paused={paused}
-                        authorCwRevealed={revealedAuthors.has(
-                            current.author_handle,
-                        )}
-                        onRevealAuthor={() =>
-                            handleRevealAuthor(current.author_handle)
-                        }
                     />
                 </div>
 
@@ -196,6 +199,7 @@ export default function Feed({
                     carouselProgress={carouselProgress}
                     progress={progress}
                     showHelp={showHelp}
+                    cwBehavior={cwBehavior}
                 />
             </div>
         </>

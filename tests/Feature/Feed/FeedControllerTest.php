@@ -44,6 +44,25 @@ it('redirects guests to login', function () {
     $this->get(route('feed'))->assertRedirect(route('login'));
 });
 
+it('passes the persisted cw author whitelist to the feed page', function () {
+    $user = User::factory()->withPasskey()->create([
+        'feed_preferences' => ['cw_author_whitelist' => ['@alice@mastodon.social']],
+    ]);
+
+    $mockAggregator = Mockery::mock(FeedAggregator::class);
+    $mockAggregator->shouldReceive('fetch')->once()->andReturn([
+        'posts' => [],
+        'next_cursor' => null,
+    ]);
+    app()->instance(FeedAggregator::class, $mockAggregator);
+
+    $response = $this->actingAs($user)->withoutVite()->get(route('feed'));
+
+    $response->assertInertia(fn ($page) => $page->component('feed', false)
+        ->where('cwAuthorWhitelist', ['@alice@mastodon.social'])
+    );
+});
+
 it('enables mentions for users without the beta tester role', function () {
     $user = User::factory()->withPasskey()->create();
 

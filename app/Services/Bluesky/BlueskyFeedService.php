@@ -3,6 +3,7 @@
 namespace App\Services\Bluesky;
 
 use App\Models\SocialAccount;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -130,7 +131,7 @@ class BlueskyFeedService
                 ->throw()
                 ->json()
             );
-        } catch (RequestException $e) {
+        } catch (RequestException|ConnectionException $e) {
             Cache::put($cacheKey, false, 300);
 
             return null;
@@ -138,6 +139,13 @@ class BlueskyFeedService
 
         $view = $response['view'] ?? null;
         $resolved = is_array($view) ? $this->mapFeedGeneratorView($view) : null;
+
+        // An empty displayName means the API omitted it — not a usable name. Treat it the
+        // same as an unresolved feed so it doesn't get persisted as a blank feed_name (which
+        // would also block whereNull('feed_settings->feed_name') from ever backfilling it).
+        if ($resolved !== null && $resolved['display_name'] === '') {
+            $resolved = null;
+        }
 
         Cache::put($cacheKey, $resolved ?? false, $resolved ? self::FEED_GENERATOR_TTL : 300);
 

@@ -1,9 +1,13 @@
 ---
 title: Changelog
-last_updated: "2026-07-20"
+last_updated: "2026-07-22"
 ---
 
 Notable changes to the Bloom application, newest first.
+
+## 2026-07-22 — Milestone 1.10.1
+
+- **Bluesky feed picker** — adding an algorithmic feed no longer means pasting a raw feed URL from bsky.app. A dedicated page lets you browse popular feeds or search by name, with pasting a feed URL still available as a fallback. The feed's real registered name (rather than a guess based on its URL) now shows on the source badge and in Connected accounts.
 
 ## 2026-07-20 — Milestone 1.10
 

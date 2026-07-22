@@ -4,13 +4,13 @@ on:
   push:
     branches: [dependabot-updates]
   pull_request:
-    branches: ['**']
+    branches: ["**"]
     types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
   workflow_call:
     inputs:
       tag:
-        description: 'Release tag to build and deploy'
+        description: "Release tag to build and deploy"
         type: string
         required: true
 
@@ -38,13 +38,14 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: "8.4"
           tools: composer:v2
+          extensions: redis,opentelemetry
 
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: '26'
+          node-version: "26"
 
       - name: Install Node dependencies
         run: npm ci

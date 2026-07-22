@@ -7,6 +7,8 @@
 	"license": "MIT",
 	"require": {
 		"php": "^8.4",
+		"ext-redis": "*",
+		"ext-opentelemetry": "*",
 		"inertiajs/inertia-laravel": "^3.0",
 		"laravel/framework": "^13.7",
 		"laravel/octane": "^2.17",

@@ -14,6 +14,7 @@ import {
     MastodonReauthForm,
     ProviderSection,
 } from '@/components/settings/provider-section';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -212,14 +213,27 @@ export default function Connections({
         secondary: {
             heading: 'Algorithmic feeds',
             connections: blueskyFeedConnections,
-            renderLabel: (c) =>
-                c.feed_settings?.feed_name ? (
-                    <p className="text-sm">{c.feed_settings.feed_name}</p>
-                ) : (
-                    <p className="font-mono text-muted-foreground text-xs">
-                        {c.feed_settings?.feed_uri}
-                    </p>
-                ),
+            renderLabel: (c) => (
+                <div className="flex items-center gap-2">
+                    <Avatar className="size-6 shrink-0">
+                        <AvatarImage src={c.feed_avatar ?? undefined} alt="" />
+                        <AvatarFallback>
+                            <SiBluesky className="size-3" />
+                        </AvatarFallback>
+                    </Avatar>
+                    {c.feed_settings?.feed_name && (
+                        <p className="truncate text-sm">
+                            {c.feed_settings.feed_name}
+                            {c.feed_creator_handle && (
+                                <span className="text-muted-foreground">
+                                    {' '}
+                                    — by @{c.feed_creator_handle}
+                                </span>
+                            )}
+                        </p>
+                    )}
+                </div>
+            ),
         },
         addForms: (
             <>

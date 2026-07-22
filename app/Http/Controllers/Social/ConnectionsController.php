@@ -8,10 +8,48 @@ use App\Services\Bluesky\BlueskyFeedService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class ConnectionsController extends Controller
 {
     public function __construct(private BlueskyFeedService $feeds) {}
+
+    public function edit(Request $request)
+    {
+        $homeAccount = $request->user()->socialAccounts()
+            ->where('provider', 'bluesky')
+            ->where('feed_type', 'home')
+            ->orderBy('id')
+            ->first();
+
+        $connections = $request->user()->socialAccounts()
+            ->select('id', 'provider', 'feed_type', 'handle', 'instance_url', 'auth_failed_at', 'feed_settings')
+            ->get()
+            ->map(function (SocialAccount $account) use ($homeAccount) {
+                $attributes = $account->toArray();
+
+                if ($account->feed_type !== 'bluesky_feed' || $homeAccount === null) {
+                    return $attributes;
+                }
+
+                // Resolved live (cache-backed, see BlueskyFeedService) rather than persisted
+                // like feed_name — this is a cold, occasionally-visited page, so it's worth
+                // self-healing if the feed's avatar or owner changes, unlike feed_name which
+                // sits in the per-post hot path and can't afford a live call there.
+                $feedUri = $account->getPreference('feed_uri');
+                $generator = $feedUri ? $this->feeds->resolveFeedGenerator($homeAccount, $feedUri) : null;
+
+                $attributes['feed_avatar'] = $generator['avatar'] ?? null;
+                $attributes['feed_creator_handle'] = $generator['creator_handle'] ?? null;
+
+                return $attributes;
+            });
+
+        return Inertia::render('settings/connections', [
+            'connections' => $connections,
+            'status' => $request->session()->get('status'),
+        ]);
+    }
 
     public function storePublicMastodon(Request $request)
     {

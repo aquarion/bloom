@@ -201,3 +201,74 @@ it('rejects a bluesky feed that cannot be resolved', function () {
     $response->assertSessionHasErrors('feed_url');
     $this->assertDatabaseCount('social_accounts', 1);
 });
+
+it('resolves a live avatar and creator handle for algorithmic feed connections', function () {
+    $user = User::factory()->withPasskey()->create();
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'tok',
+        'handle' => '@alice.bsky.social',
+    ]);
+    SocialAccount::factory()
+        ->blueskyFeed('at://did:plc:test/app.bsky.feed.generator/whats-hot', "What's Hot")
+        ->create(['user_id' => $user->id]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getFeedGenerator*' => Http::response([
+            'view' => [
+                'uri' => 'at://did:plc:test/app.bsky.feed.generator/whats-hot',
+                'displayName' => "What's Hot",
+                'avatar' => 'https://cdn.bsky.app/avatar.jpg',
+                'creator' => ['handle' => 'bsky.app'],
+            ],
+            'isOnline' => true,
+            'isValid' => true,
+        ]),
+    ]);
+
+    $response = $this->actingAs($user)->get('/settings/connections');
+
+    $response->assertInertia(fn ($page) => $page
+        ->component('settings/connections')
+        ->where('connections', function ($connections) {
+            $feedConnection = collect($connections)->firstWhere('feed_type', 'bluesky_feed');
+
+            return $feedConnection['feed_avatar'] === 'https://cdn.bsky.app/avatar.jpg'
+                && $feedConnection['feed_creator_handle'] === 'bsky.app';
+        })
+    );
+});
+
+it('leaves feed_avatar and feed_creator_handle null when the feed cannot be resolved', function () {
+    $user = User::factory()->withPasskey()->create();
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'tok',
+        'handle' => '@alice.bsky.social',
+    ]);
+    SocialAccount::factory()
+        ->blueskyFeed('at://did:plc:test/app.bsky.feed.generator/gone', 'Gone Feed')
+        ->create(['user_id' => $user->id]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getFeedGenerator*' => Http::response(['error' => 'NotFound'], 400),
+    ]);
+
+    $response = $this->actingAs($user)->get('/settings/connections');
+
+    $response->assertInertia(fn ($page) => $page
+        ->component('settings/connections')
+        ->where('connections', function ($connections) {
+            $feedConnection = collect($connections)->firstWhere('feed_type', 'bluesky_feed');
+
+            return $feedConnection['feed_avatar'] === null
+                && $feedConnection['feed_creator_handle'] === null;
+        })
+    );
+});

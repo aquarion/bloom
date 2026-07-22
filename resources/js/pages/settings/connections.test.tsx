@@ -282,7 +282,7 @@ describe('Connections', () => {
         );
     });
 
-    it('renders a bluesky algorithmic feed row with its raw uri when no name is stored', () => {
+    it('renders just the bluesky icon when no name is stored, no raw uri or placeholder text', () => {
         const connection = makeBlueskyConnection({
             id: 11,
             feed_type: 'bluesky_feed',
@@ -293,11 +293,14 @@ describe('Connections', () => {
 
         const row = screen.getByTestId('account-11');
         expect(
-            within(row).getByText('at://did:plc:abc/feed/whats-hot'),
-        ).toBeInTheDocument();
+            within(row).queryByText('at://did:plc:abc/feed/whats-hot'),
+        ).not.toBeInTheDocument();
+        expect(
+            within(row).queryByText(/algorithmic feed/i),
+        ).not.toBeInTheDocument();
     });
 
-    it('renders a bluesky algorithmic feed row with its stored name', () => {
+    it('renders a bluesky algorithmic feed row with its stored name and live-resolved owner', () => {
         const connection = makeBlueskyConnection({
             id: 12,
             feed_type: 'bluesky_feed',
@@ -306,11 +309,14 @@ describe('Connections', () => {
                 feed_uri: 'at://did:plc:abc/feed/whats-hot',
                 feed_name: "What's Hot",
             },
+            feed_avatar: 'https://cdn.bsky.app/avatar.jpg',
+            feed_creator_handle: 'bsky.app',
         });
         render(<Connections connections={[connection]} />);
 
         const row = screen.getByTestId('account-12');
         expect(within(row).getByText("What's Hot")).toBeInTheDocument();
+        expect(within(row).getByText(/by @bsky\.app/)).toBeInTheDocument();
     });
 
     it('submits the disconnect form for the correct primary account', async () => {

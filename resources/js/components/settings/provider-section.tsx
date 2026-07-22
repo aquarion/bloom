@@ -38,6 +38,9 @@ export interface BlueskyConnection
         feed_uri?: string;
         feed_name?: string;
     } | null;
+    /** Resolved live for bluesky_feed connections (see ConnectionsController::edit); absent otherwise. */
+    feed_avatar?: string | null;
+    feed_creator_handle?: string | null;
 }
 
 export type SocialConnection = MastodonConnection | BlueskyConnection;
@@ -349,9 +352,11 @@ export function ProviderSection<C extends SocialConnection>({
                             <li
                                 key={c.id}
                                 data-testid={`account-${c.id}`}
-                                className="flex items-center justify-between rounded-md border px-3 py-2"
+                                className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
                             >
-                                {secondary.renderLabel(c)}
+                                <div className="min-w-0 flex-1">
+                                    {secondary.renderLabel(c)}
+                                </div>
                                 <DisconnectButton connection={c} />
                             </li>
                         ))}

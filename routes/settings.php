@@ -32,14 +32,7 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::inertia('settings/appearance', 'settings/appearance')->name('appearance.edit');
 
     // Connections settings page
-    Route::get('settings/connections', function (Request $request) {
-        return Inertia::render('settings/connections', [
-            'connections' => $request->user()->socialAccounts()
-                ->select('id', 'provider', 'feed_type', 'handle', 'instance_url', 'auth_failed_at', 'feed_settings')
-                ->get(),
-            'status' => $request->session()->get('status'),
-        ]);
-    })->name('connections.edit');
+    Route::get('settings/connections', [ConnectionsController::class, 'edit'])->name('connections.edit');
 
     // Mastodon OAuth
     Route::post('auth/mastodon', [MastodonController::class, 'redirect'])->name('mastodon.redirect');

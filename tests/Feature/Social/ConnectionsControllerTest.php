@@ -3,6 +3,7 @@
 use App\Models\SocialAccount;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
@@ -120,7 +121,7 @@ it('rejects duplicate public mastodon instance', function () {
     $this->assertDatabaseCount('social_accounts', 1);
 });
 
-it('adds a bluesky algorithmic feed', function () {
+it('adds a bluesky algorithmic feed and stores its resolved name', function () {
     $user = User::factory()->withPasskey()->create();
     SocialAccount::factory()->create([
         'user_id' => $user->id,
@@ -129,6 +130,18 @@ it('adds a bluesky algorithmic feed', function () {
         'instance_url' => 'https://bsky.social',
         'access_token' => 'tok',
         'handle' => '@alice.bsky.social',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getFeedGenerator*' => Http::response([
+            'view' => [
+                'uri' => 'at://did:plc:test/app.bsky.feed.generator/whats-hot',
+                'displayName' => "What's Hot",
+                'creator' => ['handle' => 'bsky.app'],
+            ],
+            'isOnline' => true,
+            'isValid' => true,
+        ]),
     ]);
 
     $response = $this->actingAs($user)->post('/auth/connections/bluesky-feed', [
@@ -142,6 +155,9 @@ it('adds a bluesky algorithmic feed', function () {
         'provider' => 'bluesky',
         'feed_type' => 'bluesky_feed',
     ]);
+
+    $feedAccount = SocialAccount::where('feed_type', 'bluesky_feed')->first();
+    expect($feedAccount->feed_settings['feed_name'])->toBe("What's Hot");
 });
 
 it('rejects bluesky feed without a home account', function () {
@@ -153,4 +169,27 @@ it('rejects bluesky feed without a home account', function () {
 
     $response->assertSessionHasErrors('feed_url');
     $this->assertDatabaseCount('social_accounts', 0);
+});
+
+it('rejects a bluesky feed that cannot be resolved', function () {
+    $user = User::factory()->withPasskey()->create();
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'tok',
+        'handle' => '@alice.bsky.social',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getFeedGenerator*' => Http::response(['error' => 'NotFound'], 400),
+    ]);
+
+    $response = $this->actingAs($user)->post('/auth/connections/bluesky-feed', [
+        'feed_url' => 'https://bsky.app/profile/did:plc:test/feed/whats-hot',
+    ]);
+
+    $response->assertSessionHasErrors('feed_url');
+    $this->assertDatabaseCount('social_accounts', 1);
 });

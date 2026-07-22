@@ -6,6 +6,7 @@ use App\Http\Controllers\Settings\PasskeyController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Social\BlueskyController;
+use App\Http\Controllers\Social\BlueskyFeedDiscoveryController;
 use App\Http\Controllers\Social\ConnectionsController;
 use App\Http\Controllers\Social\MastodonController;
 use Illuminate\Http\Request;
@@ -57,6 +58,10 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
 
     // Add Bluesky algorithmic feed
     Route::post('auth/connections/bluesky-feed', [ConnectionsController::class, 'storeBlueskyFeed'])->name('connections.bluesky-feed.store');
+
+    // Browse/search Bluesky algorithmic feeds
+    Route::get('settings/connections/bluesky-feeds', [BlueskyFeedDiscoveryController::class, 'index'])->name('connections.bluesky-feeds.browse');
+    Route::get('settings/connections/bluesky-feeds/search', [BlueskyFeedDiscoveryController::class, 'search'])->name('connections.bluesky-feeds.search');
 
     // Disconnect any social account
     Route::delete('auth/connections/{account}', [ConnectionsController::class, 'destroy'])->name('connections.destroy');

@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Social;
 
 use App\Http\Controllers\Controller;
 use App\Models\SocialAccount;
+use App\Services\Bluesky\BlueskyFeedService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class ConnectionsController extends Controller
 {
+    public function __construct(private BlueskyFeedService $feeds) {}
+
     public function storePublicMastodon(Request $request)
     {
         $request->validate([
@@ -47,12 +50,13 @@ class ConnectionsController extends Controller
             'feed_url' => 'required|string',
         ]);
 
-        $hasHomeAccount = $request->user()->socialAccounts()
+        $homeAccount = $request->user()->socialAccounts()
             ->where('provider', 'bluesky')
             ->where('feed_type', 'home')
-            ->exists();
+            ->orderBy('id')
+            ->first();
 
-        if (! $hasHomeAccount) {
+        if ($homeAccount === null) {
             throw ValidationException::withMessages([
                 'feed_url' => 'You need a connected Bluesky account to subscribe to algorithmic feeds.',
             ]);
@@ -71,11 +75,19 @@ class ConnectionsController extends Controller
                 ->with('status', 'bluesky-feed-already-added');
         }
 
+        $generator = $this->feeds->resolveFeedGenerator($homeAccount, $feedUri);
+
+        if ($generator === null) {
+            throw ValidationException::withMessages([
+                'feed_url' => "That feed couldn't be found. Check the URL and try again.",
+            ]);
+        }
+
         $request->user()->socialAccounts()->create([
             'provider' => 'bluesky',
             'feed_type' => 'bluesky_feed',
             'instance_url' => 'https://bsky.social',
-            'feed_settings' => ['feed_uri' => $feedUri],
+            'feed_settings' => ['feed_uri' => $feedUri, 'feed_name' => $generator['display_name']],
         ]);
 
         return redirect()->route('connections.edit')

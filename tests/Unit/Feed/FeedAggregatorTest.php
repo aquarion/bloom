@@ -1311,6 +1311,45 @@ it('tags home account posts with feed_type home and a null feed_name', function 
         ->and($result['posts'][0]['feed_name'])->toBeNull();
 });
 
+it('prefers the stored real feed name over the humanized slug guess', function () {
+    $user = User::factory()->create(['feed_preferences' => ['max_age_days' => null]]);
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'feed_type' => 'home',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'tok',
+        'handle' => '@alice.bsky.social',
+    ]);
+    SocialAccount::factory()
+        ->blueskyFeed('at://did:plc:test/app.bsky.feed.generator/whats-hot', "What's Hot")
+        ->create(['user_id' => $user->id]);
+
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:author/app.bsky.feed.post/abc',
+            'cid' => 'cid1',
+            'author' => ['did' => 'did:plc:author', 'handle' => 'author.bsky.social', 'displayName' => 'Author', 'avatar' => 'https://cdn.bsky.app/av.jpg', 'banner' => null],
+            'record' => ['$type' => 'app.bsky.feed.post', 'text' => 'hello algo feed', 'createdAt' => now()->toIso8601String()],
+            'indexedAt' => now()->toIso8601String(),
+            'likeCount' => 0,
+            'repostCount' => 0,
+            'replyCount' => 0,
+        ],
+    ];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->once()->andReturn(['posts' => [], 'cursor' => null]);
+    $bluesky->shouldReceive('getFeed')->once()->andReturn(['posts' => [$feedPost], 'cursor' => null]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['feed_type'])->toBe('bluesky_feed')
+        ->and($result['posts'][0]['feed_name'])->toBe("What's Hot");
+});
+
 it('does not drop algorithmic feed posts when combined feeds exceed the old default buffer', function () {
     // Regression: buffer_size was 40 by default. With 25 home posts + 25 algo posts = 50,
     // the 10 oldest algo posts would be silently cut because algo feeds surface older content.

@@ -16,6 +16,10 @@ class BlueskyFeedService
 
     private const PROFILE_TTL = 86400; // 24 hours
 
+    private const DISCOVERY_TTL = 300; // 5 minutes
+
+    private const FEED_GENERATOR_TTL = 86400; // 24 hours
+
     public function __construct(private BlueskyAuthService $auth) {}
 
     public function getHomeTimeline(SocialAccount $account, int $limit = 20, ?string $cursor = null): array
@@ -70,6 +74,87 @@ class BlueskyFeedService
         $result['posts'] = $this->enrichWithBanners($result['posts'], $account);
 
         return $result;
+    }
+
+    /**
+     * Browse or search Bluesky's discoverable feed generators.
+     *
+     * @return array<int, array{uri: string, display_name: string, description: ?string, avatar: string, creator_handle: ?string, like_count: int}>
+     */
+    public function searchFeedGenerators(SocialAccount $account, ?string $query, int $limit = 10): array
+    {
+        $params = ['limit' => $limit];
+        if ($query !== null && $query !== '') {
+            $params['query'] = $query;
+        }
+
+        $cacheKey = 'bluesky:feed-generators:'.md5($query ?? '').':'.$limit;
+
+        return Cache::remember($cacheKey, self::DISCOVERY_TTL, function () use ($account, $params) {
+            $response = $this->request($account, fn (string $token) => Http::withToken($token)
+                ->get(self::BASE.'/app.bsky.unspecced.getPopularFeedGenerators', $params)
+                ->throw()
+                ->json()
+            );
+
+            return array_map(
+                fn (array $view) => $this->mapFeedGeneratorView($view),
+                $response['feeds'] ?? [],
+            );
+        });
+    }
+
+    /**
+     * Resolve a single feed generator's metadata by its AT URI, so a manually
+     * pasted URI can be validated and named the same way a picked-from-search
+     * one is. Returns null when the feed doesn't exist or the lookup fails.
+     *
+     * @return array{uri: string, display_name: string, description: ?string, avatar: string, creator_handle: ?string, like_count: int}|null
+     */
+    public function resolveFeedGenerator(SocialAccount $account, string $feedUri): ?array
+    {
+        $cacheKey = 'bluesky:feed-generator:'.md5($feedUri);
+        $sentinel = '__unresolved__';
+
+        $cached = Cache::get($cacheKey, $sentinel);
+        if ($cached !== $sentinel) {
+            return $cached ?: null;
+        }
+
+        try {
+            $response = $this->request($account, fn (string $token) => Http::withToken($token)
+                ->get(self::BASE.'/app.bsky.feed.getFeedGenerator', ['feed' => $feedUri])
+                ->throw()
+                ->json()
+            );
+        } catch (RequestException $e) {
+            Cache::put($cacheKey, null, 300);
+
+            return null;
+        }
+
+        $view = $response['view'] ?? null;
+        $resolved = is_array($view) ? $this->mapFeedGeneratorView($view) : null;
+
+        Cache::put($cacheKey, $resolved, $resolved ? self::FEED_GENERATOR_TTL : 300);
+
+        return $resolved;
+    }
+
+    /**
+     * @param  array<string, mixed>  $view
+     * @return array{uri: string, display_name: string, description: ?string, avatar: string, creator_handle: ?string, like_count: int}
+     */
+    private function mapFeedGeneratorView(array $view): array
+    {
+        return [
+            'uri' => $view['uri'] ?? '',
+            'display_name' => $view['displayName'] ?? '',
+            'description' => $view['description'] ?? null,
+            'avatar' => $this->safeUrl($view['avatar'] ?? ''),
+            'creator_handle' => $view['creator']['handle'] ?? null,
+            'like_count' => $view['likeCount'] ?? 0,
+        ];
     }
 
     /**

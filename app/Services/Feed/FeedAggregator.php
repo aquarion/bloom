@@ -275,7 +275,10 @@ class FeedAggregator
     {
         return match ($account->feed_type) {
             'public_mastodon' => parse_url($account->instance_url ?? '', PHP_URL_HOST) ?: $account->instance_url,
-            'bluesky_feed' => $this->humanizeFeedSlug((string) $account->getPreference('feed_uri', '')),
+            // Feeds connected via the picker (or backfilled) carry Bluesky's real registered
+            // display name in feed_settings.feed_name — prefer that over the guessed slug.
+            'bluesky_feed' => $account->getPreference('feed_name')
+                ?: $this->humanizeFeedSlug((string) $account->getPreference('feed_uri', '')),
             default => null,
         };
     }

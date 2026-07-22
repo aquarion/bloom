@@ -74,6 +74,10 @@ export default function BlueskyFeeds({
     const [manualOpen, setManualOpen] = useState(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Mirrors InstanceCombobox.tsx's debounced-search pattern; the AbortController + setTimeout
+    // cleanup below already prevent the race/double-fire/leak this rule warns about generically,
+    // and its suggested fix (a Server Component) doesn't apply to this client-rendered Inertia SPA.
+    // react-doctor-disable-next-line react-doctor/no-fetch-in-effect
     useEffect(() => {
         if (query.trim().length < 2) {
             return;

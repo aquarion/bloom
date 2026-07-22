@@ -1,9 +1,17 @@
 {
 	"$schema": "https://getcomposer.org/schema.json",
-	"name": "laravel/react-starter-kit",
+	"name": "aquarion/bloom",
 	"type": "project",
-	"description": "The skeleton application for the Laravel framework.",
-	"keywords": ["laravel", "framework"],
+	"description": "A full screen social media platform built with Laravel, Inertia.js, and Tailwind CSS.",
+	"keywords": ["laravel", "social media", "mastodon", "bluesky"],
+	"homepage": "https://bloomfeed.app",
+	"authors": [
+		{
+			"name": "Aquarion",
+			"email": "nicholas@istic.net",
+			"homepage": "https://istic.co"
+		}
+	],
 	"license": "MIT",
 	"require": {
 		"php": "^8.4",

@@ -15,6 +15,8 @@ interface BaseConnection {
     id: number;
     handle: string | null;
     auth_failed_at: string | null;
+    /** Instance host (public Mastodon timelines) or humanized feed slug (Bluesky algorithmic feeds); null for home accounts. */
+    feed_name: string | null;
     feed_settings: {
         max_posts?: number;
         max_age_days?: number | null;
@@ -56,13 +58,16 @@ export interface ProviderSectionConfig<
         ReauthForm: ComponentType<{ connection: C }>;
         renderLabel: (connection: C) => ReactNode;
         showFeedSettings?: boolean;
+        /** Rendered directly below this section's list, rather than at the bottom of the card. */
+        addForm: ReactNode;
     };
     secondary?: {
         heading: string;
         connections: C[];
         renderLabel: (connection: C) => ReactNode;
+        /** Rendered directly below this section's list, rather than at the bottom of the card. */
+        addForm: ReactNode;
     };
-    addForms: ReactNode;
 }
 
 export function AccountFeedSettings({
@@ -292,79 +297,93 @@ export function ProviderSection<C extends SocialConnection>({
                 {config.icon} {config.label}
             </h3>
 
-            {primary && primary.connections.length > 0 && (
-                <div className="mb-4">
-                    <p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
-                        {primary.heading}
-                    </p>
-                    <ul className="space-y-2">
-                        {primary.connections.map((c) => (
-                            <li
-                                key={c.id}
-                                data-testid={`account-${c.id}`}
-                                className="rounded-md border px-3 py-2"
-                            >
-                                {c.auth_failed_at ? (
-                                    <primary.ReauthForm connection={c} />
-                                ) : (
-                                    <div>
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-muted-foreground text-sm">
-                                                {primary.renderLabel(c)}
-                                            </p>
-                                            <Form
-                                                {...disconnectAccount.form({
-                                                    account: c.id,
-                                                })}
-                                            >
-                                                {({ processing }) => (
-                                                    <Button
-                                                        type="submit"
-                                                        variant="destructive"
-                                                        size="sm"
-                                                        disabled={processing}
-                                                    >
-                                                        Disconnect
-                                                    </Button>
-                                                )}
-                                            </Form>
-                                        </div>
-                                        {primary.showFeedSettings && (
-                                            <AccountFeedSettings
+            {primary && (
+                <div className="mb-4 space-y-3">
+                    {primary.connections.length > 0 && (
+                        <div>
+                            <p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                                {primary.heading}
+                            </p>
+                            <ul className="space-y-2">
+                                {primary.connections.map((c) => (
+                                    <li
+                                        key={c.id}
+                                        data-testid={`account-${c.id}`}
+                                        className="rounded-md border px-3 py-2"
+                                    >
+                                        {c.auth_failed_at ? (
+                                            <primary.ReauthForm
                                                 connection={c}
                                             />
+                                        ) : (
+                                            <div>
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-muted-foreground text-sm">
+                                                        {primary.renderLabel(c)}
+                                                    </p>
+                                                    <Form
+                                                        {...disconnectAccount.form(
+                                                            {
+                                                                account: c.id,
+                                                            },
+                                                        )}
+                                                    >
+                                                        {({ processing }) => (
+                                                            <Button
+                                                                type="submit"
+                                                                variant="destructive"
+                                                                size="sm"
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                            >
+                                                                Disconnect
+                                                            </Button>
+                                                        )}
+                                                    </Form>
+                                                </div>
+                                                {primary.showFeedSettings && (
+                                                    <AccountFeedSettings
+                                                        connection={c}
+                                                    />
+                                                )}
+                                            </div>
                                         )}
-                                    </div>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    {primary.addForm}
                 </div>
             )}
 
-            {secondary && secondary.connections.length > 0 && (
-                <div className="mb-4">
-                    <p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
-                        {secondary.heading}
-                    </p>
-                    <ul className="space-y-2">
-                        {secondary.connections.map((c) => (
-                            <li
-                                key={c.id}
-                                data-testid={`account-${c.id}`}
-                                className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
-                            >
-                                <div className="min-w-0 flex-1">
-                                    {secondary.renderLabel(c)}
-                                </div>
-                                <DisconnectButton connection={c} />
-                            </li>
-                        ))}
-                    </ul>
+            {secondary && (
+                <div className="space-y-3">
+                    {secondary.connections.length > 0 && (
+                        <div>
+                            <p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                                {secondary.heading}
+                            </p>
+                            <ul className="space-y-2">
+                                {secondary.connections.map((c) => (
+                                    <li
+                                        key={c.id}
+                                        data-testid={`account-${c.id}`}
+                                        className="flex items-center justify-between gap-2 rounded-md border px-3 py-2"
+                                    >
+                                        <div className="min-w-0 flex-1">
+                                            {secondary.renderLabel(c)}
+                                        </div>
+                                        <DisconnectButton connection={c} />
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    {secondary.addForm}
                 </div>
             )}
-
-            <div className="space-y-3">{config.addForms}</div>
         </div>
     );
 }

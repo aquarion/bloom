@@ -15,7 +15,12 @@ interface BaseConnection {
     id: number;
     handle: string | null;
     auth_failed_at: string | null;
-    /** Instance host (public Mastodon timelines) or humanized feed slug (Bluesky algorithmic feeds); null for home accounts. */
+    /**
+     * Instance host for a public Mastodon timeline. For a Bluesky algorithmic feed, the real
+     * name Bluesky's API returned when the feed was connected — a humanized slug guessed from
+     * the feed URI only for feeds connected before that resolution existed. Null for home
+     * accounts. See SocialAccount::feed_name.
+     */
     feed_name: string | null;
     feed_settings: {
         max_posts?: number;

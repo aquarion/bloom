@@ -10,7 +10,7 @@ ARG APP_ENV=production
 ARG APP_NAME=Bloom
 
 RUN apk add --no-cache git unzip \
-    && install-php-extensions pdo_mysql pdo_sqlite redis pcntl opcache
+    && install-php-extensions pdo_mysql pdo_sqlite redis pcntl opcache opentelemetry grpc
 
 # Copy the exact Node 26 binaries from the node-deps stage so that npm ci
 # and npm run build use the same toolchain (wayfinder needs PHP at build time,
@@ -55,6 +55,8 @@ ARG APP_BRANCH=
 ENV APP_VERSION=$APP_VERSION
 ENV APP_PR_NUMBER=$APP_PR_NUMBER
 ENV APP_BRANCH=$APP_BRANCH
+
+ENV OTEL_RESOURCE_ATTRIBUTES="service.version=$APP_VERSION,service.environment=$APP_ENV,service.name=$APP_NAME,service.revision=$APP_PR_NUMBER,service.branch=$APP_BRANCH"
 
 LABEL org.opencontainers.image.version=$APP_VERSION \
       org.opencontainers.image.revision=$APP_PR_NUMBER \

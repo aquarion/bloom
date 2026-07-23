@@ -40,7 +40,7 @@ jobs:
         with:
           php-version: "8.4"
           tools: composer:v2
-          extensions: redis,opentelemetry
+          extensions: redis,opentelemetry,grpc
 
       - name: Setup Node
         uses: actions/setup-node@v6

@@ -1,9 +1,14 @@
-FROM node:26-alpine AS node-deps
+FROM node:26-alpine@sha256:e88a35be04478413b7c71c455cd9865de9b9360e1f43456be5951032d7ac1a66 AS node-deps
 WORKDIR /var/www/html
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM dunglas/frankenphp:1-php8.4-alpine
+# Pinned by digest (not just the floating "1-php8.4-alpine" tag): dunglas
+# republishes this tag frequently, which was silently invalidating the
+# Docker layer cache for every layer below — including the grpc extension
+# compile (~16 min) — on every build, even when nothing in this repo
+# changed. Dependabot's docker ecosystem bumps this digest deliberately.
+FROM dunglas/frankenphp:1-php8.4-alpine@sha256:023709d5a92f22540b01353538275ef6b641b2f12f8f8c8325c177d66783bce2
 WORKDIR /var/www/html
 
 ARG APP_ENV=production
@@ -22,7 +27,7 @@ COPY --from=node-deps /usr/local/lib/node_modules/npm /usr/local/lib/node_module
 RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
-COPY --from=composer:2.9 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.9@sha256:b09bccd91a78fe8a9ab4b33d707b862e8fe54fec17782e32683ad2a69c46867d /usr/bin/composer /usr/bin/composer
 
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction

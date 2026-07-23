@@ -10,7 +10,7 @@ ARG APP_ENV=production
 ARG APP_NAME=Bloom
 
 RUN apk add --no-cache git unzip \
-    && install-php-extensions pdo_mysql pdo_sqlite redis pcntl opcache opentelemetry
+    && install-php-extensions pdo_mysql pdo_sqlite redis pcntl opcache opentelemetry grpc
 
 # Copy the exact Node 26 binaries from the node-deps stage so that npm ci
 # and npm run build use the same toolchain (wayfinder needs PHP at build time,

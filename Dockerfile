@@ -3,11 +3,11 @@ WORKDIR /var/www/html
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Pinned by digest (not just the floating "1-php8.4-alpine" tag): dunglas
-# republishes this tag frequently, which was silently invalidating the
-# Docker layer cache for every layer below on every build, even when
-# nothing in this repo changed. Dependabot's docker ecosystem bumps this
-# digest deliberately.
+# Pinned by digest (not just the floating "1-php8.4-alpine" tag):
+# dunglas/frankenphp republishes this tag frequently, which was silently
+# invalidating the Docker layer cache for every layer below on every
+# build, even when nothing in this repo changed. Dependabot's docker
+# ecosystem bumps this digest deliberately.
 FROM dunglas/frankenphp:1-php8.4-alpine@sha256:023709d5a92f22540b01353538275ef6b641b2f12f8f8c8325c177d66783bce2
 WORKDIR /var/www/html
 

@@ -5,9 +5,9 @@ RUN npm ci
 
 # Pinned by digest (not just the floating "1-php8.4-alpine" tag): dunglas
 # republishes this tag frequently, which was silently invalidating the
-# Docker layer cache for every layer below — including the grpc extension
-# compile (~16 min) — on every build, even when nothing in this repo
-# changed. Dependabot's docker ecosystem bumps this digest deliberately.
+# Docker layer cache for every layer below on every build, even when
+# nothing in this repo changed. Dependabot's docker ecosystem bumps this
+# digest deliberately.
 FROM dunglas/frankenphp:1-php8.4-alpine@sha256:023709d5a92f22540b01353538275ef6b641b2f12f8f8c8325c177d66783bce2
 WORKDIR /var/www/html
 
@@ -15,7 +15,7 @@ ARG APP_ENV=production
 ARG APP_NAME=Bloom
 
 RUN apk add --no-cache git unzip \
-    && install-php-extensions pdo_mysql pdo_sqlite redis pcntl opcache opentelemetry grpc
+    && install-php-extensions pdo_mysql pdo_sqlite redis pcntl opcache opentelemetry
 
 # Copy the exact Node 26 binaries from the node-deps stage so that npm ci
 # and npm run build use the same toolchain (wayfinder needs PHP at build time,

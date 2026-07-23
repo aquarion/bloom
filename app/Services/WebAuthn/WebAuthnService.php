@@ -38,11 +38,14 @@ class WebAuthnService
 
     public function generateRegistrationOptions(User $user): PublicKeyCredentialCreationOptions
     {
+        // The $name constructor parameter is deprecated since webauthn-lib 5.3.0 and removed in
+        // 6.0.0. Setting the public property directly avoids the deprecation while still
+        // sending the RP name (mirrors what PublicKeyCredentialUserEntity does internally).
+        $rp = new PublicKeyCredentialRpEntity(id: $this->rpId());
+        $rp->name = config('app.name');
+
         return new PublicKeyCredentialCreationOptions(
-            rp: new PublicKeyCredentialRpEntity(
-                name: config('app.name'),
-                id: $this->rpId(),
-            ),
+            rp: $rp,
             user: new PublicKeyCredentialUserEntity(
                 name: $user->email,
                 id: (string) $user->id,

@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Middleware\EnsurePasskeyConfirmed;
 use App\Models\Passkey;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Webauthn\PublicKeyCredentialRequestOptions;
 
@@ -61,6 +63,18 @@ test('delete with expired passkey confirmation is rejected', function () {
         ->assertRedirect();
 
     expect($user->fresh())->not->toBeNull();
+});
+
+test('an unrecognised step-up mode fails closed instead of downgrading', function () {
+    // A typo in a route's `passkey.confirmed:{mode}` middleware string must not
+    // silently fall through to the weaker default window.
+    $middleware = new EnsurePasskeyConfirmed;
+
+    expect(fn () => $middleware->handle(
+        Request::create('/'),
+        fn () => response('ok'),
+        'imediate', // deliberate typo
+    ))->toThrow(ValueError::class);
 });
 
 test('confirm endpoint rejects a passkey belonging to a different user', function () {

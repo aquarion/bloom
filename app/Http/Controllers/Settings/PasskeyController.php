@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Concerns\ConfirmsPasskeyIdentity;
+use App\Enums\PasskeyConfirmMode;
 use App\Http\Controllers\Controller;
 use App\Mail\PasskeyInvalidated;
 use App\Models\Passkey;
@@ -45,12 +46,11 @@ class PasskeyController extends Controller
 
         // Adding a passkey is a step-up action: an attacker on a live session must
         // not be able to silently enrol their own authenticator. It is waived only
-        // during initial enrolment (no passkey yet) or a token-verified recovery,
-        // where the user has no usable passkey to confirm with.
-        $setupGranted = (bool) $request->session()->get('passkey_setup_grant', false);
-        $enrolling = $setupGranted || ! $request->user()->passkeys()->exists();
+        // during initial enrolment (no passkey yet) or a recent token-verified
+        // recovery, where the user has no usable passkey to confirm with.
+        $enrolling = $this->hasValidPasskeySetupWaiver($request) || ! $request->user()->passkeys()->exists();
 
-        if (! $enrolling && ! $this->passkeyConfirmedWithin($request, 'immediate')) {
+        if (! $enrolling && ! $this->passkeyConfirmedWithin($request, PasskeyConfirmMode::Immediate)) {
             return response()->json(['message' => 'Please confirm your identity to continue.'], 422);
         }
 
@@ -88,7 +88,7 @@ class PasskeyController extends Controller
 
         // One enrolment per grant: a recovering user can add their new passkey, but
         // the waiver cannot be reused to add further passkeys without a fresh tap.
-        $request->session()->forget('passkey_setup_grant');
+        $this->consumePasskeySetupWaiver($request);
 
         return response()->json($passkey->only('id', 'name', 'last_used_at', 'created_at'), 201);
     }

@@ -256,10 +256,13 @@ export function DisconnectButton({
 }) {
     const { confirmIfNeeded } = usePasskey();
     const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Disconnecting is a step-up action, reusing a passkey confirmed in the last
     // 15 minutes rather than prompting again.
     const handleDisconnect = async () => {
+        setError(null);
+
         if (!(await confirmIfNeeded())) {
             return;
         }
@@ -267,20 +270,28 @@ export function DisconnectButton({
         setProcessing(true);
         router.delete(disconnectAccount.url({ account: connection.id }), {
             preserveScroll: true,
+            onError: (errors) =>
+                setError(
+                    errors.passkey ??
+                        'Could not disconnect that account. Please try again.',
+                ),
             onFinish: () => setProcessing(false),
         });
     };
 
     return (
-        <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            disabled={processing}
-            onClick={handleDisconnect}
-        >
-            {label}
-        </Button>
+        <div className="flex flex-col items-end gap-1">
+            <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={processing}
+                onClick={handleDisconnect}
+            >
+                {label}
+            </Button>
+            {error && <p className="text-destructive text-xs">{error}</p>}
+        </div>
     );
 }
 

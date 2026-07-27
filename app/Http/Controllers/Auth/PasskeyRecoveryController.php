@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Concerns\ConfirmsPasskeyIdentity;
 use App\Http\Controllers\Controller;
 use App\Mail\PasskeyRecovery;
 use App\Mail\TombstoneRecovery;
@@ -21,6 +22,8 @@ use Throwable;
 
 class PasskeyRecoveryController extends Controller
 {
+    use ConfirmsPasskeyIdentity;
+
     public function create(): Response
     {
         return Inertia::render('auth/recover');
@@ -54,7 +57,7 @@ class PasskeyRecoveryController extends Controller
         return Inertia::render('auth/recover-sent');
     }
 
-    public function setup(string $token): RedirectResponse|Response
+    public function setup(Request $request, string $token): RedirectResponse|Response
     {
         $hashedToken = hash('sha256', $token);
 
@@ -78,9 +81,9 @@ class PasskeyRecoveryController extends Controller
             Auth::login($user);
 
             // A recovering user still has their old (lost) passkey rows, so enrolment
-            // can't rely on "no passkey yet". Grant a one-time waiver of the add-passkey
-            // step-up check for this session; PasskeyController::store consumes it.
-            session(['passkey_setup_grant' => true]);
+            // can't rely on "no passkey yet". Grant a one-time, time-boxed waiver of the
+            // add-passkey step-up check; PasskeyController::store consumes it.
+            $this->grantPasskeySetupWaiver($request);
 
             return redirect()->route('passkey.setup')
                 ->with('status', 'recovery');

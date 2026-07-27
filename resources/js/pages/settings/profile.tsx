@@ -22,6 +22,10 @@ export default function Profile({ status }: { status?: string }) {
         email: auth.user.email,
     });
 
+    // The step-up middleware rejects with a `passkey` error key that isn't one of
+    // this form's fields, so read it off the untyped error bag.
+    const stepUpError = (profileForm.errors as Record<string, string>).passkey;
+
     async function submitProfile(e: React.FormEvent) {
         e.preventDefault();
 
@@ -108,6 +112,12 @@ export default function Profile({ status }: { status?: string }) {
 
                     {passkeyError && (
                         <InputError className="mt-2" message={passkeyError} />
+                    )}
+
+                    {/* Server-side step-up rejection (e.g. the client thought a
+                        confirmation was still valid but the server disagreed). */}
+                    {stepUpError && (
+                        <InputError className="mt-2" message={stepUpError} />
                     )}
 
                     {status && (

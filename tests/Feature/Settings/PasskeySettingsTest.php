@@ -246,7 +246,7 @@ test('store allows recovery enrolment via the setup grant, then consumes it', fu
     Cache::tags(['user:'.$user->id])->put('passkey_register_challenge', serialize($options), 300);
 
     $this->actingAs($user)
-        ->withSession(['passkey_setup_grant' => true])
+        ->withSession(['passkey_setup_grant_at' => time()])
         ->postJson(route('passkey.register.store'), [
             'name' => 'Recovered key',
             'id' => base64_encode($credentialIdBytes),
@@ -255,5 +255,24 @@ test('store allows recovery enrolment via the setup grant, then consumes it', fu
             'response' => ['attestationObject' => base64_encode('data'), 'clientDataJSON' => base64_encode('{}')],
         ])
         ->assertCreated()
-        ->assertSessionMissing('passkey_setup_grant');
+        ->assertSessionMissing('passkey_setup_grant_at');
+});
+
+test('store rejects an expired recovery setup grant', function () {
+    $user = User::factory()->create();
+    // A recovering user still holds their old (lost) passkey rows.
+    Passkey::factory()->for($user)->create();
+
+    // Grant older than the default confirmation window: it must no longer waive
+    // the step-up check, so a stale/stolen session can't enrol its own passkey.
+    $expired = time() - (config('auth.passkey_confirm_timeout') + 60);
+
+    // No challenge or WebAuthn mock: the step-up check must reject before any
+    // registration work happens.
+    $this->actingAs($user)
+        ->withSession(['passkey_setup_grant_at' => $expired])
+        ->postJson(route('passkey.register.store'), ['name' => 'Late key'])
+        ->assertUnprocessable();
+
+    expect($user->passkeys()->count())->toBe(1);
 });

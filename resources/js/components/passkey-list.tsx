@@ -24,6 +24,7 @@ export default function PasskeyList({ passkeys }: Props) {
     const [adding, setAdding] = useState(false);
     const [newName, setNewName] = useState('');
     const [removingId, setRemovingId] = useState<string | null>(null);
+    const [removeError, setRemoveError] = useState<string | null>(null);
 
     const handleAdd = async () => {
         if (!newName.trim()) {
@@ -47,6 +48,8 @@ export default function PasskeyList({ passkeys }: Props) {
 
     const handleRemove = async (id: string) => {
         // Removing a passkey always requires a fresh tap.
+        setRemoveError(null);
+
         if (!(await confirmIdentity())) {
             return;
         }
@@ -54,6 +57,11 @@ export default function PasskeyList({ passkeys }: Props) {
         setRemovingId(id);
         router.delete(destroy.url({ passkey: id }), {
             preserveScroll: true,
+            onError: (errors) =>
+                setRemoveError(
+                    errors.passkey ??
+                        'Could not remove that passkey. Please try again.',
+                ),
             onFinish: () => setRemovingId(null),
         });
     };
@@ -132,7 +140,11 @@ export default function PasskeyList({ passkeys }: Props) {
                     </Button>
                 ))}
 
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {(error || removeError) && (
+                <p className="text-destructive text-sm">
+                    {error ?? removeError}
+                </p>
+            )}
         </div>
     );
 }

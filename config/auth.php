@@ -114,4 +114,26 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Passkey Confirmation (Step-Up) Windows
+    |--------------------------------------------------------------------------
+    |
+    | Sensitive actions require a recent passkey confirmation ("step-up" auth).
+    | "confirm_timeout" is how long a confirmation is reusable for moderately
+    | sensitive actions (editing your profile, disconnecting a social account).
+    | "confirm_immediate_timeout" is the tight window for the most dangerous
+    | actions (deleting your account, adding or removing a passkey): the client
+    | always taps for these, and the short window means the confirmation must be
+    | very recent. Both are in seconds. Note the window is time-based, not bound
+    | to a specific action, so a confirmation made within the window satisfies
+    | the gate; binding a confirmation to one action would need a per-action
+    | challenge (see the step-up follow-up).
+    |
+    */
+
+    'passkey_confirm_timeout' => (int) env('AUTH_PASSKEY_CONFIRM_TIMEOUT', 900),
+
+    'passkey_confirm_immediate_timeout' => (int) env('AUTH_PASSKEY_CONFIRM_IMMEDIATE_TIMEOUT', 60),
+
 ];

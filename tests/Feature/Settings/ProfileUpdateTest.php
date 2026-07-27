@@ -14,6 +14,7 @@ test('profile information can be updated', function () {
     $user = User::factory()->withPasskey()->create();
 
     $this->actingAs($user)
+        ->withSession(['passkey_confirmed_at' => time()])
         ->patch(route('profile.update'), [
             'name' => 'Test User',
             'email' => 'test@example.com',
@@ -27,10 +28,24 @@ test('profile information can be updated', function () {
     expect($user->email)->toBe('test@example.com');
 });
 
+test('profile update is rejected without a recent passkey confirmation', function () {
+    $user = User::factory()->withPasskey()->create(['name' => 'Original']);
+
+    $this->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => 'Changed',
+            'email' => 'changed@example.com',
+        ])
+        ->assertRedirect();
+
+    expect($user->fresh()->name)->toBe('Original');
+});
+
 test('email is stored lowercase on profile update', function () {
     $user = User::factory()->withPasskey()->create();
 
     $this->actingAs($user)
+        ->withSession(['passkey_confirmed_at' => time()])
         ->patch(route('profile.update'), [
             'name' => $user->name,
             'email' => 'Test@Example.COM',

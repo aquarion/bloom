@@ -37,6 +37,7 @@ const mockPasskey = (
     register: vi.fn().mockResolvedValue(true),
     authenticate: vi.fn(),
     confirmIdentity: vi.fn().mockResolvedValue(true),
+    confirmIfNeeded: vi.fn().mockResolvedValue(true),
     startConditional: vi.fn(),
     abortConditional: vi.fn(),
     ...overrides,

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Concerns\ConfirmsPasskeyIdentity;
+use App\Enums\PasskeyConfirmMode;
 use App\Http\Controllers\Controller;
 use App\Mail\PasskeyInvalidated;
 use App\Models\Passkey;
@@ -20,6 +22,8 @@ use Webauthn\Denormalizer\WebauthnSerializerFactory;
 
 class PasskeyController extends Controller
 {
+    use ConfirmsPasskeyIdentity;
+
     public function __construct(private readonly WebAuthnService $webAuthn) {}
 
     public function registerOptions(Request $request): Response
@@ -39,6 +43,16 @@ class PasskeyController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate(['name' => ['required', 'string', 'max:255']]);
+
+        // Adding a passkey is a step-up action: an attacker on a live session must
+        // not be able to silently enrol their own authenticator. It is waived only
+        // during initial enrolment (no passkey yet) or a recent token-verified
+        // recovery, where the user has no usable passkey to confirm with.
+        $enrolling = $this->hasValidPasskeySetupWaiver($request) || ! $request->user()->passkeys()->exists();
+
+        if (! $enrolling && ! $this->passkeyConfirmedWithin($request, PasskeyConfirmMode::Immediate)) {
+            return response()->json(['message' => 'Please confirm your identity to continue.'], 422);
+        }
 
         $serialized = Cache::tags(['user:'.$request->user()->id])->pull('passkey_register_challenge');
 
@@ -71,6 +85,10 @@ class PasskeyController extends Controller
         ]);
 
         $request->user()->update(['last_active_at' => now(), 'inactivity_warning_sent_at' => null]);
+
+        // One enrolment per grant: a recovering user can add their new passkey, but
+        // the waiver cannot be reused to add further passkeys without a fresh tap.
+        $this->consumePasskeySetupWaiver($request);
 
         return response()->json($passkey->only('id', 'name', 'last_used_at', 'created_at'), 201);
     }

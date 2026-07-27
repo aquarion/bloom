@@ -14,6 +14,8 @@ type FormRenderProps = {
     errors: Record<string, string>;
 };
 
+const { routerDelete } = vi.hoisted(() => ({ routerDelete: vi.fn() }));
+
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Link: ({
@@ -51,6 +53,9 @@ vi.mock('@inertiajs/react', () => ({
             processing: false,
         };
     },
+    // A far-future confirmation keeps disconnect's step-up from prompting a tap.
+    usePage: () => ({ props: { passkeyConfirmedUntil: 4_102_444_800_000 } }),
+    router: { delete: routerDelete },
 }));
 
 vi.mock('@/routes/bluesky', () => ({
@@ -82,6 +87,8 @@ vi.mock('@/routes/mastodon', () => ({
 vi.mock('@/routes/connections', () => ({
     edit: () => ({ url: '/settings/connections' }),
     destroy: {
+        url: ({ account }: { account: number }) =>
+            `/auth/connections/${account}`,
         form: ({ account }: { account: number }) => ({
             action: `/auth/connections/${account}`,
             method: 'delete',
@@ -327,21 +334,23 @@ describe('Connections', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('submits the disconnect form for the correct primary account', async () => {
+    it('disconnects the correct primary account after step-up', async () => {
         const user = userEvent.setup();
+        routerDelete.mockClear();
         const connection = makeConnection({ id: 7 });
         render(<Connections connections={[connection]} />);
 
-        const button = screen.getByText('Disconnect');
-        const form = button.closest('form');
-        expect(form).toHaveAttribute('action', '/auth/connections/7');
-        expect(form).toHaveAttribute('method', 'delete');
+        await user.click(screen.getByText('Disconnect'));
 
-        await user.click(button);
+        expect(routerDelete).toHaveBeenCalledWith(
+            '/auth/connections/7',
+            expect.anything(),
+        );
     });
 
-    it('submits the remove form for the correct secondary account', async () => {
+    it('removes the correct secondary account after step-up', async () => {
         const user = userEvent.setup();
+        routerDelete.mockClear();
         const connection = makeConnection({
             id: 2,
             feed_type: 'public_mastodon',
@@ -349,12 +358,12 @@ describe('Connections', () => {
         });
         render(<Connections connections={[connection]} />);
 
-        const button = screen.getByText('Remove');
-        const form = button.closest('form');
-        expect(form).toHaveAttribute('action', '/auth/connections/2');
-        expect(form).toHaveAttribute('method', 'delete');
+        await user.click(screen.getByText('Remove'));
 
-        await user.click(button);
+        expect(routerDelete).toHaveBeenCalledWith(
+            '/auth/connections/2',
+            expect.anything(),
+        );
     });
 
     it('submits the mastodon reauth form for the correct account', async () => {

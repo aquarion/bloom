@@ -30,7 +30,9 @@ it('disconnects a bluesky account by id', function () {
         'handle' => '@second.bsky.social',
     ]);
 
-    $response = $this->actingAs($user)->delete("/auth/connections/{$first->id}");
+    $response = $this->actingAs($user)
+        ->withSession(['passkey_confirmed_at' => time()])
+        ->delete("/auth/connections/{$first->id}");
 
     $response->assertRedirect(route('connections.edit'));
     $response->assertSessionHas('status', 'bluesky-disconnected');
@@ -53,7 +55,9 @@ it('disconnects a mastodon account by id', function () {
         'handle' => '@first@mastodon.social',
     ]);
 
-    $response = $this->actingAs($user)->delete("/auth/connections/{$first->id}");
+    $response = $this->actingAs($user)
+        ->withSession(['passkey_confirmed_at' => time()])
+        ->delete("/auth/connections/{$first->id}");
 
     $response->assertRedirect(route('connections.edit'));
     $response->assertSessionHas('status', 'mastodon-disconnected');
@@ -70,10 +74,27 @@ it('returns 403 when disconnecting another users account', function () {
         'instance_url' => 'https://bsky.social',
     ]);
 
-    $response = $this->actingAs($user)->delete("/auth/connections/{$othersAccount->id}");
+    $response = $this->actingAs($user)
+        ->withSession(['passkey_confirmed_at' => time()])
+        ->delete("/auth/connections/{$othersAccount->id}");
 
     $response->assertForbidden();
     $this->assertDatabaseHas('social_accounts', ['id' => $othersAccount->id]);
+});
+
+it('rejects disconnect without a recent passkey confirmation', function () {
+    $user = User::factory()->withPasskey()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+    ]);
+
+    $this->actingAs($user)
+        ->delete("/auth/connections/{$account->id}")
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('social_accounts', ['id' => $account->id]);
 });
 
 it('redirects guests away from disconnect', function () {

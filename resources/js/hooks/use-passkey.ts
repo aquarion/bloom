@@ -295,7 +295,18 @@ export function usePasskey(): UsePasskeyReturn {
             }
 
             const body = (await res.json()) as { redirect?: string };
-            router.visit(body.redirect ?? dashboard.url());
+
+            // Keep the caller's loading state active until Inertia has finished
+            // navigating to and rendering the destination. router.visit is
+            // otherwise fire-and-forget, so without awaiting onFinish the
+            // caller's `finally` clears `loading` the instant the request is
+            // dispatched, dropping the button's spinner while the feed is still
+            // loading.
+            await new Promise<void>((resolve) => {
+                router.visit(body.redirect ?? dashboard.url(), {
+                    onFinish: () => resolve(),
+                });
+            });
         },
         [performAssertion],
     );

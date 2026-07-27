@@ -1,4 +1,4 @@
-import { Form, Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import BetaTesterController from '@/actions/App/Http/Controllers/Settings/BetaTesterController';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
@@ -8,12 +8,33 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePasskey } from '@/hooks/use-passkey';
 import SettingsPageLayout from '@/layouts/settings-page-layout';
 import docs from '@/routes/docs';
 import { edit } from '@/routes/profile';
 
 export default function Profile({ status }: { status?: string }) {
     const { auth } = usePage().props;
+    const { confirmIfNeeded, error: passkeyError } = usePasskey();
+
+    const profileForm = useForm({
+        name: auth.user.name,
+        email: auth.user.email,
+    });
+
+    async function submitProfile(e: React.FormEvent) {
+        e.preventDefault();
+
+        // Changing your name/email is a step-up action, but a passkey confirmed
+        // within the last 15 minutes is reused rather than prompting again.
+        if (!(await confirmIfNeeded())) {
+            return;
+        }
+
+        profileForm.patch(ProfileController.update.url(), {
+            preserveScroll: true,
+        });
+    }
 
     const betaTesterForm = useForm({
         beta_tester: auth.user.roles?.includes('beta_tester') ?? false,
@@ -39,71 +60,71 @@ export default function Profile({ status }: { status?: string }) {
                     description="Update your name and email address"
                 />
 
-                <Form
-                    {...ProfileController.update.form()}
-                    options={{
-                        preserveScroll: true,
-                    }}
-                    className="space-y-6"
-                >
-                    {({ processing, errors }) => (
-                        <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Name</Label>
+                <form onSubmit={submitProfile} className="space-y-6">
+                    <div className="grid gap-2">
+                        <Label htmlFor="name">Name</Label>
 
-                                <Input
-                                    id="name"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.name}
-                                    name="name"
-                                    required
-                                    autoComplete="name"
-                                    placeholder="Full name"
-                                />
+                        <Input
+                            id="name"
+                            className="mt-1 block w-full"
+                            value={profileForm.data.name}
+                            onChange={(e) =>
+                                profileForm.setData('name', e.target.value)
+                            }
+                            name="name"
+                            required
+                            autoComplete="name"
+                            placeholder="Full name"
+                        />
 
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.name}
-                                />
-                            </div>
+                        <InputError
+                            className="mt-2"
+                            message={profileForm.errors.name}
+                        />
+                    </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                    <div className="grid gap-2">
+                        <Label htmlFor="email">Email address</Label>
 
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.email}
-                                    name="email"
-                                    required
-                                    autoComplete="username"
-                                    placeholder="Email address"
-                                />
+                        <Input
+                            id="email"
+                            type="email"
+                            className="mt-1 block w-full"
+                            value={profileForm.data.email}
+                            onChange={(e) =>
+                                profileForm.setData('email', e.target.value)
+                            }
+                            name="email"
+                            required
+                            autoComplete="username"
+                            placeholder="Email address"
+                        />
 
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.email}
-                                />
-                            </div>
+                        <InputError
+                            className="mt-2"
+                            message={profileForm.errors.email}
+                        />
+                    </div>
 
-                            {status && (
-                                <p className="font-medium text-green-600 text-sm">
-                                    {status}
-                                </p>
-                            )}
-
-                            <div className="flex items-center gap-4">
-                                <Button
-                                    disabled={processing}
-                                    data-test="update-profile-button"
-                                >
-                                    Save
-                                </Button>
-                            </div>
-                        </>
+                    {passkeyError && (
+                        <InputError className="mt-2" message={passkeyError} />
                     )}
-                </Form>
+
+                    {status && (
+                        <p className="font-medium text-green-600 text-sm">
+                            {status}
+                        </p>
+                    )}
+
+                    <div className="flex items-center gap-4">
+                        <Button
+                            disabled={profileForm.processing}
+                            data-test="update-profile-button"
+                        >
+                            Save
+                        </Button>
+                    </div>
+                </form>
 
                 <div className="border-t pt-6">
                     <Heading

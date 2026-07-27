@@ -17,9 +17,11 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::redirect('settings', '/settings/profile');
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('settings/profile', [ProfileController::class, 'destroy'])
+    Route::patch('settings/profile', [ProfileController::class, 'update'])
         ->middleware('passkey.confirmed')
+        ->name('profile.update');
+    Route::delete('settings/profile', [ProfileController::class, 'destroy'])
+        ->middleware('passkey.confirmed:immediate')
         ->name('profile.destroy');
 
     // Passkey setup — excluded from EnsurePasskeyExists so new/recovered users can enrol
@@ -57,7 +59,9 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::get('settings/connections/bluesky-feeds/search', [BlueskyFeedDiscoveryController::class, 'search'])->name('connections.bluesky-feeds.search');
 
     // Disconnect any social account
-    Route::delete('auth/connections/{account}', [ConnectionsController::class, 'destroy'])->name('connections.destroy');
+    Route::delete('auth/connections/{account}', [ConnectionsController::class, 'destroy'])
+        ->middleware('passkey.confirmed')
+        ->name('connections.destroy');
 
     // Beta tester toggle
     Route::patch('settings/profile/beta-tester', [BetaTesterController::class, 'update'])
@@ -75,5 +79,6 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::post('settings/passkeys/register', [PasskeyController::class, 'store'])
         ->name('passkey.register.store');
     Route::delete('settings/passkeys/{passkey}', [PasskeyController::class, 'destroy'])
+        ->middleware('passkey.confirmed:immediate')
         ->name('passkey.destroy');
 });

@@ -1,4 +1,4 @@
-import { Form, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { KeyRound, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -19,12 +19,20 @@ type Props = {
 };
 
 export default function PasskeyList({ passkeys }: Props) {
-    const { isSupported, loading, error, register } = usePasskey();
+    const { isSupported, loading, error, register, confirmIdentity } =
+        usePasskey();
     const [adding, setAdding] = useState(false);
     const [newName, setNewName] = useState('');
+    const [removingId, setRemovingId] = useState<string | null>(null);
 
     const handleAdd = async () => {
         if (!newName.trim()) {
+            return;
+        }
+
+        // Adding a passkey always requires a fresh tap of an existing one, so a
+        // hijacked session can't silently enrol a new authenticator.
+        if (!(await confirmIdentity())) {
             return;
         }
 
@@ -35,6 +43,19 @@ export default function PasskeyList({ passkeys }: Props) {
             setNewName('');
             router.reload({ only: ['passkeys'] });
         }
+    };
+
+    const handleRemove = async (id: string) => {
+        // Removing a passkey always requires a fresh tap.
+        if (!(await confirmIdentity())) {
+            return;
+        }
+
+        setRemovingId(id);
+        router.delete(destroy.url({ passkey: id }), {
+            preserveScroll: true,
+            onFinish: () => setRemovingId(null),
+        });
     };
 
     return (
@@ -62,22 +83,16 @@ export default function PasskeyList({ passkeys }: Props) {
                                 </p>
                             </div>
                         </div>
-                        <Form
-                            method="delete"
-                            action={destroy.url({ passkey: pk.id })}
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            disabled={removingId === pk.id}
+                            onClick={() => handleRemove(pk.id)}
+                            aria-label={`Remove ${pk.name}`}
                         >
-                            {({ processing }) => (
-                                <Button
-                                    type="submit"
-                                    variant="ghost"
-                                    size="icon"
-                                    disabled={processing}
-                                    aria-label={`Remove ${pk.name}`}
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </Form>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
                     </li>
                 ))}
             </ul>

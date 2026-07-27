@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getXsrfToken } from '@/lib/csrf';
 import { dashboard } from '@/routes';
@@ -106,6 +106,7 @@ export type UsePasskeyReturn = {
     register: (name: string) => Promise<boolean>;
     authenticate: () => Promise<void>;
     confirmIdentity: () => Promise<boolean>;
+    confirmIfNeeded: () => Promise<boolean>;
     startConditional: () => void;
     abortConditional: () => void;
 };
@@ -118,6 +119,7 @@ export function usePasskey(): UsePasskeyReturn {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const abortRef = useRef<AbortController | null>(null);
+    const confirmedUntil = usePage().props.passkeyConfirmedUntil;
 
     const fetchOptions = useCallback(async (url: string) => {
         const res = await fetch(url, {
@@ -399,6 +401,17 @@ export function usePasskey(): UsePasskeyReturn {
         }
     }, [isSupported, performAssertion]);
 
+    // Confirm only when there's no recent confirmation still valid for step-up
+    // actions (the 15-minute window). Used by moderately sensitive actions;
+    // the most dangerous ones call confirmIdentity directly to always tap.
+    const confirmIfNeeded = useCallback(async (): Promise<boolean> => {
+        if (confirmedUntil && Date.now() < confirmedUntil) {
+            return true;
+        }
+
+        return confirmIdentity();
+    }, [confirmedUntil, confirmIdentity]);
+
     useEffect(() => {
         return () => abortRef.current?.abort();
     }, []);
@@ -410,6 +423,7 @@ export function usePasskey(): UsePasskeyReturn {
         register,
         authenticate,
         confirmIdentity,
+        confirmIfNeeded,
         startConditional,
         abortConditional,
     };

@@ -1,4 +1,4 @@
-import { Form, useForm } from '@inertiajs/react';
+import { Form, router, useForm } from '@inertiajs/react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 import { useState } from 'react';
@@ -7,6 +7,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePasskey } from '@/hooks/use-passkey';
 import bluesky from '@/routes/bluesky';
 import { destroy as disconnectAccount } from '@/routes/connections';
 import mastodon from '@/routes/mastodon';
@@ -217,18 +218,7 @@ export function BlueskyReauthForm({
                     </div>
                 )}
             </Form>
-            <Form {...disconnectAccount.form({ account: connection.id })}>
-                {({ processing }) => (
-                    <Button
-                        type="submit"
-                        variant="destructive"
-                        size="sm"
-                        disabled={processing}
-                    >
-                        Disconnect
-                    </Button>
-                )}
-            </Form>
+            <DisconnectButton connection={connection} label="Disconnect" />
         </div>
     );
 }
@@ -251,18 +241,7 @@ export function MastodonReauthForm({
                         </Button>
                     )}
                 </Form>
-                <Form {...disconnectAccount.form({ account: connection.id })}>
-                    {({ processing }) => (
-                        <Button
-                            type="submit"
-                            variant="destructive"
-                            size="sm"
-                            disabled={processing}
-                        >
-                            Disconnect
-                        </Button>
-                    )}
-                </Form>
+                <DisconnectButton connection={connection} label="Disconnect" />
             </div>
         </div>
     );
@@ -270,22 +249,38 @@ export function MastodonReauthForm({
 
 export function DisconnectButton({
     connection,
+    label = 'Remove',
 }: {
     connection: SocialConnection;
+    label?: string;
 }) {
+    const { confirmIfNeeded } = usePasskey();
+    const [processing, setProcessing] = useState(false);
+
+    // Disconnecting is a step-up action, reusing a passkey confirmed in the last
+    // 15 minutes rather than prompting again.
+    const handleDisconnect = async () => {
+        if (!(await confirmIfNeeded())) {
+            return;
+        }
+
+        setProcessing(true);
+        router.delete(disconnectAccount.url({ account: connection.id }), {
+            preserveScroll: true,
+            onFinish: () => setProcessing(false),
+        });
+    };
+
     return (
-        <Form {...disconnectAccount.form({ account: connection.id })}>
-            {({ processing }) => (
-                <Button
-                    type="submit"
-                    variant="destructive"
-                    size="sm"
-                    disabled={processing}
-                >
-                    Remove
-                </Button>
-            )}
-        </Form>
+        <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={processing}
+            onClick={handleDisconnect}
+        >
+            {label}
+        </Button>
     );
 }
 
@@ -326,26 +321,10 @@ export function ProviderSection<C extends SocialConnection>({
                                                     <p className="text-muted-foreground text-sm">
                                                         {primary.renderLabel(c)}
                                                     </p>
-                                                    <Form
-                                                        {...disconnectAccount.form(
-                                                            {
-                                                                account: c.id,
-                                                            },
-                                                        )}
-                                                    >
-                                                        {({ processing }) => (
-                                                            <Button
-                                                                type="submit"
-                                                                variant="destructive"
-                                                                size="sm"
-                                                                disabled={
-                                                                    processing
-                                                                }
-                                                            >
-                                                                Disconnect
-                                                            </Button>
-                                                        )}
-                                                    </Form>
+                                                    <DisconnectButton
+                                                        connection={c}
+                                                        label="Disconnect"
+                                                    />
                                                 </div>
                                                 {primary.showFeedSettings && (
                                                     <AccountFeedSettings

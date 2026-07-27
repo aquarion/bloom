@@ -77,6 +77,11 @@ class PasskeyRecoveryController extends Controller
 
             Auth::login($user);
 
+            // A recovering user still has their old (lost) passkey rows, so enrolment
+            // can't rely on "no passkey yet". Grant a one-time waiver of the add-passkey
+            // step-up check for this session; PasskeyController::store consumes it.
+            session(['passkey_setup_grant' => true]);
+
             return redirect()->route('passkey.setup')
                 ->with('status', 'recovery');
         }

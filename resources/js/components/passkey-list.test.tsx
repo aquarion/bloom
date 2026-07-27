@@ -19,7 +19,8 @@ vi.mock('@/hooks/use-passkey');
 
 vi.mock('@/routes/passkey', () => ({
     destroy: {
-        url: ({ passkey }: { passkey: string }) => `/settings/passkeys/${passkey}`,
+        url: ({ passkey }: { passkey: string }) =>
+            `/settings/passkeys/${passkey}`,
     },
 }));
 
@@ -57,7 +58,9 @@ describe('PasskeyList step-up gating', () => {
         vi.mocked(usePasskey).mockReturnValue(mockPasskey({ confirmIdentity }));
 
         render(<PasskeyList passkeys={[passkey]} />);
-        await user.click(screen.getByRole('button', { name: /remove macbook/i }));
+        await user.click(
+            screen.getByRole('button', { name: /remove macbook/i }),
+        );
 
         expect(confirmIdentity).toHaveBeenCalledOnce();
         expect(routerDelete).not.toHaveBeenCalled();
@@ -68,7 +71,9 @@ describe('PasskeyList step-up gating', () => {
         vi.mocked(usePasskey).mockReturnValue(mockPasskey());
 
         render(<PasskeyList passkeys={[passkey]} />);
-        await user.click(screen.getByRole('button', { name: /remove macbook/i }));
+        await user.click(
+            screen.getByRole('button', { name: /remove macbook/i }),
+        );
 
         expect(routerDelete).toHaveBeenCalledWith(
             '/settings/passkeys/pk-1',
@@ -87,7 +92,9 @@ describe('PasskeyList step-up gating', () => {
         vi.mocked(usePasskey).mockReturnValue(mockPasskey());
 
         render(<PasskeyList passkeys={[passkey]} />);
-        await user.click(screen.getByRole('button', { name: /remove macbook/i }));
+        await user.click(
+            screen.getByRole('button', { name: /remove macbook/i }),
+        );
 
         expect(
             await screen.findByText('Please confirm your identity.'),

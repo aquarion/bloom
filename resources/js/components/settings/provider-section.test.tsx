@@ -4,10 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UsePasskeyReturn } from '@/hooks/use-passkey';
 import { usePasskey } from '@/hooks/use-passkey';
-import {
-    DisconnectButton,
-    type MastodonConnection,
-} from './provider-section';
+import { DisconnectButton, type MastodonConnection } from './provider-section';
 
 const { routerDelete } = vi.hoisted(() => ({ routerDelete: vi.fn() }));
 
@@ -19,7 +16,8 @@ vi.mock('@/hooks/use-passkey');
 
 vi.mock('@/routes/connections', () => ({
     destroy: {
-        url: ({ account }: { account: number }) => `/auth/connections/${account}`,
+        url: ({ account }: { account: number }) =>
+            `/auth/connections/${account}`,
     },
 }));
 

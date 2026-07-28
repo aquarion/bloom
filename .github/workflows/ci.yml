@@ -66,6 +66,11 @@ jobs:
         run: npm run build
 
       - name: Run frontend tests
+        # laravel-vite-plugin refuses to boot Vite's dev server (which vitest
+        # uses internally to transform test files) when it detects CI=true,
+        # on the assumption it's `vite dev`/HMR rather than a test runner.
+        env:
+          LARAVEL_BYPASS_ENV_CHECK: 1
         run: npx vitest run
 
       - name: Run tests

@@ -65,6 +65,22 @@ jobs:
       - name: Build assets
         run: npm run build
 
+      - name: Run frontend tests
+        # laravel-vite-plugin refuses to boot Vite's dev server (which vitest
+        # uses internally to transform test files) when it detects CI=true,
+        # on the assumption it's `vite dev`/HMR rather than a test runner.
+        #
+        # NODE_OPTIONS enables Node's native Web Storage API with a backing
+        # file. Without --localstorage-file, `localStorage` exists as a
+        # global but every call on it fails, which breaks any test touching
+        # localStorage directly (jsdom's own window.localStorage is a
+        # separate, working object, but that doesn't help code that
+        # references the bare `localStorage` identifier).
+        env:
+          LARAVEL_BYPASS_ENV_CHECK: 1
+          NODE_OPTIONS: --experimental-webstorage --localstorage-file=${{ runner.temp }}/vitest-localstorage.db
+        run: npx vitest run
+
       - name: Run tests
         run: ./vendor/bin/pest
 

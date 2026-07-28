@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 import laravel from "laravel-vite-plugin";
 import { bunny } from "laravel-vite-plugin/fonts";
 import { defineConfig } from "vite";
+import { defaultExclude } from "vitest/config";
 import { iconGenerationPlugin } from "./bin/icons/vite-plugin";
 
 export default defineConfig({
@@ -46,6 +47,10 @@ export default defineConfig({
 		setupFiles: ["resources/js/test/setup.ts"],
 		globals: true,
 		passWithNoTests: true,
+		// vitest's default excludes don't cover PHP's vendor/ dir, so without
+		// this it also picks up (and fails to run) Laravel Wayfinder's own
+		// bundled test suite under vendor/laravel/wayfinder/tests.
+		exclude: [...defaultExclude, "**/vendor/**"],
 	},
 	resolve: {
 		alias: { "@": "/resources/js" },

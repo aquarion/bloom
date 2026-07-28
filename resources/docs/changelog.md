@@ -1,9 +1,14 @@
 ---
 title: Changelog
-last_updated: "2026-07-22"
+last_updated: "2026-07-27"
 ---
 
 Notable changes to the Bloom application, newest first.
+
+## 2026-07-27 — Milestone 1.11
+
+- **Stay signed in for 14 days** — sessions used to time out after 120 minutes idle, forcing a re-login after your machine slept for a couple of hours. Bloom now keeps you signed in for up to 14 days.
+- **Passkey confirmation for sensitive actions** — with longer sessions, editing your profile or email, disconnecting a social account, deleting your account, or adding/removing a passkey now asks for a fresh passkey tap first.
 
 ## 2026-07-22 — Milestone 1.10.1
 

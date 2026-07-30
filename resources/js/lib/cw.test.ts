@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isCwLabelVisible, nestedCwLike, shouldShowCwOverlay } from './cw';
+import {
+    isCwLabelVisible,
+    nestedCwLike,
+    postLevelCwLabel,
+    shouldShowCwOverlay,
+} from './cw';
 
 describe('nestedCwLike', () => {
     it('uses original_url as the id when present', () => {
@@ -226,5 +231,34 @@ describe('isCwLabelVisible', () => {
                 () => true,
             ),
         ).toBe(false);
+    });
+});
+
+describe('postLevelCwLabel', () => {
+    it('returns the label when the CW is not author-level', () => {
+        expect(
+            postLevelCwLabel({
+                cw_text: 'Spoilers',
+                cw_is_author_level: false,
+            }),
+        ).toBe('Spoilers');
+    });
+
+    it('returns null when the CW is author-level, even though cw_text is set', () => {
+        expect(
+            postLevelCwLabel({
+                cw_text: 'Spoilers',
+                cw_is_author_level: true,
+            }),
+        ).toBeNull();
+    });
+
+    it('returns null when there is no CW at all', () => {
+        expect(
+            postLevelCwLabel({
+                cw_text: null,
+                cw_is_author_level: false,
+            }),
+        ).toBeNull();
     });
 });

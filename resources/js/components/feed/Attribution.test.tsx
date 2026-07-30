@@ -52,7 +52,7 @@ describe('Attribution — CW label leak guard', () => {
             <Attribution
                 post={makePost({
                     cw_text: 'Adult content',
-                    cw_is_author_level: false,
+                    cw_is_author_level: true,
                 })}
                 cwBehavior="blur"
             />,
@@ -67,7 +67,7 @@ describe('Attribution — CW label leak guard', () => {
         function Harness() {
             const post = makePost({
                 cw_text: 'Adult content',
-                cw_is_author_level: false,
+                cw_is_author_level: true,
             });
 
             return (
@@ -104,7 +104,7 @@ describe('Attribution — CW label leak guard', () => {
             <Attribution
                 post={makePost({
                     cw_text: 'Adult content',
-                    cw_is_author_level: false,
+                    cw_is_author_level: true,
                 })}
                 cwBehavior="show"
             />,
@@ -112,6 +112,41 @@ describe('Attribution — CW label leak guard', () => {
 
         expect(screen.getByTestId('cw-marker')).toBeInTheDocument();
         expect(screen.getByText('Adult content')).toBeInTheDocument();
+    });
+
+    it('never shows a post-level (non-author) CW on the chip, even when revealed', async () => {
+        // Issue #285: a post-level CW belongs on the post as a tag, not on the author
+        // chip — that's true regardless of cwBehavior or reveal state.
+        function Harness() {
+            const post = makePost({
+                cw_text: 'Graphic media',
+                cw_is_author_level: false,
+            });
+
+            return (
+                <>
+                    <Attribution post={post} cwBehavior="blur" />
+                    <RevealButton post={post} />
+                </>
+            );
+        }
+
+        function RevealButton({ post }: { post: Post }) {
+            const { reveal } = useCwState();
+
+            return (
+                <button type="button" onClick={() => reveal(post)}>
+                    reveal
+                </button>
+            );
+        }
+
+        const user = userEvent.setup();
+        renderWithCw(<Harness />);
+
+        await user.click(screen.getByRole('button', { name: 'reveal' }));
+
+        expect(screen.queryByTestId('cw-marker')).not.toBeInTheDocument();
     });
 
     it('does not leak a whitelisted quoted_post CW label either', () => {
@@ -138,5 +173,32 @@ describe('Attribution — CW label leak guard', () => {
         );
 
         expect(screen.queryByTestId('cw-marker')).not.toBeInTheDocument();
+    });
+
+    it('shows an author-level quoted_post CW label on the quoted author chip when visible', () => {
+        renderWithCw(
+            <Attribution
+                post={makePost({
+                    quoted_post: {
+                        author_name: 'Bob',
+                        author_handle: '@bob.bsky.social',
+                        author_avatar: '',
+                        original_url: 'https://bsky.app/quoted',
+                        body: 'quoted body',
+                        created_at: null,
+                        chip_mentions: [],
+                        cw_text: 'rude content',
+                        cw_is_author_level: true,
+                        cw_label_source: 'external',
+                        cw_category: 'generic',
+                        sensitive_media: false,
+                    },
+                })}
+                cwBehavior="show"
+            />,
+        );
+
+        expect(screen.getByTestId('cw-marker')).toBeInTheDocument();
+        expect(screen.getByText('rude content')).toBeInTheDocument();
     });
 });

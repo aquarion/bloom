@@ -1,10 +1,11 @@
 import { AtSign } from 'lucide-react';
 import type React from 'react';
 import { useCwState } from '@/hooks/useCwState';
-import { nestedCwLike, shouldShowCwOverlay } from '@/lib/cw';
+import { nestedCwLike, postLevelCwLabel, shouldShowCwOverlay } from '@/lib/cw';
 import type { Mention } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 import { AuthorChip } from './AuthorChip';
+import { CwTag } from './CwTag';
 import { MentionChips } from './MentionChips';
 import { getPanelClass } from './panel-class';
 
@@ -55,15 +56,18 @@ export function ContextPanel({
         isRevealed,
     );
 
+    // Post-level CWs get a corner badge on the box instead — only an author-level CW
+    // decorates the chip here.
     const chip = (
         <AuthorChip
             name={author_name}
             avatar={author_avatar}
             emojis={emojis}
             account={author_handle}
-            cwLabel={cw_text}
+            cwLabel={cw_is_author_level ? cw_text : null}
         />
     );
+    const cwTagLabel = postLevelCwLabel({ cw_text, cw_is_author_level });
     // Inside the gate, the "Marked as X" / "Labelled as X" copy below already states
     // the label — showing it a second time on the chip badge would be redundant.
     const gatedChip = (
@@ -115,10 +119,16 @@ export function ContextPanel({
                     <MentionChips mentions={chip_mentions} />
                 </div>
             )}
+            {cwTagLabel && (
+                <CwTag
+                    label={cwTagLabel}
+                    className="absolute right-2 bottom-2"
+                />
+            )}
         </>
     );
 
-    const panelClass = getPanelClass({ fullWidth });
+    const panelClass = `${getPanelClass({ fullWidth })} relative`;
 
     if (showCwGate) {
         return <div className={panelClass}>{content}</div>;

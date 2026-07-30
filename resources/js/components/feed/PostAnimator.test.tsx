@@ -272,4 +272,87 @@ describe('PostAnimator — text branch', () => {
             'https://mastodon.example/tags/sunny',
         );
     });
+
+    it('renders a post-level CW as a red tag alongside hashtags (issue #285)', () => {
+        renderWithCw(
+            <PostAnimator
+                post={makePost({
+                    body: 'Hello world',
+                    cw_text: 'Spoilers',
+                    cw_is_author_level: false,
+                })}
+                colors={null}
+            />,
+        );
+
+        expect(screen.getByTestId('post-cw-tag')).toHaveTextContent(
+            'CW: Spoilers',
+        );
+    });
+
+    it('does not render a post-level CW tag for an author-level CW', () => {
+        renderWithCw(
+            <PostAnimator
+                post={makePost({
+                    body: 'Hello world',
+                    cw_text: 'Spoilers',
+                    cw_is_author_level: true,
+                })}
+                colors={null}
+            />,
+        );
+
+        expect(screen.queryByTestId('post-cw-tag')).not.toBeInTheDocument();
+    });
+});
+
+describe('PostAnimator — media branch CW tag (issue #285)', () => {
+    it('renders a post-level CW as a corner tag on the media card', () => {
+        renderWithCw(
+            <PostAnimator
+                post={makePost({
+                    media: [makeImage('a.jpg')],
+                    cw_text: 'Graphic media',
+                    cw_is_author_level: false,
+                })}
+                colors={null}
+            />,
+        );
+
+        expect(screen.getByTestId('post-cw-tag')).toHaveTextContent(
+            'CW: Graphic media',
+        );
+    });
+});
+
+describe('PostAnimator — panels-only branch CW tag (issue #285)', () => {
+    it('renders a post-level CW tag when the post has no body or media but has panels', () => {
+        renderWithCw(
+            <PostAnimator
+                post={makePost({
+                    cw_text: 'Spoilers',
+                    cw_is_author_level: false,
+                    reply_to: {
+                        author_name: 'Jane',
+                        author_handle: '@jane',
+                        author_avatar: '',
+                        original_url: 'https://example.com/status/1',
+                        body: 'Original post',
+                        created_at: null,
+                        chip_mentions: [],
+                        cw_text: null,
+                        cw_is_author_level: false,
+                        cw_label_source: null,
+                        cw_category: null,
+                        sensitive_media: false,
+                    },
+                })}
+                colors={null}
+            />,
+        );
+
+        expect(screen.getByTestId('post-cw-tag')).toHaveTextContent(
+            'CW: Spoilers',
+        );
+    });
 });

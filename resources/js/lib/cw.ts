@@ -73,3 +73,19 @@ export function isCwLabelVisible(
 ): boolean {
     return post.cw_text !== null && (cwBehavior !== 'blur' || isRevealed(post));
 }
+
+/**
+ * The label to show as a post-level CW tag/badge (next to a post's hashtags, or in
+ * the corner of a reply/quote box) — null when there's no CW, or when it's an
+ * author-level CW, which stays on AuthorChip instead. Callers render this inside a
+ * container that's already gated by shouldShowCwOverlay: whenever showCwOverlay is
+ * true, PostContent layers an opaque CwOverlay on top of (and blurs) the content
+ * beneath it, and ContextPanel only reaches its "not gated" branch once showCwGate
+ * is false — so unlike isCwLabelVisible, no separate blur/reveal check is needed here.
+ */
+export function postLevelCwLabel(fields: {
+    cw_text: string | null;
+    cw_is_author_level: boolean;
+}): string | null {
+    return fields.cw_is_author_level ? null : fields.cw_text;
+}

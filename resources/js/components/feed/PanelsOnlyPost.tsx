@@ -4,7 +4,9 @@ import { Quote, Reply } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
+import { postLevelCwLabel } from '@/lib/cw';
 import { ContextPanel } from './ContextPanel';
+import { CwTag } from './CwTag';
 import { LinkCard } from './LinkCard';
 import { PollResults } from './PollResults';
 
@@ -48,9 +50,12 @@ export function PanelsOnlyPost({
         return () => tween.kill();
     }, [post.id]);
 
+    const mainCwLabel = postLevelCwLabel(post);
+
     return (
         <div className="flex h-full w-full items-center justify-center p-8">
             <div ref={panelsRef} className="flex flex-col items-center gap-4">
+                {mainCwLabel && <CwTag label={mainCwLabel} />}
                 {post.reply_to && (
                     <ContextPanel
                         icon={<Reply className="size-3.5" />}

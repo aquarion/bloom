@@ -12,6 +12,7 @@ import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 import { useAutoFitText } from '@/hooks/useAutoFitText';
 import { ContextPanel } from './ContextPanel';
+import { CwTag } from './CwTag';
 import { LinkCard } from './LinkCard';
 import { PollResults } from './PollResults';
 
@@ -194,15 +195,7 @@ export function TextPost({
                 )}
                 {(post.hashtags.length > 0 || mainCwLabel) && (
                     <div className="absolute top-0 left-full flex h-full flex-col items-center justify-center gap-1 overflow-hidden pl-3">
-                        {mainCwLabel && (
-                            <span
-                                data-testid="post-cw-tag"
-                                className="rounded-full border border-red-900 bg-red-950/40 px-1.5 py-1.5 text-red-400 text-sm"
-                                style={{ writingMode: 'vertical-rl' }}
-                            >
-                                CW: {mainCwLabel}
-                            </span>
-                        )}
+                        {mainCwLabel && <CwTag label={mainCwLabel} vertical />}
                         {post.hashtags.map(({ tag, url }) => (
                             <a
                                 key={tag}

@@ -20,4 +20,21 @@ describe('CwTag', () => {
             'absolute right-2 bottom-2',
         );
     });
+
+    it('renders without the warning icon in vertical mode, matching hashtag pills', () => {
+        render(<CwTag label="Spoilers" vertical />);
+
+        const tag = screen.getByTestId('post-cw-tag');
+        expect(tag).toHaveTextContent('CW: Spoilers');
+        expect(tag.querySelector('svg')).not.toBeInTheDocument();
+        expect(tag).toHaveStyle({ writingMode: 'vertical-rl' });
+    });
+
+    it('shows the warning icon by default (horizontal mode)', () => {
+        render(<CwTag label="Spoilers" />);
+
+        expect(
+            screen.getByTestId('post-cw-tag').querySelector('svg'),
+        ).toBeInTheDocument();
+    });
 });

@@ -2,7 +2,9 @@ import { Quote, Reply } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
+import { postLevelCwLabel } from '@/lib/cw';
 import { ContextPanel } from './ContextPanel';
+import { CwTag } from './CwTag';
 import { EmojiText } from '@/lib/emoji-text';
 import { ImageCarousel } from './ImageCarousel';
 import { LinkCard } from './LinkCard';
@@ -35,9 +37,17 @@ export function MediaPost({
         onAdvanceRef.current = onAdvance;
     });
 
+    const mainCwLabel = postLevelCwLabel(post);
+
     return (
         <div className="flex h-full w-full items-center justify-center p-6">
-            <div className="flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/50 backdrop-blur-sm">
+            <div className="relative flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/50 backdrop-blur-sm">
+                {mainCwLabel && (
+                    <CwTag
+                        label={mainCwLabel}
+                        className="absolute top-2 right-2 z-10"
+                    />
+                )}
                 <ImageCarousel
                     media={post.media}
                     duration={8000}

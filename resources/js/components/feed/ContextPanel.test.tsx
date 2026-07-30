@@ -115,3 +115,66 @@ describe('ContextPanel — CW gating for nested posts', () => {
         ).toBeInTheDocument();
     });
 });
+
+describe('ContextPanel — post-level CW corner badge (issue #285)', () => {
+    it('shows a corner badge instead of decorating the chip for a visible post-level CW', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                cw_text="Graphic media"
+                cw_is_author_level={false}
+                cwBehavior="show"
+            />,
+        );
+
+        expect(screen.getByTestId('post-cw-tag')).toHaveTextContent(
+            'CW: Graphic media',
+        );
+        expect(screen.queryByTestId('cw-marker')).not.toBeInTheDocument();
+    });
+
+    it('does not show a corner badge for an author-level CW — that stays on the chip', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                cw_text="rude content"
+                cw_is_author_level
+                cwBehavior="show"
+            />,
+        );
+
+        expect(screen.queryByTestId('post-cw-tag')).not.toBeInTheDocument();
+        expect(screen.getByTestId('cw-marker')).toBeInTheDocument();
+    });
+
+    it('does not show a corner badge while the CW gate is still up', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                cw_text="Graphic media"
+                cw_is_author_level={false}
+                cwBehavior="blur"
+            />,
+        );
+
+        expect(screen.queryByTestId('post-cw-tag')).not.toBeInTheDocument();
+    });
+
+    it('shows the corner badge after revealing a gated post-level CW', async () => {
+        const user = userEvent.setup();
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                cw_text="Graphic media"
+                cw_is_author_level={false}
+                cwBehavior="blur"
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Show anyway' }));
+
+        expect(screen.getByTestId('post-cw-tag')).toHaveTextContent(
+            'CW: Graphic media',
+        );
+    });
+});

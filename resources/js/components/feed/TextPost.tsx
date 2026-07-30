@@ -4,6 +4,7 @@ import { Quote, Reply } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { pickTemplate, SplitText } from '@/lib/animations';
 import type { AnimationTemplate } from '@/lib/animations/types';
+import { postLevelCwLabel } from '@/lib/cw';
 import { EmojiText } from '@/lib/emoji-text';
 import type { PostColors } from '@/lib/post-colors';
 import { postColors } from '@/lib/post-colors';
@@ -114,6 +115,7 @@ export function TextPost({
     }, [post.id, fontSizes]);
 
     const textColor = colors?.text ?? 'white';
+    const mainCwLabel = postLevelCwLabel(post);
 
     return (
         <div
@@ -190,8 +192,17 @@ export function TextPost({
                         youtubeId={post.link_youtube_id}
                     />
                 )}
-                {post.hashtags.length > 0 && (
+                {(post.hashtags.length > 0 || mainCwLabel) && (
                     <div className="absolute top-0 left-full flex h-full flex-col items-center justify-center gap-1 overflow-hidden pl-3">
+                        {mainCwLabel && (
+                            <span
+                                data-testid="post-cw-tag"
+                                className="rounded-full border border-red-900 bg-red-950/40 px-1.5 py-1.5 text-red-400 text-sm"
+                                style={{ writingMode: 'vertical-rl' }}
+                            >
+                                CW: {mainCwLabel}
+                            </span>
+                        )}
                         {post.hashtags.map(({ tag, url }) => (
                             <a
                                 key={tag}

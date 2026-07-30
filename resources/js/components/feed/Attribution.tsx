@@ -23,11 +23,15 @@ export function Attribution({
     }, []);
 
     const { isRevealed } = useCwState();
-    const mainCwLabel = isCwLabelVisible(post, cwBehavior, isRevealed)
-        ? post.cw_text
-        : null;
+    // Only author-level CWs decorate AuthorChip — post-level CWs render as a tag
+    // next to the post's hashtags (or a corner badge on a reply/quote box) instead.
+    const mainCwLabel =
+        post.cw_is_author_level &&
+        isCwLabelVisible(post, cwBehavior, isRevealed)
+            ? post.cw_text
+            : null;
     const quotedCwLabel =
-        post.quoted_post &&
+        post.quoted_post?.cw_is_author_level &&
         isCwLabelVisible(nestedCwLike(post.quoted_post), cwBehavior, isRevealed)
             ? post.quoted_post.cw_text
             : null;

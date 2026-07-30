@@ -14,7 +14,7 @@ export function PostBackground({ post }: { post: Post }) {
                     <img
                         src={post.author_banner}
                         alt=""
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover object-center"
                         style={{
                             opacity: 0.7,
                             filter: 'blur(24px)',

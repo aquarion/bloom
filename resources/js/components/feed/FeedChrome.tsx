@@ -58,7 +58,11 @@ export function FeedChrome({
     cwBehavior?: ContentBehavior;
 }) {
     return (
-        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col">
+        <div
+            className={`pointer-events-none absolute inset-0 z-20 flex flex-col border-4 transition-colors duration-300 ${
+                paused ? 'border-red-500' : 'border-transparent'
+            }`}
+        >
             <div className="pointer-events-auto flex items-center gap-2 p-4">
                 <button
                     type="button"

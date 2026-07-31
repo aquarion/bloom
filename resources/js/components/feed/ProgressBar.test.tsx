@@ -25,51 +25,51 @@ describe('ProgressBar — segments mode', () => {
         expect(tracks).toHaveLength(3);
     });
 
-    it('completed segments show 0% width', () => {
+    it('completed segments show 100% width', () => {
         const { container } = render(
             <ProgressBar
                 segments={{ count: 3, activeIndex: 2, elapsed: 0.5 }}
             />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[0].style.transform).toBe('scaleX(0)');
-        expect(bars[1].style.transform).toBe('scaleX(0)');
+        expect(bars[0].style.transform).toBe('scaleX(1)');
+        expect(bars[1].style.transform).toBe('scaleX(1)');
     });
 
-    it('active segment shows countdown width: (1 - elapsed) * 100%', () => {
+    it('active segment shows fill width: elapsed * 100%', () => {
         const { container } = render(
             <ProgressBar
                 segments={{ count: 3, activeIndex: 1, elapsed: 0.4 }}
             />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[1].style.transform).toBe('scaleX(0.6)');
+        expect(bars[1].style.transform).toBe('scaleX(0.4)');
     });
 
-    it('future segments show 100% width', () => {
+    it('future segments show 0% width', () => {
         const { container } = render(
             <ProgressBar
                 segments={{ count: 3, activeIndex: 0, elapsed: 0.5 }}
             />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[1].style.transform).toBe('scaleX(1)');
-        expect(bars[2].style.transform).toBe('scaleX(1)');
+        expect(bars[1].style.transform).toBe('scaleX(0)');
+        expect(bars[2].style.transform).toBe('scaleX(0)');
     });
 
-    it('first segment at elapsed=0 shows full width (nothing elapsed)', () => {
+    it('first segment at elapsed=0 shows 0% width (nothing elapsed yet)', () => {
         const { container } = render(
             <ProgressBar segments={{ count: 2, activeIndex: 0, elapsed: 0 }} />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[0].style.transform).toBe('scaleX(1)');
+        expect(bars[0].style.transform).toBe('scaleX(0)');
     });
 
-    it('first segment at elapsed=1 shows 0% (fully elapsed)', () => {
+    it('first segment at elapsed=1 shows 100% width (fully elapsed)', () => {
         const { container } = render(
             <ProgressBar segments={{ count: 2, activeIndex: 0, elapsed: 1 }} />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[0].style.transform).toBe('scaleX(0)');
+        expect(bars[0].style.transform).toBe('scaleX(1)');
     });
 });

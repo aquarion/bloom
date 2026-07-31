@@ -16,10 +16,10 @@ export function ProgressBar({ progress, segments }: ProgressBarProps) {
                             style={{
                                 transform: `scaleX(${
                                     i < segments.activeIndex
-                                        ? 0
+                                        ? 1
                                         : i === segments.activeIndex
-                                          ? 1 - segments.elapsed
-                                          : 1
+                                          ? segments.elapsed
+                                          : 0
                                 })`,
                                 transformOrigin: 'left',
                                 transition: 'transform 0.1s linear',

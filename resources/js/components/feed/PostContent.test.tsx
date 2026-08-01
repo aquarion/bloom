@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CwStateProvider } from '@/hooks/useCwState';
 import type { Post } from '@/types/post';
 import { ContextPanel } from './ContextPanel';
@@ -10,6 +10,25 @@ import { PostContent } from './PostContent';
 function renderWithCw(children: ReactNode) {
     return render(<CwStateProvider>{children}</CwStateProvider>);
 }
+
+beforeEach(() => {
+    localStorage.clear();
+});
+
+vi.mock('@inertiajs/react', () => ({
+    Link: ({
+        href,
+        children,
+        ...props
+    }: {
+        href: string | { url: string };
+        children: ReactNode;
+    }) => (
+        <a href={typeof href === 'string' ? href : href.url} {...props}>
+            {children}
+        </a>
+    ),
+}));
 
 vi.mock('@/components/feed/PostAnimator', () => ({
     PostAnimator: ({ onReady }: { onReady?: () => void }) => {
@@ -245,6 +264,87 @@ describe('PostContent — revealing a CW', () => {
         expect(
             screen.queryByText('The author marked this post as adult content'),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('PostContent — CW settings help bubble', () => {
+    it('shows the settings tip the first time a CW is revealed', async () => {
+        const user = userEvent.setup();
+        renderWithCw(
+            <PostContent
+                post={makePost({
+                    cw_text: 'Graphic media',
+                    cw_is_author_level: false,
+                    cw_label_source: 'self',
+                })}
+                cwBehavior="blur"
+            />,
+        );
+
+        expect(
+            screen.queryByText(/manage what content is hidden/i),
+        ).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Show anyway' }));
+
+        expect(
+            screen.getByText(/manage what content is hidden/i),
+        ).toBeInTheDocument();
+    });
+
+    it('does not show the tip again for a later reveal once dismissed', async () => {
+        const user = userEvent.setup();
+        renderWithCw(
+            <PostContent
+                post={makePost({
+                    cw_text: 'Graphic media',
+                    cw_is_author_level: false,
+                    cw_label_source: 'self',
+                })}
+                cwBehavior="blur"
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Show anyway' }));
+        await user.click(screen.getByLabelText('Dismiss tip'));
+
+        expect(
+            screen.queryByText(/manage what content is hidden/i),
+        ).not.toBeInTheDocument();
+    });
+
+    it('does not show the tip again for a different post after it has already been seen', async () => {
+        const user = userEvent.setup();
+        const postA = makePost({
+            id: 'p1',
+            cw_text: 'Graphic media',
+            cw_is_author_level: false,
+            cw_label_source: 'self',
+        });
+        const postB = makePost({
+            id: 'p2',
+            author_handle: '@bob.bsky.social',
+            cw_text: 'Adult content',
+            cw_is_author_level: false,
+            cw_label_source: 'self',
+        });
+
+        renderWithCw(
+            <>
+                <PostContent post={postA} cwBehavior="blur" />
+                <PostContent post={postB} cwBehavior="blur" />
+            </>,
+        );
+
+        const [revealA, revealB] = screen.getAllByRole('button', {
+            name: 'Show anyway',
+        });
+        await user.click(revealA);
+        await user.click(revealB);
+
+        expect(
+            screen.getAllByText(/manage what content is hidden/i),
+        ).toHaveLength(1);
     });
 });
 

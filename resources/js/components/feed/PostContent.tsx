@@ -1,10 +1,14 @@
+import { Link } from '@inertiajs/react';
 import { useLayoutEffect, useRef, useState } from 'react';
+import FeedSettingsController from '@/actions/App/Http/Controllers/Settings/FeedSettingsController';
 import { useCwState } from '@/hooks/useCwState';
+import { useOneTimeTip } from '@/hooks/useOneTimeTip';
 import { shouldShowCwOverlay } from '@/lib/cw';
 import { postDisplayColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 import { AuthorChip } from './AuthorChip';
+import { HelpBubble } from './HelpBubble';
 import { PostAnimator } from './PostAnimator';
 
 function CwOverlay({
@@ -87,6 +91,11 @@ export function PostContent({
     const colors = postDisplayColors(post);
     const [mediaRevealed, setMediaRevealed] = useState(false);
     const { isRevealed, reveal } = useCwState();
+    const {
+        visible: showCwSettingsTip,
+        trigger: triggerCwSettingsTip,
+        dismiss: dismissCwSettingsTip,
+    } = useOneTimeTip('cw-settings');
 
     const cwText = post.cw_text;
     const isAuthorLevel = post.cw_is_author_level;
@@ -113,6 +122,7 @@ export function PostContent({
 
     const revealCw = () => {
         reveal(post);
+        triggerCwSettingsTip();
     };
 
     return (
@@ -142,6 +152,20 @@ export function PostContent({
                     authorEmojis={post.emojis}
                 />
             )}
+            <div className="absolute inset-x-6 bottom-28 z-30 flex justify-center">
+                <HelpBubble
+                    open={showCwSettingsTip}
+                    onDismiss={dismissCwSettingsTip}
+                >
+                    You can manage what content is hidden in your{' '}
+                    <Link
+                        href={FeedSettingsController.edit()}
+                        className="underline"
+                    >
+                        Settings
+                    </Link>
+                </HelpBubble>
+            </div>
         </div>
     );
 }

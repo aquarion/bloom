@@ -30,7 +30,7 @@ vi.mock('@/components/feed/PostContent', () => ({
 vi.mock('@/components/feed/Attribution', () => ({ Attribution: () => null }));
 vi.mock('@/components/feed/SourceBadge', () => ({ SourceBadge: () => null }));
 vi.mock('@/components/feed/ProgressBar', () => ({ ProgressBar: () => null }));
-vi.mock('@/components/feed/DebugPanel', () => ({ DebugPanel: () => null }));
+vi.mock('@/components/feed/QueuePanel', () => ({ QueuePanel: () => null }));
 vi.mock('@/components/feed/MentionChips', () => ({ MentionChips: () => null }));
 vi.mock('@/components/feed/KeyboardShortcutsOverlay', () => ({
     KeyboardShortcutsOverlay: () => null,

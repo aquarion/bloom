@@ -61,6 +61,7 @@ class DocsController extends Controller
         }
 
         return Inertia::render('docs/show', [
+            'slug' => $slug,
             'title' => $frontMatter['title'] ?? ucwords(str_replace('-', ' ', $slug)),
             'content' => (string) $result,
             'last_updated' => isset($frontMatter['last_updated']) ? (string) $frontMatter['last_updated'] : null,

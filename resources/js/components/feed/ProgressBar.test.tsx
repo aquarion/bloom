@@ -25,23 +25,23 @@ describe('ProgressBar — segments mode', () => {
         expect(tracks).toHaveLength(3);
     });
 
-    it('lays the row out left-to-right in image order (not reversed)', () => {
+    it('lays the row out right-to-left, so the leftmost slot is the last image', () => {
         const { container } = render(
             <ProgressBar segments={{ count: 3, activeIndex: 0, elapsed: 0 }} />,
         );
         const row = container.querySelector('.flex') as HTMLElement;
-        expect(row.className).not.toContain('flex-row-reverse');
+        expect(row.className).toContain('flex-row-reverse');
     });
 
-    it('completed segments show 100% width', () => {
+    it('already-shown segments (before the active one) are empty', () => {
         const { container } = render(
             <ProgressBar
                 segments={{ count: 3, activeIndex: 2, elapsed: 0.5 }}
             />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[0].style.transform).toBe('scaleX(1)');
-        expect(bars[1].style.transform).toBe('scaleX(1)');
+        expect(bars[0].style.transform).toBe('scaleX(0)');
+        expect(bars[1].style.transform).toBe('scaleX(0)');
     });
 
     it('active segment empties like the normal bar: (1 - elapsed) * 100%', () => {
@@ -54,15 +54,15 @@ describe('ProgressBar — segments mode', () => {
         expect(bars[1].style.transform).toBe('scaleX(0.6)');
     });
 
-    it('future segments show 0% width', () => {
+    it('not-yet-shown segments (after the active one) are full', () => {
         const { container } = render(
             <ProgressBar
                 segments={{ count: 3, activeIndex: 0, elapsed: 0.5 }}
             />,
         );
         const bars = container.querySelectorAll<HTMLElement>('.bg-white\\/60');
-        expect(bars[1].style.transform).toBe('scaleX(0)');
-        expect(bars[2].style.transform).toBe('scaleX(0)');
+        expect(bars[1].style.transform).toBe('scaleX(1)');
+        expect(bars[2].style.transform).toBe('scaleX(1)');
     });
 
     it('first segment at elapsed=0 shows 100% width (nothing drained yet)', () => {

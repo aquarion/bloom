@@ -8,7 +8,7 @@ type ProgressBarProps =
 export function ProgressBar({ progress, segments }: ProgressBarProps) {
     if (segments) {
         return (
-            <div className="absolute right-0 bottom-0 left-0 flex h-0.5 gap-1">
+            <div className="absolute right-0 bottom-0 left-0 flex h-0.5 flex-row-reverse gap-1">
                 {Array.from({ length: segments.count }, (_, i) => (
                     <div key={i} className="flex-1 overflow-hidden bg-white/20">
                         <div
@@ -16,10 +16,10 @@ export function ProgressBar({ progress, segments }: ProgressBarProps) {
                             style={{
                                 transform: `scaleX(${
                                     i < segments.activeIndex
-                                        ? 1
+                                        ? 0
                                         : i === segments.activeIndex
                                           ? 1 - segments.elapsed
-                                          : 0
+                                          : 1
                                 })`,
                                 transformOrigin: 'left',
                                 transition: 'transform 0.1s linear',

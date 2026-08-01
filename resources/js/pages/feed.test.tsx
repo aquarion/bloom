@@ -7,6 +7,7 @@ import Feed from './feed';
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Link: ({ children }: { children: ReactNode }) => <>{children}</>,
+    usePage: () => ({ props: { appVersion: null, isProduction: true } }),
 }));
 
 vi.mock('gsap', () => ({

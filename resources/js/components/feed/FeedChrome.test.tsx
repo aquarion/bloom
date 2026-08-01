@@ -1,8 +1,17 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CwStateProvider } from '@/hooks/useCwState';
 import type { Post } from '@/types/post';
 import { FeedChrome } from './FeedChrome';
+
+const pageProps = vi.hoisted(() => ({
+    appVersion: null as { label: string; url: string | null } | null,
+    isProduction: false,
+}));
+
+vi.mock('@inertiajs/react', () => ({
+    usePage: () => ({ props: pageProps }),
+}));
 
 const makePost = (overrides: Partial<Post> = {}): Post => ({
     id: 'p1',
@@ -66,6 +75,11 @@ function renderChrome(paused: boolean) {
     );
 }
 
+beforeEach(() => {
+    pageProps.appVersion = null;
+    pageProps.isProduction = false;
+});
+
 describe('FeedChrome — pause indicator', () => {
     it('shows a red border around the page when paused', () => {
         const { container } = renderChrome(true);
@@ -87,5 +101,31 @@ describe('FeedChrome — pause indicator', () => {
         renderChrome(true);
 
         expect(screen.getByLabelText('Resume')).toBeInTheDocument();
+    });
+});
+
+describe('FeedChrome — version banner', () => {
+    it('shows the version banner outside production', () => {
+        pageProps.appVersion = { label: 'v1.11.2', url: null };
+        pageProps.isProduction = false;
+        renderChrome(false);
+
+        expect(screen.getByText('v1.11.2')).toBeInTheDocument();
+    });
+
+    it('hides the version banner in production', () => {
+        pageProps.appVersion = { label: 'v1.11.2', url: null };
+        pageProps.isProduction = true;
+        renderChrome(false);
+
+        expect(screen.queryByText('v1.11.2')).not.toBeInTheDocument();
+    });
+
+    it('hides the version banner when no version is resolved', () => {
+        pageProps.appVersion = null;
+        pageProps.isProduction = false;
+        renderChrome(false);
+
+        expect(screen.queryByText('v1.11.2')).not.toBeInTheDocument();
     });
 });

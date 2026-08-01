@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import {
     AtSign,
     Eye,
@@ -15,6 +16,7 @@ import { MentionChips } from '@/components/feed/MentionChips';
 import { NavMenuIcon } from '@/components/feed/NavMenuIcon';
 import { ProgressBar } from '@/components/feed/ProgressBar';
 import { SourceBadge } from '@/components/feed/SourceBadge';
+import { VersionBanner } from '@/components/feed/VersionBanner';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 
@@ -57,6 +59,8 @@ export function FeedChrome({
     showHelp: boolean;
     cwBehavior?: ContentBehavior;
 }) {
+    const { appVersion, isProduction } = usePage().props;
+
     return (
         <div
             className={`pointer-events-none absolute inset-0 z-20 flex flex-col border-4 transition-colors duration-300 ${
@@ -95,6 +99,9 @@ export function FeedChrome({
                 )}
                 {debugEnabled && <DebugPanel current={current} queue={queue} />}
                 <SourceBadge post={current} />
+                {!isProduction && appVersion && (
+                    <VersionBanner appVersion={appVersion} />
+                )}
             </div>
 
             <div className="flex-1" />

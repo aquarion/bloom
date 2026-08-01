@@ -153,10 +153,10 @@ export function FeedChrome({
                 </button>
             </div>
 
-            {current.media.length > 0 ? (
+            {current.media.length > 0 || current.thread ? (
                 <ProgressBar
                     segments={{
-                        count: current.media.length,
+                        count: current.thread?.length ?? current.media.length,
                         activeIndex: carouselProgress?.activeIndex ?? 0,
                         elapsed: carouselProgress?.elapsed ?? 0,
                     }}

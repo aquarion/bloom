@@ -1,0 +1,286 @@
+<?php
+
+use App\Models\SocialAccount;
+use App\Models\User;
+use App\Services\Bluesky\BlueskyFeedService;
+use App\Services\Feed\FeedAggregator;
+use App\Services\Feed\PostNormalizer;
+use App\Services\Mastodon\MastodonFeedService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+uses(TestCase::class, RefreshDatabase::class);
+
+function makeMastodonStatus(string $id, string $acct, string $content, ?string $replyToId = null, int $repliesCount = 0): array
+{
+    return [
+        'id' => $id,
+        'created_at' => now()->toIso8601String(),
+        'in_reply_to_id' => $replyToId,
+        'url' => "https://fosstodon.org/@{$acct}/{$id}",
+        'content' => "<p>{$content}</p>",
+        'spoiler_text' => '',
+        'sensitive' => false,
+        'replies_count' => $repliesCount,
+        'account' => ['display_name' => ucfirst($acct), 'acct' => $acct, 'avatar' => 'https://fosstodon.org/av.png', 'header' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'emojis' => [],
+        'card' => null,
+        'quote' => null,
+        'quote_id' => null,
+        'tags' => [],
+    ];
+}
+
+function makeBlueskyFeedPost(string $rkey, string $did, string $handle, string $text, int $replyCount = 0): array
+{
+    return [
+        'post' => [
+            'uri' => "at://{$did}/app.bsky.feed.post/{$rkey}",
+            'record' => ['text' => $text, 'createdAt' => now()->toIso8601String()],
+            'author' => ['did' => $did, 'handle' => $handle, 'displayName' => ucfirst($handle), 'avatar' => 'https://cdn.bsky.app/av.jpg'],
+            'labels' => [],
+            'embed' => null,
+            'replyCount' => $replyCount,
+        ],
+    ];
+}
+
+it('attaches a mastodon self-reply chain as a thread and removes the continuation from the feed', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $head = makeMastodonStatus('1', 'author', 'part one', null, 1);
+    $reply = makeMastodonStatus('2', 'author', 'part two', '1');
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$head]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+    $mastodon->shouldReceive('getContext')
+        ->once()
+        ->with($account, '1')
+        ->andReturn(['ancestors' => [], 'descendants' => [$reply]]);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['id'])->toBe('mastodon_1')
+        ->and($result['posts'][0]['thread'])->toHaveCount(2)
+        ->and($result['posts'][0]['thread'][0]['id'])->toBe('mastodon_1')
+        ->and($result['posts'][0]['thread'][1]['id'])->toBe('mastodon_2')
+        ->and($result['posts'][0]['thread'][0]['reply_to'])->toBeNull()
+        ->and($result['posts'][0]['thread'][1]['reply_to'])->toBeNull();
+});
+
+it('walks a multi-step mastodon self-reply chain up to three entries', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $head = makeMastodonStatus('1', 'author', 'part one', null, 1);
+    $second = makeMastodonStatus('2', 'author', 'part two', '1');
+    $third = makeMastodonStatus('3', 'author', 'part three', '2');
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$head]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+    $mastodon->shouldReceive('getContext')
+        ->once()
+        ->with($account, '1')
+        ->andReturn(['ancestors' => [], 'descendants' => [$second, $third]]);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['thread'])->toHaveCount(3)
+        ->and(array_column($result['posts'][0]['thread'], 'id'))->toBe(['mastodon_1', 'mastodon_2', 'mastodon_3']);
+});
+
+it('stops a mastodon thread walk at a branching self-reply', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $head = makeMastodonStatus('1', 'author', 'part one', null, 2);
+    $branchA = makeMastodonStatus('2', 'author', 'branch a', '1');
+    $branchB = makeMastodonStatus('3', 'author', 'branch b', '1');
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$head]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+    $mastodon->shouldReceive('getContext')
+        ->once()
+        ->with($account, '1')
+        ->andReturn(['ancestors' => [], 'descendants' => [$branchA, $branchB]]);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0])->not->toHaveKey('thread');
+});
+
+it('stops a mastodon thread walk when a stranger replies before the author continues', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $head = makeMastodonStatus('1', 'author', 'part one', null, 1);
+    $strangerReply = makeMastodonStatus('2', 'stranger', 'butting in', '1');
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$head]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+    $mastodon->shouldReceive('getContext')
+        ->once()
+        ->with($account, '1')
+        ->andReturn(['ancestors' => [], 'descendants' => [$strangerReply]]);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0])->not->toHaveKey('thread');
+});
+
+it('does not call getContext for a mastodon post with no replies', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $head = makeMastodonStatus('1', 'author', 'a lone post', null, 0);
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$head]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+    $mastodon->shouldNotReceive('getContext');
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0])->not->toHaveKey('thread');
+});
+
+it('attaches a bluesky self-reply chain as a thread and removes the continuation from the feed', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@author.bsky.social',
+    ]);
+
+    $did = 'did:plc:author';
+    $headFeedPost = makeBlueskyFeedPost('1', $did, 'author.bsky.social', 'part one', 1);
+    $replyPost = makeBlueskyFeedPost('2', $did, 'author.bsky.social', 'part two')['post'];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => [$headFeedPost], 'cursor' => null]);
+    $bluesky->shouldReceive('getPostThread')
+        ->once()
+        ->with($account, $headFeedPost['post']['uri'])
+        ->andReturn([
+            '$type' => 'app.bsky.feed.defs#threadViewPost',
+            'post' => $headFeedPost['post'],
+            'replies' => [
+                [
+                    '$type' => 'app.bsky.feed.defs#threadViewPost',
+                    'post' => $replyPost,
+                    'replies' => [],
+                ],
+            ],
+        ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['thread'])->toHaveCount(2)
+        ->and($result['posts'][0]['thread'][0]['original_url'])->toContain('/1')
+        ->and($result['posts'][0]['thread'][1]['original_url'])->toContain('/2');
+});
+
+it('stops a bluesky thread walk at a branching self-reply', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@author.bsky.social',
+    ]);
+
+    $did = 'did:plc:author';
+    $headFeedPost = makeBlueskyFeedPost('1', $did, 'author.bsky.social', 'part one', 2);
+    $branchA = makeBlueskyFeedPost('2', $did, 'author.bsky.social', 'branch a')['post'];
+    $branchB = makeBlueskyFeedPost('3', $did, 'author.bsky.social', 'branch b')['post'];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => [$headFeedPost], 'cursor' => null]);
+    $bluesky->shouldReceive('getPostThread')
+        ->once()
+        ->andReturn([
+            '$type' => 'app.bsky.feed.defs#threadViewPost',
+            'post' => $headFeedPost['post'],
+            'replies' => [
+                ['$type' => 'app.bsky.feed.defs#threadViewPost', 'post' => $branchA, 'replies' => []],
+                ['$type' => 'app.bsky.feed.defs#threadViewPost', 'post' => $branchB, 'replies' => []],
+            ],
+        ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0])->not->toHaveKey('thread');
+});
+
+it('does not call getPostThread for a bluesky post with no replies', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@author.bsky.social',
+    ]);
+
+    $headFeedPost = makeBlueskyFeedPost('1', 'did:plc:author', 'author.bsky.social', 'a lone post', 0);
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => [$headFeedPost], 'cursor' => null]);
+    $bluesky->shouldNotReceive('getPostThread');
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0])->not->toHaveKey('thread');
+});

@@ -281,6 +281,96 @@ it('clears auth_failed_at on successful token refresh', function () {
     expect($account->fresh()->auth_failed_at)->toBeNull();
 });
 
+it('returns the thread view post on a successful getPostThread request', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'valid-token',
+        'token_secret' => 'refresh-token',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getPostThread*' => Http::response([
+            'thread' => [
+                '$type' => 'app.bsky.feed.defs#threadViewPost',
+                'post' => ['uri' => 'at://did:plc:abc/app.bsky.feed.post/xyz'],
+                'replies' => [],
+            ],
+        ]),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $result = $service->getPostThread($account, 'at://did:plc:abc/app.bsky.feed.post/xyz');
+
+    expect($result['post']['uri'])->toBe('at://did:plc:abc/app.bsky.feed.post/xyz');
+});
+
+it('returns null from getPostThread when the thread node is not a threadViewPost', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'valid-token',
+        'token_secret' => 'refresh-token',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getPostThread*' => Http::response([
+            'thread' => ['$type' => 'app.bsky.feed.defs#notFoundPost'],
+        ]),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+
+    expect($service->getPostThread($account, 'at://did:plc:abc/app.bsky.feed.post/missing'))->toBeNull();
+});
+
+it('returns null from getPostThread on a request failure', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'valid-token',
+        'token_secret' => 'refresh-token',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getPostThread*' => Http::response(['error' => 'NotFound'], 400),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+
+    expect($service->getPostThread($account, 'at://did:plc:abc/app.bsky.feed.post/xyz'))->toBeNull();
+});
+
+it('caches getPostThread results per user', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'instance_url' => 'https://bsky.social',
+        'access_token' => 'valid-token',
+        'token_secret' => 'refresh-token',
+    ]);
+
+    Http::fake([
+        'bsky.social/xrpc/app.bsky.feed.getPostThread*' => Http::sequence()
+            ->push(['thread' => ['$type' => 'app.bsky.feed.defs#threadViewPost', 'post' => ['uri' => 'first'], 'replies' => []]])
+            ->push(['thread' => ['$type' => 'app.bsky.feed.defs#threadViewPost', 'post' => ['uri' => 'second'], 'replies' => []]]),
+    ]);
+
+    $service = new BlueskyFeedService(new BlueskyAuthService);
+    $service->getPostThread($account, 'at://did:plc:abc/app.bsky.feed.post/xyz');
+    $second = $service->getPostThread($account, 'at://did:plc:abc/app.bsky.feed.post/xyz');
+
+    expect($second['post']['uri'])->toBe('first');
+    Http::assertSentCount(1);
+});
+
 it('resolves chip_mentions placeholder profile_url dids into real handle/avatar/profile_url', function () {
     $user = User::factory()->create();
     $account = SocialAccount::factory()->create([

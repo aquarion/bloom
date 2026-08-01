@@ -21,7 +21,42 @@ class BlueskyFeedService
 
     private const FEED_GENERATOR_TTL = 86400; // 24 hours
 
+    private const THREAD_TTL = 900; // 15 minutes — replies can arrive after the initial fetch
+
     public function __construct(private BlueskyAuthService $auth) {}
+
+    /**
+     * The reply tree rooted just below the given post, for self-reply thread detection.
+     *
+     * @return array<string, mixed>|null The 'app.bsky.feed.defs#threadViewPost' node for $uri.
+     */
+    public function getPostThread(SocialAccount $account, string $uri): ?array
+    {
+        $cacheKey = 'bluesky:thread:'.$account->id.':'.md5($uri);
+
+        return Cache::tags(["user:{$account->user_id}"])->remember($cacheKey, self::THREAD_TTL, function () use ($account, $uri) {
+            try {
+                $response = $this->request($account, fn (string $token) => Http::withToken($token)
+                    ->get(self::BASE.'/app.bsky.feed.getPostThread', ['uri' => $uri])
+                    ->throw()
+                    ->json()
+                );
+
+                $thread = $response['thread'] ?? null;
+
+                return ($thread['$type'] ?? '') === 'app.bsky.feed.defs#threadViewPost' ? $thread : null;
+            } catch (\Throwable $e) {
+                Log::warning('Failed to fetch Bluesky post thread', [
+                    'account_id' => $account->id,
+                    'uri' => $uri,
+                    'exception' => $e::class,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return null;
+            }
+        });
+    }
 
     public function getHomeTimeline(SocialAccount $account, int $limit = 20, ?string $cursor = null): array
     {

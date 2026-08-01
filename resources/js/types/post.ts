@@ -103,6 +103,12 @@ export interface Post extends CwFields {
     chip_mentions: Mention[];
     /** Absent on Bluesky posts (no poll concept). Explicit null on a Mastodon post with no poll. */
     poll?: Poll | null;
+    /**
+     * Self-reply chain (tweetstorm) this post starts, including itself as the first entry —
+     * absent for a post that isn't a detected thread head. Each entry's own `reply_to` is
+     * always null (they're rendered as one sequential group, not as replies-to-each-other).
+     */
+    thread?: Post[];
 }
 
 export interface FeedResponse {

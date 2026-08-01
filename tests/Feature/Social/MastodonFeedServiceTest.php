@@ -302,3 +302,69 @@ it('caches public timeline without user tag', function () {
     expect($second[0]['id'])->toBe('1');
     Http::assertSentCount(1);
 });
+
+it('returns ancestors and descendants from getContext', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://mastodon.example',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        'mastodon.example/api/v1/statuses/100/context' => Http::response([
+            'ancestors' => [],
+            'descendants' => [
+                ['id' => '101', 'in_reply_to_id' => '100', 'content' => '<p>reply</p>'],
+            ],
+        ]),
+    ]);
+
+    $service = new MastodonFeedService;
+    $result = $service->getContext($account, '100');
+
+    expect($result['descendants'])->toHaveCount(1)
+        ->and($result['descendants'][0]['id'])->toBe('101');
+});
+
+it('returns null and does not log when getContext receives a 404', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://mastodon.example',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        'mastodon.example/api/v1/statuses/999/context' => Http::response(['error' => 'Record not found'], 404),
+    ]);
+
+    $service = new MastodonFeedService;
+
+    expect($service->getContext($account, '999'))->toBeNull();
+});
+
+it('caches getContext results per user', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://mastodon.example',
+        'access_token' => 'token',
+    ]);
+
+    Http::fake([
+        'mastodon.example/api/v1/statuses/100/context*' => Http::sequence()
+            ->push(['ancestors' => [], 'descendants' => [['id' => '101']]], 200)
+            ->push(['ancestors' => [], 'descendants' => [['id' => '102']]], 200),
+    ]);
+
+    $service = new MastodonFeedService;
+    $service->getContext($account, '100');
+    $second = $service->getContext($account, '100');
+
+    expect($second['descendants'][0]['id'])->toBe('101');
+    Http::assertSentCount(1);
+});

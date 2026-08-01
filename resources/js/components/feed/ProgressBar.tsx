@@ -18,7 +18,7 @@ export function ProgressBar({ progress, segments }: ProgressBarProps) {
                                     i < segments.activeIndex
                                         ? 1
                                         : i === segments.activeIndex
-                                          ? segments.elapsed
+                                          ? 1 - segments.elapsed
                                           : 0
                                 })`,
                                 transformOrigin: 'left',

@@ -25,6 +25,14 @@ describe('ProgressBar — segments mode', () => {
         expect(tracks).toHaveLength(3);
     });
 
+    it('lays the row out right-to-left, so segment order reads N..1 on screen', () => {
+        const { container } = render(
+            <ProgressBar segments={{ count: 3, activeIndex: 0, elapsed: 0 }} />,
+        );
+        const row = container.querySelector('.flex') as HTMLElement;
+        expect(row.className).toContain('flex-row-reverse');
+    });
+
     it('completed segments show 100% width', () => {
         const { container } = render(
             <ProgressBar

@@ -28,7 +28,6 @@ export function ThreadPost({
     // simply never starts and the nested ImageCarousel drives advancement instead.
     const [readyIndex, setReadyIndex] = useState<number | null>(null);
     const elapsedRef = useRef(0);
-    const lastIndexRef = useRef(0);
     const onAdvanceRef = useRef(onAdvance);
     const onProgressRef = useRef(onProgress);
 
@@ -39,14 +38,24 @@ export function ThreadPost({
 
     const ready = readyIndex === activeIndex;
 
-    // Run the per-entry timer; reset elapsed only when activeIndex changes, not on pause/unpause.
-    useEffect(() => {
-        if (lastIndexRef.current !== activeIndex) {
-            lastIndexRef.current = activeIndex;
-            elapsedRef.current = 0;
-            onProgressRef.current?.(activeIndex, 0);
-        }
+    // Reported at the point activeIndex actually changes (not via an effect) so
+    // the progress reset isn't delayed by an extra render.
+    const advanceTo = (nextIndex: number) => {
+        elapsedRef.current = 0;
+        onProgressRef.current?.(nextIndex, 0);
+        setActiveIndex(nextIndex);
+    };
 
+    const handleSubAdvance = () => {
+        if (activeIndex < thread.length - 1) {
+            advanceTo(activeIndex + 1);
+        } else {
+            onAdvanceRef.current?.();
+        }
+    };
+
+    // Run the per-entry timer once the active entry is ready.
+    useEffect(() => {
         if (paused || !ready) {
             return;
         }
@@ -57,11 +66,10 @@ export function ThreadPost({
             onProgressRef.current?.(activeIndex, filled);
 
             if (elapsedRef.current >= duration) {
-                elapsedRef.current = 0;
                 clearInterval(intervalId);
 
                 if (activeIndex < thread.length - 1) {
-                    setActiveIndex((i) => i + 1);
+                    advanceTo(activeIndex + 1);
                 } else {
                     onAdvanceRef.current?.();
                 }
@@ -70,14 +78,6 @@ export function ThreadPost({
 
         return () => clearInterval(intervalId);
     }, [paused, ready, duration, activeIndex, thread.length]);
-
-    const handleSubAdvance = () => {
-        if (activeIndex < thread.length - 1) {
-            setActiveIndex((i) => i + 1);
-        } else {
-            onAdvanceRef.current?.();
-        }
-    };
 
     const current = thread[activeIndex];
 

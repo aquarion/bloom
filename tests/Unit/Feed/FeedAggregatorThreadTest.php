@@ -64,7 +64,7 @@ it('attaches a mastodon self-reply chain as a thread and removes the continuatio
     $mastodon->shouldReceive('getStatus')->andReturn(null);
     $mastodon->shouldReceive('getContext')
         ->once()
-        ->with($account, '1')
+        ->withArgs(fn ($acct, $id) => $id === '1')
         ->andReturn(['ancestors' => [], 'descendants' => [$reply]]);
 
     $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
@@ -98,7 +98,7 @@ it('walks a multi-step mastodon self-reply chain up to three entries', function 
     $mastodon->shouldReceive('getStatus')->andReturn(null);
     $mastodon->shouldReceive('getContext')
         ->once()
-        ->with($account, '1')
+        ->withArgs(fn ($acct, $id) => $id === '1')
         ->andReturn(['ancestors' => [], 'descendants' => [$second, $third]]);
 
     $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
@@ -128,7 +128,7 @@ it('stops a mastodon thread walk at a branching self-reply', function () {
     $mastodon->shouldReceive('getStatus')->andReturn(null);
     $mastodon->shouldReceive('getContext')
         ->once()
-        ->with($account, '1')
+        ->withArgs(fn ($acct, $id) => $id === '1')
         ->andReturn(['ancestors' => [], 'descendants' => [$branchA, $branchB]]);
 
     $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
@@ -156,7 +156,7 @@ it('stops a mastodon thread walk when a stranger replies before the author conti
     $mastodon->shouldReceive('getStatus')->andReturn(null);
     $mastodon->shouldReceive('getContext')
         ->once()
-        ->with($account, '1')
+        ->withArgs(fn ($acct, $id) => $id === '1')
         ->andReturn(['ancestors' => [], 'descendants' => [$strangerReply]]);
 
     $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
@@ -207,7 +207,7 @@ it('attaches a bluesky self-reply chain as a thread and removes the continuation
     $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => [$headFeedPost], 'cursor' => null]);
     $bluesky->shouldReceive('getPostThread')
         ->once()
-        ->with($account, $headFeedPost['post']['uri'])
+        ->withArgs(fn ($acct, $uri) => $uri === $headFeedPost['post']['uri'])
         ->andReturn([
             '$type' => 'app.bsky.feed.defs#threadViewPost',
             'post' => $headFeedPost['post'],

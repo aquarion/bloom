@@ -67,6 +67,7 @@ function renderChrome(paused: boolean) {
                 paused={paused}
                 onTogglePause={vi.fn()}
                 onAdvance={vi.fn()}
+                onSelectPost={vi.fn()}
                 carouselProgress={null}
                 progress={1}
                 showHelp={false}

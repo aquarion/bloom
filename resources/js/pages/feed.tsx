@@ -46,12 +46,14 @@ function FeedView({
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
 }) {
-    const { current, advance, queue, goBack, canGoBack } = useFeedQueue({
-        initialPosts,
-        initialCursor,
-        cwBehavior,
-        sensitiveMediaBehavior,
-    });
+    const { current, advance, queue, goBack, skipTo, canGoBack } = useFeedQueue(
+        {
+            initialPosts,
+            initialCursor,
+            cwBehavior,
+            sensitiveMediaBehavior,
+        },
+    );
     const [paused, setPaused] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [panelOpen, setPanelOpen] = useState(false);
@@ -93,6 +95,15 @@ function FeedView({
         goBack();
         resetCarouselProgress();
         setPaused(true);
+    };
+
+    const handleSelectPost = (postId: string) => {
+        if (postId === current?.id) {
+            return;
+        }
+
+        skipTo(postId);
+        handleAdvance();
     };
 
     const openPost = () => {
@@ -196,6 +207,7 @@ function FeedView({
                     paused={paused}
                     onTogglePause={togglePause}
                     onAdvance={handleAdvance}
+                    onSelectPost={handleSelectPost}
                     carouselProgress={carouselProgress}
                     progress={progress}
                     showHelp={showHelp}

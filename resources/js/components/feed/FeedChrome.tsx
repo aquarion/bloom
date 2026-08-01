@@ -9,12 +9,12 @@ import {
     SkipForward,
 } from 'lucide-react';
 import { Attribution } from '@/components/feed/Attribution';
-import { DebugPanel } from '@/components/feed/DebugPanel';
 import { FeedSidebarPanel } from '@/components/feed/FeedSidebarPanel';
 import { KeyboardShortcutsOverlay } from '@/components/feed/KeyboardShortcutsOverlay';
 import { MentionChips } from '@/components/feed/MentionChips';
 import { NavMenuIcon } from '@/components/feed/NavMenuIcon';
 import { ProgressBar } from '@/components/feed/ProgressBar';
+import { QueuePanel } from '@/components/feed/QueuePanel';
 import { SourceBadge } from '@/components/feed/SourceBadge';
 import { VersionBanner } from '@/components/feed/VersionBanner';
 import type { Post } from '@/types/post';
@@ -35,6 +35,7 @@ export function FeedChrome({
     paused,
     onTogglePause,
     onAdvance,
+    onSelectPost,
     carouselProgress,
     progress,
     showHelp,
@@ -54,6 +55,7 @@ export function FeedChrome({
     paused: boolean;
     onTogglePause: () => void;
     onAdvance: () => void;
+    onSelectPost: (postId: string) => void;
     carouselProgress: { activeIndex: number; elapsed: number } | null;
     progress: number;
     showHelp: boolean;
@@ -97,7 +99,12 @@ export function FeedChrome({
                         )}
                     </button>
                 )}
-                {debugEnabled && <DebugPanel current={current} queue={queue} />}
+                <QueuePanel
+                    current={current}
+                    queue={queue}
+                    debugEnabled={debugEnabled}
+                    onSelectPost={onSelectPost}
+                />
                 <SourceBadge post={current} />
                 {!isProduction && appVersion && (
                     <VersionBanner appVersion={appVersion} />

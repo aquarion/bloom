@@ -183,6 +183,52 @@ describe('QueuePanel', () => {
         ).toBeInTheDocument();
     });
 
+    it('shows a picture icon in the header for posts with attached images', async () => {
+        const user = userEvent.setup();
+        render(
+            <QueuePanel
+                current={makePost({
+                    id: 'p1',
+                    media: [
+                        {
+                            type: 'image',
+                            url: 'https://example.com/photo.jpg',
+                            preview_url: null,
+                            alt_text: null,
+                        },
+                    ],
+                })}
+                queue={[]}
+                debugEnabled={false}
+                onSelectPost={vi.fn()}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Show upcoming posts' }),
+        );
+
+        expect(screen.getByLabelText('Has images')).toBeInTheDocument();
+    });
+
+    it('has no picture icon in the header for posts without media', async () => {
+        const user = userEvent.setup();
+        render(
+            <QueuePanel
+                current={makePost({ id: 'p1', media: [] })}
+                queue={[]}
+                debugEnabled={false}
+                onSelectPost={vi.fn()}
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Show upcoming posts' }),
+        );
+
+        expect(screen.queryByLabelText('Has images')).not.toBeInTheDocument();
+    });
+
     it('hides the console-dump button when debugEnabled is false', async () => {
         const user = userEvent.setup();
         render(

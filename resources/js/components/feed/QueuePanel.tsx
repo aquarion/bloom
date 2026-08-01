@@ -87,6 +87,12 @@ function PostRow({
                         {post.author_name}
                     </span>
                     <SourceIcon className="size-3 shrink-0 text-white/40" />
+                    {post.media.length > 0 && (
+                        <Image
+                            className="size-3 shrink-0 text-white/40"
+                            aria-label="Has images"
+                        />
+                    )}
                     {isCurrent && (
                         <span className="ml-auto shrink-0 rounded bg-white/20 px-1 py-0.5 font-bold text-[10px] text-white">
                             NOW

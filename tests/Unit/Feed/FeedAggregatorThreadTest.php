@@ -148,8 +148,9 @@ it('stops a mastodon thread walk when a stranger replies before the author conti
         'handle' => '@me@fosstodon.org',
     ]);
 
-    $head = makeMastodonStatus('1', 'author', 'part one', null, 1);
-    $strangerReply = makeMastodonStatus('2', 'stranger', 'butting in', '1');
+    $head = makeMastodonStatus('1', 'author', 'part one', null, 2);
+    $selfReply = makeMastodonStatus('2', 'author', 'part two', '1');
+    $strangerReply = makeMastodonStatus('3', 'stranger', 'butting in', '1');
 
     $mastodon = Mockery::mock(MastodonFeedService::class);
     $mastodon->shouldReceive('getHomeTimeline')->andReturn([$head]);
@@ -157,7 +158,7 @@ it('stops a mastodon thread walk when a stranger replies before the author conti
     $mastodon->shouldReceive('getContext')
         ->once()
         ->withArgs(fn ($acct, $id) => $id === '1')
-        ->andReturn(['ancestors' => [], 'descendants' => [$strangerReply]]);
+        ->andReturn(['ancestors' => [], 'descendants' => [$selfReply, $strangerReply]]);
 
     $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
     $result = $aggregator->fetch($user);
@@ -253,6 +254,40 @@ it('stops a bluesky thread walk at a branching self-reply', function () {
             'replies' => [
                 ['$type' => 'app.bsky.feed.defs#threadViewPost', 'post' => $branchA, 'replies' => []],
                 ['$type' => 'app.bsky.feed.defs#threadViewPost', 'post' => $branchB, 'replies' => []],
+            ],
+        ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0])->not->toHaveKey('thread');
+});
+
+it('stops a bluesky thread walk when a stranger replies alongside the author\'s continuation', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@author.bsky.social',
+    ]);
+
+    $did = 'did:plc:author';
+    $headFeedPost = makeBlueskyFeedPost('1', $did, 'author.bsky.social', 'part one', 2);
+    $selfReply = makeBlueskyFeedPost('2', $did, 'author.bsky.social', 'part two')['post'];
+    $strangerReply = makeBlueskyFeedPost('3', 'did:plc:stranger', 'stranger.bsky.social', 'butting in')['post'];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => [$headFeedPost], 'cursor' => null]);
+    $bluesky->shouldReceive('getPostThread')
+        ->once()
+        ->andReturn([
+            '$type' => 'app.bsky.feed.defs#threadViewPost',
+            'post' => $headFeedPost['post'],
+            'replies' => [
+                ['$type' => 'app.bsky.feed.defs#threadViewPost', 'post' => $selfReply, 'replies' => []],
+                ['$type' => 'app.bsky.feed.defs#threadViewPost', 'post' => $strangerReply, 'replies' => []],
             ],
         ]);
 

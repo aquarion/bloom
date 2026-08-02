@@ -482,17 +482,17 @@ class FeedAggregator
             $currentId = $raw['id'];
 
             while (count($chain) < self::MAX_THREAD_DEPTH) {
-                $selfReplies = array_values(array_filter(
-                    $byParent[$currentId] ?? [],
-                    fn ($c) => ($c['account']['acct'] ?? null) === $authorAcct,
-                ));
+                $repliesAtParent = $byParent[$currentId] ?? [];
 
-                if (count($selfReplies) !== 1) {
+                // Require the parent to have exactly one reply, by the author — a stranger
+                // replying alongside (or instead of) the author's continuation makes the
+                // path ambiguous, so stop rather than guess which branch to follow.
+                if (count($repliesAtParent) !== 1 || ($repliesAtParent[0]['account']['acct'] ?? null) !== $authorAcct) {
                     break;
                 }
 
-                $chain[] = $selfReplies[0];
-                $currentId = $selfReplies[0]['id'];
+                $chain[] = $repliesAtParent[0];
+                $currentId = $repliesAtParent[0]['id'];
             }
 
             if (empty($chain)) {
@@ -550,17 +550,18 @@ class FeedAggregator
             $chain = [];
 
             while (count($chain) < self::MAX_THREAD_DEPTH) {
-                $selfReplies = array_values(array_filter(
-                    $node['replies'] ?? [],
-                    fn ($r) => ($r['$type'] ?? '') === 'app.bsky.feed.defs#threadViewPost'
-                        && ($r['post']['author']['did'] ?? null) === $authorDid,
-                ));
+                $repliesAtNode = $node['replies'] ?? [];
 
-                if (count($selfReplies) !== 1) {
+                // Require exactly one reply, by the author — a stranger replying
+                // alongside (or instead of) the author's continuation makes the path
+                // ambiguous, so stop rather than guess which branch to follow.
+                if (count($repliesAtNode) !== 1
+                    || ($repliesAtNode[0]['$type'] ?? '') !== 'app.bsky.feed.defs#threadViewPost'
+                    || ($repliesAtNode[0]['post']['author']['did'] ?? null) !== $authorDid) {
                     break;
                 }
 
-                $node = $selfReplies[0];
+                $node = $repliesAtNode[0];
                 $chain[] = $node['post'];
             }
 

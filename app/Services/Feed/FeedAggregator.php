@@ -13,6 +13,19 @@ use Illuminate\Support\Facades\Log;
 
 class FeedAggregator
 {
+    // Bounds a self-reply thread walk (#53) — prevents a pathological long tweetstorm
+    // from ballooning a single feed item's fetch cost or on-screen playtime.
+    private const MAX_THREAD_DEPTH = 10;
+
+    // Caps how many blocking getContext()/getPostThread() lookups a single account's
+    // batch will attempt per fetch() call (#53). These run synchronously, one per
+    // candidate post, on the request thread that renders first load — uncapped, a
+    // timeline with many reply-having posts (especially cold-cache, across several
+    // accounts) can chain enough sequential network round-trips to blow past Octane's
+    // per-request max_execution_time (config/octane.php). Newest posts are checked
+    // first, so the cap only ever costs thread-grouping on older items.
+    private const MAX_THREAD_LOOKUPS_PER_BATCH = 5;
+
     public function __construct(
         private MastodonFeedService $mastodon,
         private BlueskyFeedService $bluesky,
@@ -42,6 +55,15 @@ class FeedAggregator
             $normalised = [];
             $nextCursor = null;
             $authAccount = null;
+            // Pre-normalisation items for this account's batch, kept alongside $normalised
+            // (same order/count) so self-reply thread detection can inspect provider-specific
+            // fields (reply counts, raw ids) that don't survive normalisation. $threadAccount is
+            // whichever account authenticates context/thread lookups for this batch (mirrors the
+            // account already used for that branch's own timeline fetch — null skips thread
+            // detection entirely, e.g. an unauthenticated public Mastodon instance).
+            $rawItems = [];
+            $threadAccount = null;
+            $threadSourceHandle = null;
 
             try {
                 if ($account->feed_type === 'home' && $account->provider === 'mastodon') {
@@ -69,6 +91,9 @@ class FeedAggregator
                             $mentionsEnabled,
                         );
                     }, $statuses);
+                    $rawItems = $statuses;
+                    $threadAccount = $account;
+                    $threadSourceHandle = $account->handle;
 
                     if ($mentionsEnabled) {
                         $normalised = $this->mastodon->resolveMentionProfiles($normalised, $account);
@@ -130,6 +155,10 @@ class FeedAggregator
                             $mentionsEnabled,
                         );
                     }, $statuses);
+                    $rawItems = $statuses;
+                    // No sourceHandle for this branch's own normalizer calls either (see above) —
+                    // a public timeline isn't scoped to a single authenticated account's handle.
+                    $threadAccount = $authAccount;
 
                     if ($mentionsEnabled && $authAccount !== null) {
                         $normalised = $this->mastodon->resolveMentionProfiles($normalised, $authAccount);
@@ -140,6 +169,9 @@ class FeedAggregator
                     $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
                     $result = $this->bluesky->getHomeTimeline($account, $perAccountLimit, $accountCursor);
                     $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle, $mentionsEnabled), $result['posts']);
+                    $rawItems = $result['posts'];
+                    $threadAccount = $account;
+                    $threadSourceHandle = $account->handle;
 
                     if ($mentionsEnabled) {
                         $normalised = $this->bluesky->resolveMentionProfiles($normalised, $account);
@@ -169,6 +201,9 @@ class FeedAggregator
                     $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
                     $result = $this->bluesky->getFeed($homeAccount, $feedUri, $perAccountLimit, $accountCursor);
                     $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $homeAccount->handle, $mentionsEnabled), $result['posts']);
+                    $rawItems = $result['posts'];
+                    $threadAccount = $homeAccount;
+                    $threadSourceHandle = $homeAccount->handle;
 
                     if ($mentionsEnabled) {
                         $normalised = $this->bluesky->resolveMentionProfiles($normalised, $homeAccount);
@@ -207,6 +242,12 @@ class FeedAggregator
 
                 return $post;
             }, $normalised);
+
+            if ($threadAccount !== null) {
+                $normalised = $account->provider === 'mastodon'
+                    ? $this->attachMastodonThreads($normalised, $rawItems, $threadAccount, parse_url($threadAccount->instance_url, PHP_URL_HOST), $threadSourceHandle, $mentionsEnabled)
+                    : $this->attachBlueskyThreads($normalised, $rawItems, $threadAccount, $threadSourceHandle, $mentionsEnabled);
+            }
 
             $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
             $posts = $posts->concat($normalised);
@@ -410,5 +451,165 @@ class FeedAggregator
         }
 
         return $result;
+    }
+
+    /**
+     * Detects self-reply chains (tweetstorms) among $normalised and attaches the continuation
+     * posts as a 'thread' key on the head post, so the frontend can play them as one sequential
+     * group (#53). Only walks a single unambiguous path — branching self-replies, or a stranger
+     * replying before the author continues, stop the chain rather than guessing which path to
+     * follow. Continuation posts are re-normalised the same way a top-level post would be (no
+     * reply_to of their own, to avoid a redundant "replying to self" panel on every entry) and
+     * removed from $normalised so they don't also surface as their own standalone feed item.
+     *
+     * @param  array<int, array<string, mixed>>  $normalised
+     * @param  array<int, array<string, mixed>>  $statuses  Same order/count as $normalised.
+     */
+    private function attachMastodonThreads(array $normalised, array $statuses, SocialAccount $contextAccount, string $host, ?string $sourceHandle, bool $mentionsEnabled): array
+    {
+        $consumedUrls = [];
+        $lookupsRemaining = self::MAX_THREAD_LOOKUPS_PER_BATCH;
+
+        foreach ($normalised as $i => &$post) {
+            $raw = $statuses[$i]['reblog'] ?? $statuses[$i] ?? null;
+            $authorAcct = $raw['account']['acct'] ?? null;
+
+            if ($raw === null || $authorAcct === null || ($raw['replies_count'] ?? 0) < 1) {
+                continue;
+            }
+
+            if ($lookupsRemaining <= 0) {
+                continue;
+            }
+            $lookupsRemaining--;
+
+            $context = $this->mastodon->getContext($contextAccount, $raw['id']);
+            if ($context === null || empty($context['descendants'])) {
+                continue;
+            }
+
+            $byParent = [];
+            foreach ($context['descendants'] as $descendant) {
+                $byParent[$descendant['in_reply_to_id'] ?? '('][] = $descendant;
+            }
+
+            $chain = [];
+            $currentId = $raw['id'];
+
+            while (count($chain) < self::MAX_THREAD_DEPTH) {
+                $repliesAtParent = $byParent[$currentId] ?? [];
+
+                // Require the parent to have exactly one reply, by the author — a stranger
+                // replying alongside (or instead of) the author's continuation makes the
+                // path ambiguous, so stop rather than guess which branch to follow.
+                if (count($repliesAtParent) !== 1 || ($repliesAtParent[0]['account']['acct'] ?? null) !== $authorAcct) {
+                    break;
+                }
+
+                $chain[] = $repliesAtParent[0];
+                $currentId = $repliesAtParent[0]['id'];
+            }
+
+            if (empty($chain)) {
+                continue;
+            }
+
+            $post['thread'] = array_map(
+                fn (array $status) => $this->normalizer->fromMastodon($status, $host, null, $sourceHandle, null, $mentionsEnabled),
+                [$raw, ...$chain],
+            );
+
+            foreach (array_slice($post['thread'], 1) as $threadPost) {
+                if ($threadPost['original_url'] !== '') {
+                    $consumedUrls[$threadPost['original_url']] = true;
+                }
+            }
+        }
+        unset($post);
+
+        if (empty($consumedUrls)) {
+            return $normalised;
+        }
+
+        return array_values(array_filter(
+            $normalised,
+            fn (array $post) => ! isset($consumedUrls[$post['original_url']]),
+        ));
+    }
+
+    /**
+     * Bluesky counterpart to attachMastodonThreads() — same self-reply-chain detection and
+     * dedup, walking app.bsky.feed.getPostThread's nested 'replies' view instead of Mastodon's
+     * flat ancestors/descendants list.
+     *
+     * @param  array<int, array<string, mixed>>  $normalised
+     * @param  array<int, array<string, mixed>>  $feedPosts  Same order/count as $normalised (each a raw {post, reply?, reason?} entry).
+     */
+    private function attachBlueskyThreads(array $normalised, array $feedPosts, SocialAccount $contextAccount, ?string $sourceHandle, bool $mentionsEnabled): array
+    {
+        $consumedUrls = [];
+        $lookupsRemaining = self::MAX_THREAD_LOOKUPS_PER_BATCH;
+
+        foreach ($normalised as $i => &$post) {
+            $raw = $feedPosts[$i]['post'] ?? null;
+            $authorDid = $raw['author']['did'] ?? null;
+
+            if ($raw === null || $authorDid === null || ($raw['replyCount'] ?? 0) < 1) {
+                continue;
+            }
+
+            if ($lookupsRemaining <= 0) {
+                continue;
+            }
+            $lookupsRemaining--;
+
+            $node = $this->bluesky->getPostThread($contextAccount, $raw['uri']);
+            if ($node === null) {
+                continue;
+            }
+
+            $chain = [];
+
+            while (count($chain) < self::MAX_THREAD_DEPTH) {
+                $repliesAtNode = $node['replies'] ?? [];
+
+                // Require exactly one reply, by the author — a stranger replying
+                // alongside (or instead of) the author's continuation makes the path
+                // ambiguous, so stop rather than guess which branch to follow.
+                if (count($repliesAtNode) !== 1
+                    || ($repliesAtNode[0]['$type'] ?? '') !== 'app.bsky.feed.defs#threadViewPost'
+                    || ($repliesAtNode[0]['post']['author']['did'] ?? null) !== $authorDid) {
+                    break;
+                }
+
+                $node = $repliesAtNode[0];
+                $chain[] = $node['post'];
+            }
+
+            if (empty($chain)) {
+                continue;
+            }
+
+            $post['thread'] = array_map(
+                fn (array $chainPost) => $this->normalizer->fromBluesky(['post' => $chainPost], $sourceHandle, $mentionsEnabled),
+                [$raw, ...$chain],
+            );
+
+            foreach (array_slice($post['thread'], 1) as $threadPost) {
+                if ($threadPost['original_url'] !== '') {
+                    $consumedUrls[$threadPost['original_url']] = true;
+                }
+            }
+        }
+        unset($post);
+
+        if (empty($consumedUrls)) {
+            return $normalised;
+        }
+
+        return array_values(array_filter(
+            $normalised,
+            fn (array $post) => ! isset($consumedUrls[$post['original_url']]),
+        ));
     }
 }

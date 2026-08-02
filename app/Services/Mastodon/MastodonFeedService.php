@@ -59,6 +59,45 @@ class MastodonFeedService
         });
     }
 
+    /**
+     * Ancestors + descendants of a status, for self-reply thread detection.
+     *
+     * @return array{ancestors: array<int, array<string, mixed>>, descendants: array<int, array<string, mixed>>}|null
+     */
+    public function getContext(SocialAccount $account, string $id): ?array
+    {
+        $key = "mastodon:context:{$account->id}:{$id}";
+
+        return $this->userCache($account)->remember($key, self::STATUS_TTL, function () use ($account, $id) {
+            try {
+                return Http::timeout(15)->withToken($account->access_token)
+                    ->get("{$account->instance_url}/api/v1/statuses/{$id}/context")
+                    ->throw()
+                    ->json();
+            } catch (RequestException $e) {
+                if ($e->response->status() !== 404) {
+                    Log::warning('Failed to fetch Mastodon status context', [
+                        'account_id' => $account->id,
+                        'status_id' => $id,
+                        'http_status' => $e->response->status(),
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                return null;
+            } catch (\Throwable $e) {
+                Log::error('Unexpected error fetching Mastodon status context', [
+                    'account_id' => $account->id,
+                    'status_id' => $id,
+                    'exception' => $e::class,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return null;
+            }
+        });
+    }
+
     public function getHomeTimeline(SocialAccount $account, int $limit = 20, ?string $maxId = null): array
     {
         // Paginated (older) pages: simple cache keyed by cursor.

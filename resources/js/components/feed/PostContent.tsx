@@ -10,6 +10,7 @@ import type { ContentBehavior } from '@/types/preferences';
 import { AuthorChip } from './AuthorChip';
 import { HelpBubble } from './HelpBubble';
 import { PostAnimator } from './PostAnimator';
+import { ThreadPost } from './ThreadPost';
 
 function CwOverlay({
     cwText,
@@ -124,6 +125,20 @@ export function PostContent({
         reveal(post);
         triggerCwSettingsTip();
     };
+
+    if (post.thread) {
+        return (
+            <ThreadPost
+                thread={post.thread}
+                duration={8000}
+                paused={paused}
+                onAdvance={onAdvance}
+                onProgress={onProgress}
+                cwBehavior={cwBehavior}
+                sensitiveMediaBehavior={sensitiveMediaBehavior}
+            />
+        );
+    }
 
     return (
         <div className="relative flex h-full w-full items-center justify-center">

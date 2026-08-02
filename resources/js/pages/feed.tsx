@@ -181,7 +181,7 @@ function FeedView({
                         onReady={() => setReadyForPostId(current.id)}
                         onAdvance={handleAdvance}
                         onProgress={
-                            current.media.length > 0
+                            current.media.length > 0 || current.thread
                                 ? handleCarouselProgress
                                 : undefined
                         }

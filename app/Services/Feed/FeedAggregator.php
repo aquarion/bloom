@@ -244,9 +244,23 @@ class FeedAggregator
             }, $normalised);
 
             if ($threadAccount !== null) {
-                $normalised = $account->provider === 'mastodon'
-                    ? $this->attachMastodonThreads($normalised, $rawItems, $threadAccount, parse_url($threadAccount->instance_url, PHP_URL_HOST), $threadSourceHandle, $mentionsEnabled)
-                    : $this->attachBlueskyThreads($normalised, $rawItems, $threadAccount, $threadSourceHandle, $mentionsEnabled);
+                try {
+                    $normalised = $account->provider === 'mastodon'
+                        ? $this->attachMastodonThreads($normalised, $rawItems, $threadAccount, parse_url($threadAccount->instance_url, PHP_URL_HOST), $threadSourceHandle, $mentionsEnabled)
+                        : $this->attachBlueskyThreads($normalised, $rawItems, $threadAccount, $threadSourceHandle, $mentionsEnabled);
+                } catch (\Throwable $e) {
+                    // Thread detection is an enhancement, not core to rendering the feed —
+                    // a malformed API response or chain-walking bug here shouldn't take down
+                    // the whole page. Fall back to $normalised as already built (ungrouped).
+                    Log::error('Thread detection failed for account; falling back to ungrouped posts', [
+                        'account_id' => $account->id,
+                        'thread_account_id' => $threadAccount->id,
+                        'provider' => $account->provider,
+                        'exception' => $e::class,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                }
             }
 
             $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
@@ -519,6 +533,13 @@ class FeedAggregator
                 [$raw, ...$chain],
             );
 
+            // Thread entries are re-normalised from raw data above, bypassing the
+            // batch-level resolveMentionProfiles() call already made for $normalised —
+            // resolve them here too so thread posts don't render unresolved mention chips.
+            if ($mentionsEnabled) {
+                $post['thread'] = $this->mastodon->resolveMentionProfiles($post['thread'], $contextAccount);
+            }
+
             foreach (array_slice($post['thread'], 1) as $threadPost) {
                 if ($threadPost['original_url'] !== '') {
                     $consumedUrls[$threadPost['original_url']] = true;
@@ -594,6 +615,13 @@ class FeedAggregator
                 fn (array $chainPost) => $this->normalizer->fromBluesky(['post' => $chainPost], $sourceHandle, $mentionsEnabled),
                 [$raw, ...$chain],
             );
+
+            // Thread entries are re-normalised from raw data above, bypassing the
+            // batch-level resolveMentionProfiles() call already made for $normalised —
+            // resolve them here too so thread posts don't render unresolved mention chips.
+            if ($mentionsEnabled) {
+                $post['thread'] = $this->bluesky->resolveMentionProfiles($post['thread'], $contextAccount);
+            }
 
             foreach (array_slice($post['thread'], 1) as $threadPost) {
                 if ($threadPost['original_url'] !== '') {

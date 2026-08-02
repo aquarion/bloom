@@ -1,9 +1,18 @@
 ---
 title: Changelog
-last_updated: "2026-07-27"
+last_updated: "2026-08-02"
 ---
 
 Notable changes to the Bloom application, newest first.
+
+## 2026-08-02 — Milestone 1.12
+
+- **Conversation threads play as one story** — a self-reply chain (a "tweetstorm") from the same author now plays as a single sequential group with its own progress indicator, instead of each reply surfacing as a separate, out-of-order feed item.
+- **Debug queue panel is now user-facing** — the post queue is available to everyone as a slide-in panel from the feed chrome, showing upcoming posts with content-warning indicators and tap-to-jump navigation.
+- **Help bubbles** — one-time dismissible tips point out useful functionality the first time it's relevant, starting with a tip about managing content warnings in Feed settings.
+- **Version banner** — the build version shows top-right in the feed on non-production environments.
+- **Pause indicator** — a red border appears around the feed while playback is paused.
+- **Fixed** — the multi-image progress indicator filled in the wrong direction; completed images now stay full, the active image fills up as it plays, and upcoming images start empty.
 
 ## 2026-07-27 — Milestone 1.11
 

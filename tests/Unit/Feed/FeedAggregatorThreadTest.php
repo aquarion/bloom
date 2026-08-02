@@ -191,6 +191,34 @@ it('does not call getContext for a mastodon post with no replies', function () {
         ->and($result['posts'][0])->not->toHaveKey('thread');
 });
 
+it('caps mastodon getContext lookups at 5 per account batch to bound request time', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $statuses = array_map(
+        fn (int $i) => makeMastodonStatus((string) $i, 'author', "part {$i}", null, 1),
+        range(1, 7),
+    );
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn($statuses);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+    $mastodon->shouldReceive('getContext')
+        ->times(5)
+        ->andReturn(null);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(7);
+});
+
 it('attaches a bluesky self-reply chain as a thread and removes the continuation from the feed', function () {
     $user = User::factory()->create();
     $account = SocialAccount::factory()->create([
@@ -318,4 +346,30 @@ it('does not call getPostThread for a bluesky post with no replies', function ()
 
     expect($result['posts'])->toHaveCount(1)
         ->and($result['posts'][0])->not->toHaveKey('thread');
+});
+
+it('caps bluesky getPostThread lookups at 5 per account batch to bound request time', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@author.bsky.social',
+    ]);
+
+    $feedPosts = array_map(
+        fn (int $i) => makeBlueskyFeedPost((string) $i, 'did:plc:author', 'author.bsky.social', "part {$i}", 1),
+        range(1, 7),
+    );
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => $feedPosts, 'cursor' => null]);
+    $bluesky->shouldReceive('getPostThread')
+        ->times(5)
+        ->andReturn(null);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(7);
 });

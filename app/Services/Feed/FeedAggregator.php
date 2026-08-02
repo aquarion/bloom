@@ -17,6 +17,15 @@ class FeedAggregator
     // from ballooning a single feed item's fetch cost or on-screen playtime.
     private const MAX_THREAD_DEPTH = 10;
 
+    // Caps how many blocking getContext()/getPostThread() lookups a single account's
+    // batch will attempt per fetch() call (#53). These run synchronously, one per
+    // candidate post, on the request thread that renders first load — uncapped, a
+    // timeline with many reply-having posts (especially cold-cache, across several
+    // accounts) can chain enough sequential network round-trips to blow past Octane's
+    // per-request max_execution_time (config/octane.php). Newest posts are checked
+    // first, so the cap only ever costs thread-grouping on older items.
+    private const MAX_THREAD_LOOKUPS_PER_BATCH = 5;
+
     public function __construct(
         private MastodonFeedService $mastodon,
         private BlueskyFeedService $bluesky,
@@ -459,6 +468,7 @@ class FeedAggregator
     private function attachMastodonThreads(array $normalised, array $statuses, SocialAccount $contextAccount, string $host, ?string $sourceHandle, bool $mentionsEnabled): array
     {
         $consumedUrls = [];
+        $lookupsRemaining = self::MAX_THREAD_LOOKUPS_PER_BATCH;
 
         foreach ($normalised as $i => &$post) {
             $raw = $statuses[$i]['reblog'] ?? $statuses[$i] ?? null;
@@ -467,6 +477,11 @@ class FeedAggregator
             if ($raw === null || $authorAcct === null || ($raw['replies_count'] ?? 0) < 1) {
                 continue;
             }
+
+            if ($lookupsRemaining <= 0) {
+                continue;
+            }
+            $lookupsRemaining--;
 
             $context = $this->mastodon->getContext($contextAccount, $raw['id']);
             if ($context === null || empty($context['descendants'])) {
@@ -533,6 +548,7 @@ class FeedAggregator
     private function attachBlueskyThreads(array $normalised, array $feedPosts, SocialAccount $contextAccount, ?string $sourceHandle, bool $mentionsEnabled): array
     {
         $consumedUrls = [];
+        $lookupsRemaining = self::MAX_THREAD_LOOKUPS_PER_BATCH;
 
         foreach ($normalised as $i => &$post) {
             $raw = $feedPosts[$i]['post'] ?? null;
@@ -541,6 +557,11 @@ class FeedAggregator
             if ($raw === null || $authorDid === null || ($raw['replyCount'] ?? 0) < 1) {
                 continue;
             }
+
+            if ($lookupsRemaining <= 0) {
+                continue;
+            }
+            $lookupsRemaining--;
 
             $node = $this->bluesky->getPostThread($contextAccount, $raw['uri']);
             if ($node === null) {

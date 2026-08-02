@@ -416,6 +416,68 @@ it('canGoBack returns to false once history is exhausted by goBack', () => {
     expect(result.current.canGoBack).toBe(false);
 });
 
+it('skipTo reorders the target post to the front of the queue', () => {
+    const posts = [makePost('1'), makePost('2'), makePost('3'), makePost('4')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+
+    act(() => result.current.skipTo('3'));
+
+    expect(result.current.current?.id).toBe('1');
+    expect(result.current.queue.map((p) => p.id)).toEqual(['3', '2', '4']);
+});
+
+it('skipTo followed by advance moves straight to the target post', () => {
+    const posts = [makePost('1'), makePost('2'), makePost('3'), makePost('4')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+
+    act(() => result.current.skipTo('3'));
+    act(() => result.current.advance());
+
+    expect(result.current.current?.id).toBe('3');
+    expect(result.current.queue.map((p) => p.id)).toEqual(['2', '4']);
+});
+
+it('skipTo targeting the current post is a no-op', () => {
+    const posts = [makePost('1'), makePost('2'), makePost('3')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+
+    act(() => result.current.skipTo('1'));
+
+    expect(result.current.current?.id).toBe('1');
+    expect(result.current.queue.map((p) => p.id)).toEqual(['2', '3']);
+});
+
+it('skipTo targeting a post already in history is a no-op', () => {
+    const posts = [makePost('1'), makePost('2'), makePost('3')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+
+    act(() => result.current.advance()); // current: '2', history: ['1']
+    act(() => result.current.skipTo('1'));
+
+    expect(result.current.current?.id).toBe('2');
+    expect(result.current.queue.map((p) => p.id)).toEqual(['3']);
+});
+
+it('skipTo targeting an unknown post id is a no-op', () => {
+    const posts = [makePost('1'), makePost('2')];
+    const { result } = renderHook(() =>
+        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+    );
+
+    act(() => result.current.skipTo('does-not-exist'));
+
+    expect(result.current.current?.id).toBe('1');
+    expect(result.current.queue.map((p) => p.id)).toEqual(['2']);
+});
+
 it('caps history at 50 posts', () => {
     const posts = Array.from({ length: 60 }, (_, i) => makePost(String(i)));
     const { result } = renderHook(() =>

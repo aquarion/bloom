@@ -15,6 +15,7 @@ type State = {
 type Action =
     | { type: 'advance' }
     | { type: 'go_back' }
+    | { type: 'skip_to'; postId: string }
     | { type: 'enqueue'; posts: Post[]; cursor: string | null };
 
 function reducer(state: State, action: Action): State {
@@ -42,6 +43,28 @@ function reducer(state: State, action: Action): State {
             }
 
             return { ...state, position: state.position - 1 };
+        }
+
+        // Reorders the queue so the target post is immediately next in line
+        // (skipping past whatever was ahead of it) without dropping any
+        // posts — the caller then advance()s into it for the transition.
+        // Only searches the queue, not history: the current post can't
+        // target itself, and re-queuing a past post would resurrect it.
+        case 'skip_to': {
+            const targetIndex = state.path.findIndex(
+                (post, index) =>
+                    index > state.position && post.id === action.postId,
+            );
+
+            if (targetIndex === -1) {
+                return state;
+            }
+
+            const path = [...state.path];
+            const [target] = path.splice(targetIndex, 1);
+            path.splice(state.position + 1, 0, target);
+
+            return { ...state, path };
         }
 
         case 'enqueue': {
@@ -190,11 +213,16 @@ export function useFeedQueue({
         dispatch({ type: 'go_back' });
     }, []);
 
+    const skipTo = useCallback((postId: string) => {
+        dispatch({ type: 'skip_to', postId });
+    }, []);
+
     return {
         current,
         queue,
         advance,
         goBack,
+        skipTo,
         canGoBack: state.position > 0,
     };
 }

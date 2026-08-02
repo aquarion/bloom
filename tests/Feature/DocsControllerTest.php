@@ -12,6 +12,7 @@ it('renders a document by slug', function () {
         $this->withoutVite()->get("/docs/{$slug}")
             ->assertInertia(fn ($page) => $page
                 ->component('docs/show', false)
+                ->where('slug', $slug)
                 ->where('title', 'Test Document')
                 ->where('last_updated', '2026-07-05')
                 ->has('content')

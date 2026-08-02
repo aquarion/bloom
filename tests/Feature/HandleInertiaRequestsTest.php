@@ -48,3 +48,19 @@ it('shares the matomo config with all inertia pages when configured', function (
             ->where('matomo.goals.registration', 1),
     );
 });
+
+it('shares isProduction as false outside the production environment', function () {
+    app()['env'] = 'staging';
+
+    $this->withoutVite()->get('/login')->assertInertia(
+        fn ($page) => $page->where('isProduction', false),
+    );
+});
+
+it('shares isProduction as true in the production environment', function () {
+    app()['env'] = 'production';
+
+    $this->withoutVite()->get('/login')->assertInertia(
+        fn ($page) => $page->where('isProduction', true),
+    );
+});

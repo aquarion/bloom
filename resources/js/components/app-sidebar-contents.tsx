@@ -32,13 +32,6 @@ import { edit as profileEdit } from '@/routes/profile';
 import { edit as securityEdit } from '@/routes/security';
 import type { NavItem } from '@/types';
 
-const docsNavLinks = [
-    { title: 'Privacy Policy', slug: 'privacy' },
-    { title: 'Cookie Policy', slug: 'cookies' },
-    { title: 'Changelog', slug: 'changelog' },
-    { title: 'Legal Changes', slug: 'legal-changes' },
-] as const;
-
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -134,23 +127,26 @@ export function AppSidebarContents() {
                                 {appVersion.label}
                             </a>
                         ) : (
-                            <span>{appVersion.label}</span>
+                            <Link
+                                href={docsShow('changelog')}
+                                className="hover:underline"
+                            >
+                                {appVersion.label}
+                            </Link>
                         )}
                     </div>
                 )}
                 <SidebarMenu className="group-data-[collapsible=icon]:hidden">
-                    {docsNavLinks.map(({ title, slug }) => (
-                        <SidebarMenuItem key={slug}>
-                            <SidebarMenuButton asChild size="sm">
-                                <Link
-                                    href={docsShow(slug)}
-                                    className="text-neutral-500 text-xs dark:text-neutral-400"
-                                >
-                                    <span>{title}</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    ))}
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild size="sm">
+                            <Link
+                                href={docsShow('privacy')}
+                                className="text-neutral-500 text-xs dark:text-neutral-400"
+                            >
+                                <span>Terms and Conditions</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                 </SidebarMenu>
                 <SidebarMenu>
                     <SidebarMenuItem>

@@ -25,7 +25,15 @@ describe('ProgressBar — segments mode', () => {
         expect(tracks).toHaveLength(3);
     });
 
-    it('completed segments show 0% width', () => {
+    it('lays the row out right-to-left, so the leftmost slot is the last image', () => {
+        const { container } = render(
+            <ProgressBar segments={{ count: 3, activeIndex: 0, elapsed: 0 }} />,
+        );
+        const row = container.querySelector('.flex') as HTMLElement;
+        expect(row.className).toContain('flex-row-reverse');
+    });
+
+    it('already-shown segments (before the active one) are empty', () => {
         const { container } = render(
             <ProgressBar
                 segments={{ count: 3, activeIndex: 2, elapsed: 0.5 }}
@@ -36,7 +44,7 @@ describe('ProgressBar — segments mode', () => {
         expect(bars[1].style.transform).toBe('scaleX(0)');
     });
 
-    it('active segment shows countdown width: (1 - elapsed) * 100%', () => {
+    it('active segment empties like the normal bar: (1 - elapsed) * 100%', () => {
         const { container } = render(
             <ProgressBar
                 segments={{ count: 3, activeIndex: 1, elapsed: 0.4 }}
@@ -46,7 +54,7 @@ describe('ProgressBar — segments mode', () => {
         expect(bars[1].style.transform).toBe('scaleX(0.6)');
     });
 
-    it('future segments show 100% width', () => {
+    it('not-yet-shown segments (after the active one) are full', () => {
         const { container } = render(
             <ProgressBar
                 segments={{ count: 3, activeIndex: 0, elapsed: 0.5 }}
@@ -57,7 +65,7 @@ describe('ProgressBar — segments mode', () => {
         expect(bars[2].style.transform).toBe('scaleX(1)');
     });
 
-    it('first segment at elapsed=0 shows full width (nothing elapsed)', () => {
+    it('first segment at elapsed=0 shows 100% width (nothing drained yet)', () => {
         const { container } = render(
             <ProgressBar segments={{ count: 2, activeIndex: 0, elapsed: 0 }} />,
         );
@@ -65,7 +73,7 @@ describe('ProgressBar — segments mode', () => {
         expect(bars[0].style.transform).toBe('scaleX(1)');
     });
 
-    it('first segment at elapsed=1 shows 0% (fully elapsed)', () => {
+    it('first segment at elapsed=1 shows 0% width (fully drained)', () => {
         const { container } = render(
             <ProgressBar segments={{ count: 2, activeIndex: 0, elapsed: 1 }} />,
         );

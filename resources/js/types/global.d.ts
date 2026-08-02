@@ -10,6 +10,7 @@ declare module '@inertiajs/core' {
             passkeyConfirmedUntil: number | null;
             sidebarOpen: boolean;
             appVersion: { label: string; url: string | null } | null;
+            isProduction: boolean;
             matomo: MatomoConfig | null;
             [key: string]: unknown;
         };

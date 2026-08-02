@@ -48,6 +48,7 @@ class HandleInertiaRequests extends Middleware
             'passkeyConfirmedUntil' => $this->passkeyConfirmedUntilMs($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'appVersion' => $this->resolveAppVersion(),
+            'isProduction' => app()->isProduction(),
             'matomo' => app(MatomoService::class)->getConfig(),
         ];
     }

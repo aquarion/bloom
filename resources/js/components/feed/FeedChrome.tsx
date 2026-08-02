@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import {
     AtSign,
     Eye,
@@ -8,13 +9,14 @@ import {
     SkipForward,
 } from 'lucide-react';
 import { Attribution } from '@/components/feed/Attribution';
-import { DebugPanel } from '@/components/feed/DebugPanel';
 import { FeedSidebarPanel } from '@/components/feed/FeedSidebarPanel';
 import { KeyboardShortcutsOverlay } from '@/components/feed/KeyboardShortcutsOverlay';
 import { MentionChips } from '@/components/feed/MentionChips';
 import { NavMenuIcon } from '@/components/feed/NavMenuIcon';
 import { ProgressBar } from '@/components/feed/ProgressBar';
+import { QueuePanel } from '@/components/feed/QueuePanel';
 import { SourceBadge } from '@/components/feed/SourceBadge';
+import { VersionBanner } from '@/components/feed/VersionBanner';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 
@@ -33,6 +35,7 @@ export function FeedChrome({
     paused,
     onTogglePause,
     onAdvance,
+    onSelectPost,
     carouselProgress,
     progress,
     showHelp,
@@ -52,13 +55,20 @@ export function FeedChrome({
     paused: boolean;
     onTogglePause: () => void;
     onAdvance: () => void;
+    onSelectPost: (postId: string) => void;
     carouselProgress: { activeIndex: number; elapsed: number } | null;
     progress: number;
     showHelp: boolean;
     cwBehavior?: ContentBehavior;
 }) {
+    const { appVersion, isProduction } = usePage().props;
+
     return (
-        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col">
+        <div
+            className={`pointer-events-none absolute inset-0 z-20 flex flex-col border-4 transition-colors duration-300 ${
+                paused ? 'border-red-500' : 'border-transparent'
+            }`}
+        >
             <div className="pointer-events-auto flex items-center gap-2 p-4">
                 <button
                     type="button"
@@ -89,8 +99,16 @@ export function FeedChrome({
                         )}
                     </button>
                 )}
-                {debugEnabled && <DebugPanel current={current} queue={queue} />}
+                <QueuePanel
+                    current={current}
+                    queue={queue}
+                    debugEnabled={debugEnabled}
+                    onSelectPost={onSelectPost}
+                />
                 <SourceBadge post={current} />
+                {!isProduction && appVersion && (
+                    <VersionBanner appVersion={appVersion} />
+                )}
             </div>
 
             <div className="flex-1" />
@@ -135,10 +153,10 @@ export function FeedChrome({
                 </button>
             </div>
 
-            {current.media.length > 0 ? (
+            {current.media.length > 0 || current.thread ? (
                 <ProgressBar
                     segments={{
-                        count: current.media.length,
+                        count: current.thread?.length ?? current.media.length,
                         activeIndex: carouselProgress?.activeIndex ?? 0,
                         elapsed: carouselProgress?.elapsed ?? 0,
                     }}

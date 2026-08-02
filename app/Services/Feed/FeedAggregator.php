@@ -244,22 +244,38 @@ class FeedAggregator
             }, $normalised);
 
             if ($threadAccount !== null) {
-                try {
-                    $normalised = $account->provider === 'mastodon'
-                        ? $this->attachMastodonThreads($normalised, $rawItems, $threadAccount, parse_url($threadAccount->instance_url, PHP_URL_HOST), $threadSourceHandle, $mentionsEnabled)
-                        : $this->attachBlueskyThreads($normalised, $rawItems, $threadAccount, $threadSourceHandle, $mentionsEnabled);
-                } catch (\Throwable $e) {
-                    // Thread detection is an enhancement, not core to rendering the feed —
-                    // a malformed API response or chain-walking bug here shouldn't take down
-                    // the whole page. Fall back to $normalised as already built (ungrouped).
-                    Log::error('Thread detection failed for account; falling back to ungrouped posts', [
+                // parse_url() can return null/false for a malformed or scheme-less
+                // instance_url — attachMastodonThreads() requires a string host, so
+                // check upfront rather than relying on the catch below for what's
+                // an expected, mundane edge case rather than a genuine bug.
+                $threadHost = $account->provider === 'mastodon'
+                    ? parse_url($threadAccount->instance_url, PHP_URL_HOST)
+                    : null;
+
+                if ($account->provider === 'mastodon' && ! is_string($threadHost)) {
+                    Log::warning('Skipping thread detection: could not parse host from instance_url', [
                         'account_id' => $account->id,
                         'thread_account_id' => $threadAccount->id,
-                        'provider' => $account->provider,
-                        'exception' => $e::class,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString(),
+                        'instance_url' => $threadAccount->instance_url,
                     ]);
+                } else {
+                    try {
+                        $normalised = $account->provider === 'mastodon'
+                            ? $this->attachMastodonThreads($normalised, $rawItems, $threadAccount, $threadHost, $threadSourceHandle, $mentionsEnabled)
+                            : $this->attachBlueskyThreads($normalised, $rawItems, $threadAccount, $threadSourceHandle, $mentionsEnabled);
+                    } catch (\Throwable $e) {
+                        // Thread detection is an enhancement, not core to rendering the feed —
+                        // a malformed API response or chain-walking bug here shouldn't take down
+                        // the whole page. Fall back to $normalised as already built (ungrouped).
+                        Log::error('Thread detection failed for account; falling back to ungrouped posts', [
+                            'account_id' => $account->id,
+                            'thread_account_id' => $threadAccount->id,
+                            'provider' => $account->provider,
+                            'exception' => $e::class,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                    }
                 }
             }
 

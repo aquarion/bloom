@@ -583,3 +583,34 @@ it('attaches bluesky threads using the home account, not the feed-specific accou
     expect($result['posts'])->toHaveCount(1)
         ->and($result['posts'][0]['thread'])->toHaveCount(2);
 });
+
+it('skips mastodon thread detection without throwing when instance_url has no parseable host', function () {
+    $user = User::factory()->create();
+    SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        // A scheme with an empty host — parse_url(..., PHP_URL_HOST) returns false (not
+        // a string) for this. Deliberately not a schemeless string like 'fosstodon.org':
+        // that produces null, which the *top-level* normalizer call earlier in fetch()
+        // already fails on (PostNormalizer::fromMastodon's non-nullable $host param),
+        // via the outer try/catch — never reaching this guard at all. false silently
+        // coerces to '' there (PHP's weak-typing bool→string coercion), so it's the
+        // one malformed-host shape that reaches attachMastodonThreads() specifically.
+        'instance_url' => 'http:///',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $head = makeMastodonStatus('1', 'author', 'part one', null, 1);
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$head]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+    $mastodon->shouldNotReceive('getContext');
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0])->not->toHaveKey('thread');
+});

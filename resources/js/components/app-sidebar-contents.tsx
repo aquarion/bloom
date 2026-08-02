@@ -117,12 +117,23 @@ export function AppSidebarContents() {
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 {appVersion && (
                     <div className="px-3 pb-1 text-neutral-500 text-xs group-data-[collapsible=icon]:hidden dark:text-neutral-400">
-                        <Link
-                            href={docsShow('changelog')}
-                            className="hover:underline"
-                        >
-                            {appVersion.label}
-                        </Link>
+                        {appVersion.url ? (
+                            <a
+                                href={appVersion.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                            >
+                                {appVersion.label}
+                            </a>
+                        ) : (
+                            <Link
+                                href={docsShow('changelog')}
+                                className="hover:underline"
+                            >
+                                {appVersion.label}
+                            </Link>
+                        )}
                     </div>
                 )}
                 <SidebarMenu className="group-data-[collapsible=icon]:hidden">

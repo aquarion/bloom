@@ -31,10 +31,10 @@
 		"eslint-plugin-import-x": "^4.17.0",
 		"eslint-plugin-react-hooks": "^7.1.1",
 		"jsdom": "^29.1.1",
-		"react-doctor": "^0.7.4",
+		"react-doctor": "^0.9.2",
 		"sharp": "^0.35.3",
 		"typescript-eslint": "^8.61.0",
-		"vitest": "^4.1.9"
+		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@biomejs/biome": "^2.4.16",
@@ -44,27 +44,27 @@
 		"@inertiajs/vite": "^3.0.0",
 		"@radix-ui/react-avatar": "^1.2.1",
 		"@radix-ui/react-checkbox": "^1.3.5",
-		"@radix-ui/react-dialog": "^1.1.18",
+		"@radix-ui/react-dialog": "^1.1.23",
 		"@radix-ui/react-label": "^2.1.2",
 		"@radix-ui/react-select": "^2.1.6",
-		"@radix-ui/react-separator": "^1.1.11",
+		"@radix-ui/react-separator": "^1.1.15",
 		"@radix-ui/react-slot": "^1.2.3",
 		"@radix-ui/react-tooltip": "^1.2.10",
 		"@tailwindcss/typography": "^0.5.20",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/react": "^19.2.16",
 		"@types/react-dom": "^19.2.0",
-		"axios": "^1.16.0",
+		"axios": "^1.19.0",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"concurrently": "^10.0",
 		"globals": "^17.7.0",
 		"gsap": "^3.15.0",
 		"laravel-vite-plugin": "^3.1",
-		"lucide-react": "^1.23.0",
+		"lucide-react": "^1.28.0",
 		"react": "^19.2.8",
 		"react-dom": "^19.2.8",
-		"react-icons": "^5.6.0",
+		"react-icons": "^5.7.0",
 		"sonner": "^2.0.0",
 		"tailwind-merge": "^3.0.1",
 		"tailwindcss": "^4.3.3",
@@ -73,11 +73,11 @@
 		"vite": "^8.0.16"
 	},
 	"optionalDependencies": {
-		"@rollup/rollup-linux-x64-gnu": "4.62.2",
+		"@rollup/rollup-linux-x64-gnu": "4.62.3",
 		"@rollup/rollup-win32-x64-msvc": "4.62.2",
 		"@tailwindcss/oxide-linux-x64-gnu": "^4.3.2",
 		"@tailwindcss/oxide-win32-x64-msvc": "^4.0.1",
 		"lightningcss-linux-x64-gnu": "^1.33.0",
-		"lightningcss-win32-x64-msvc": "^1.29.1"
+		"lightningcss-win32-x64-msvc": "^1.33.0"
 	}
 }

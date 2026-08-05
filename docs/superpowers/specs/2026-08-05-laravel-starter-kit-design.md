@@ -39,6 +39,7 @@ Every new Laravel project (Bloom, alchemistic, others) re-implements the same ha
 - `composer.json` requires `ext-opentelemetry` and `open-telemetry/opentelemetry-auto-laravel` — auto-instrumentation, no custom provider code.
 - `Dockerfile` installs the `opentelemetry` PHP extension (via `install-php-extensions`) and sets `ENV OTEL_RESOURCE_ATTRIBUTES="service.version=$APP_VERSION,service.environment=$APP_ENV,service.name=$APP_NAME,service.revision=$APP_PR_NUMBER,service.branch=$APP_BRANCH"`.
 - No exporter endpoint/protocol is configured in-repo — `OTEL_EXPORTER_OTLP_*` vars are supplied externally by the deploy target, matching Bloom's current setup exactly.
+- Backend-only for now. A frontend/browser OTEL piece is deliberately deferred — see "Open questions / follow-ups" below (aquarion/bloom#272).
 
 ### 3. Argo Tunnel (local dev only)
 
@@ -96,4 +97,4 @@ No installer command. After `composer create-project istic/laravel-starter-kit <
 
 ## Open questions / follow-ups
 
-- None outstanding — all decisions above were confirmed during brainstorming (2026-08-05).
+- **Blocked on aquarion/bloom#272** ("Add frontend OpenTelemetry Web SDK for browser error/trace reporting to SigNoz"). That issue is explicitly scoped to be reusable across Laravel apps, so it should land in Bloom (and be extracted into a shareable module) before this kit's OTEL component is implemented — otherwise the kit would end up with a bespoke, unproven frontend-OTEL design instead of reusing the real one. #272 is itself blocked on `aquarion/autopelago#268` (public OTLP/HTTP ingest endpoint), though it can ship behind a disabled-by-default flag in the meantime.

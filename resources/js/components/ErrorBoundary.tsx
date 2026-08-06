@@ -1,3 +1,4 @@
+import { reportError } from '@istic-co/otel-browser-errors';
 import type { ErrorInfo, ReactNode } from 'react';
 import { Component } from 'react';
 
@@ -22,6 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
             error,
             info.componentStack,
         );
+        reportError(error, { componentStack: info.componentStack ?? '' });
     }
 
     render() {

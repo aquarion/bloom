@@ -1,6 +1,11 @@
+import { reportError } from '@istic-co/otel-browser-errors';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ErrorBoundary } from './ErrorBoundary';
+
+vi.mock('@istic-co/otel-browser-errors', () => ({
+    reportError: vi.fn(),
+}));
 
 function Bomb({ shouldThrow }: { shouldThrow: boolean }) {
     if (shouldThrow) {
@@ -55,6 +60,18 @@ describe('ErrorBoundary', () => {
             expect.any(Error),
             expect.any(String),
         );
+    });
+
+    it('reports the error via reportError with the component stack', () => {
+        render(
+            <ErrorBoundary>
+                <Bomb shouldThrow />
+            </ErrorBoundary>,
+        );
+
+        expect(reportError).toHaveBeenCalledWith(expect.any(Error), {
+            componentStack: expect.any(String),
+        });
     });
 
     it('reloads the page when the reload button is clicked', () => {

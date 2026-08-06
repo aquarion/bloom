@@ -1,9 +1,13 @@
 ---
 title: Changelog
-last_updated: "2026-08-02"
+last_updated: "2026-08-06"
 ---
 
 Notable changes to the Bloom application, newest first.
+
+## 2026-08-06 — Frontend error reporting
+
+- **Frontend error reporting** — uncaught JavaScript errors and errors caught by the app's error boundary are now reported to our observability backend, matching the backend's existing error tracking so frontend issues are visible without needing a user bug report.
 
 ## 2026-08-02 — Milestone 1.12
 

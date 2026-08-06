@@ -36,10 +36,40 @@ Every new Laravel project (Bloom, alchemistic, others) re-implements the same ha
 
 ### 2. OpenTelemetry
 
-- `composer.json` requires `ext-opentelemetry` and `open-telemetry/opentelemetry-auto-laravel` — auto-instrumentation, no custom provider code.
-- `Dockerfile` installs the `opentelemetry` PHP extension (via `install-php-extensions`) and sets `ENV OTEL_RESOURCE_ATTRIBUTES="service.version=$APP_VERSION,service.environment=$APP_ENV,service.name=$APP_NAME,service.revision=$APP_PR_NUMBER,service.branch=$APP_BRANCH"`.
+#### 2a. Backend (PHP)
+
+- `composer.json` requires `ext-opentelemetry` and `open-telemetry/opentelemetry-auto-laravel` — auto-instrumentation (traces, and Laravel log calls via its `LogWatcher`, which listens to the `MessageLogged` event fired by any `Log::*()` call regardless of channel), no custom provider code.
+- `Dockerfile` installs the `opentelemetry` PHP extension (via `install-php-extensions`) and sets `ENV OTEL_RESOURCE_ATTRIBUTES="service.version=$APP_VERSION,deployment.environment=$APP_ENV,service.name=$APP_NAME,service.revision=$APP_PR_NUMBER,service.branch=$APP_BRANCH"`.
+  - **Use `deployment.environment`, not `service.environment`.** Bloom's Dockerfile originally used `service.environment` here, which turned out to be a bug: when a kit-based app is actually deployed via `aquarion/autopelago`'s `firth_laravel_app` Ansible role, that role's `docker-compose.yml.j2` template sets its own `OTEL_RESOURCE_ATTRIBUTES` env var at container runtime (using `deployment.environment`), which overrides whatever the image bakes in via `ENV`. So the Dockerfile's baked value only matters for a manually-run/non-Ansible-deployed container — but should still match the real convention for consistency, and so local `docker run` testing reflects reality.
 - No exporter endpoint/protocol is configured in-repo — `OTEL_EXPORTER_OTLP_*` vars are supplied externally by the deploy target, matching Bloom's current setup exactly.
-- Backend-only for now. A frontend/browser OTEL piece is deliberately deferred — see "Open questions / follow-ups" below (aquarion/bloom#272).
+
+#### 2b. Frontend (browser)
+
+Implemented as `@istic-co/otel-browser-errors` (npm, `istic/otel-browser-errors` on GitHub) — a framework-agnostic package landed via aquarion/bloom#272, now proven in production in Bloom. The starter kit ships the wiring below; since the kit has no frontend framework opinion, the exact entry-point file differs per project (Bloom's is `resources/js/app.tsx`), but the pattern is the same for any Vite-based frontend.
+
+- **Install:** `npm install @istic-co/otel-browser-errors` (use `^0.2.1` or later — `0.1.0`/`0.2.0` have a wrong resource-attribute key and drop spans on page reload, both fixed in `0.2.1`).
+- **Init**, once at module scope in the frontend entry point, before the framework bootstraps:
+  ```ts
+  import { initOtelBrowserErrors } from '@istic-co/otel-browser-errors';
+
+  initOtelBrowserErrors({
+    endpoint: import.meta.env.VITE_OTEL_EXPORTER_OTLP_ENDPOINT,
+    serviceName: `${appName}-frontend`,
+    serviceVersion: import.meta.env.VITE_APP_VERSION,
+    environment: import.meta.env.VITE_APP_ENV,
+    revision: import.meta.env.VITE_APP_PR_NUMBER,
+    branch: import.meta.env.VITE_APP_BRANCH,
+    getContext: () => ({ route: currentRoute, userId: currentUserId }), // whatever route/user tracking fits the framework in use
+  });
+  ```
+  `endpoint` falsy (e.g. unset in local dev) makes this a safe no-op — no exporter, no listeners, no provider constructed.
+- **Manual reporting** from wherever the frontend catches its own errors (e.g. a React error boundary's `componentDidCatch`, a Vue `errorCaptured` hook): `reportError(error, { extraContext: 'value' })`, exported from the same package.
+- **Env vars** (add to `.env.example`, empty by default so local dev no-ops):
+  - `VITE_OTEL_EXPORTER_OTLP_ENDPOINT=` (e.g. `https://otlp.svc.istic.systems/v1/traces` in deployed environments)
+  - `VITE_APP_VERSION="${APP_VERSION}"`, `VITE_APP_ENV="${APP_ENV}"`, `VITE_APP_PR_NUMBER="${APP_PR_NUMBER}"`, `VITE_APP_BRANCH="${APP_BRANCH}"`
+- **Dockerfile:** these are `VITE_`-prefixed, so Vite bakes them in at *build* time, not runtime — thread the existing `APP_VERSION`/`APP_ENV`/`APP_PR_NUMBER`/`APP_BRANCH` `ARG`s (already needed for the backend's `OTEL_RESOURCE_ATTRIBUTES`, see 2a) into the `npm run build` step: `VITE_APP_VERSION=$APP_VERSION VITE_APP_ENV=$APP_ENV VITE_APP_PR_NUMBER=$APP_PR_NUMBER VITE_APP_BRANCH=$APP_BRANCH npm run build`. Add a new `ARG VITE_OTEL_EXPORTER_OTLP_ENDPOINT=` (empty default) and thread it the same way — Bloom initially shipped without this and the whole frontend telemetry pipeline silently no-op'd in every deployed environment until it was added.
+- **CI:** `ci.yml`'s `build-and-push` job needs `VITE_OTEL_EXPORTER_OTLP_ENDPOINT=<the real endpoint>` added to its Docker `build-args` — it's not a secret (ships in client JS regardless of how it's passed), a literal value in the workflow file is fine.
+- **CORS (per-project, one-time):** the OTLP ingest endpoint (`otlp.svc.istic.systems`, see `aquarion/autopelago`'s `roles/firth_nginx/templates/nginx_confd/cors_otlp_ingest.conf`) only accepts POSTs from allow-listed origins. Set `browser_otel: true` on the app's entry in `autopelago`'s `host_vars/<host>/laravel_apps.yml` (staging inherits the flag from the parent app entry unless overridden) — without this, every browser error report fails silently (the package's `reportError` never throws, by design, so there's no console signal that CORS is rejecting requests).
 
 ### 3. Argo Tunnel (local dev only)
 
@@ -97,4 +127,4 @@ No installer command. After `composer create-project istic/laravel-starter-kit <
 
 ## Open questions / follow-ups
 
-- **Blocked on aquarion/bloom#272** ("Add frontend OpenTelemetry Web SDK for browser error/trace reporting to SigNoz"). That issue is explicitly scoped to be reusable across Laravel apps, so it should land in Bloom (and be extracted into a shareable module) before this kit's OTEL component is implemented — otherwise the kit would end up with a bespoke, unproven frontend-OTEL design instead of reusing the real one. #272 is itself blocked on `aquarion/autopelago#268` (public OTLP/HTTP ingest endpoint), though it can ship behind a disabled-by-default flag in the meantime.
+- ~~Blocked on aquarion/bloom#272~~ — resolved. `@istic-co/otel-browser-errors` shipped, is live in Bloom, and is documented in full in section 2b above. No longer a blocker for this kit.

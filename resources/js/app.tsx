@@ -36,9 +36,7 @@ createInertiaApp({
     strictMode: true,
     withApp(app, { page }) {
         currentRoute = page.url;
-        currentUserId = (
-            page.props.auth as { user?: { id: number } | null } | undefined
-        )?.user?.id?.toString();
+        currentUserId = page.props.auth.user?.id?.toString();
 
         return (
             <ErrorBoundary>

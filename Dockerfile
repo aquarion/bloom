@@ -8,7 +8,7 @@ RUN npm ci
 # invalidating the Docker layer cache for every layer below on every
 # build, even when nothing in this repo changed. Dependabot's docker
 # ecosystem bumps this digest deliberately.
-FROM dunglas/frankenphp:1-php8.4-alpine@sha256:023709d5a92f22540b01353538275ef6b641b2f12f8f8c8325c177d66783bce2
+FROM dunglas/frankenphp:1-php8.4-alpine@sha256:e97c47096c8d2301b59f5eb601ab006ca60912c68a9bba2d344908c4766e17fc
 WORKDIR /var/www/html
 
 ARG APP_ENV=production

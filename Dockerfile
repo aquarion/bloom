@@ -13,6 +13,10 @@ WORKDIR /var/www/html
 
 ARG APP_ENV=production
 ARG APP_NAME=Bloom
+ARG APP_VERSION=dev
+ARG APP_PR_NUMBER=
+ARG APP_BRANCH=
+ARG VITE_OTEL_EXPORTER_OTLP_ENDPOINT=
 
 RUN apk add --no-cache git unzip \
     && install-php-extensions pdo_mysql pdo_sqlite redis pcntl opcache opentelemetry
@@ -38,7 +42,7 @@ RUN mkdir -p bootstrap/cache storage/framework/sessions storage/framework/views 
     && cp .env.example .env \
     && php artisan key:generate --force \
     && php artisan package:discover --ansi \
-    && APP_ENV=$APP_ENV VITE_APP_NAME=$APP_NAME npm run build \
+    && APP_ENV=$APP_ENV VITE_APP_NAME=$APP_NAME VITE_APP_VERSION=$APP_VERSION VITE_APP_ENV=$APP_ENV VITE_APP_PR_NUMBER=$APP_PR_NUMBER VITE_APP_BRANCH=$APP_BRANCH VITE_OTEL_EXPORTER_OTLP_ENDPOINT=$VITE_OTEL_EXPORTER_OTLP_ENDPOINT npm run build \
     && rm .env \
     && rm -rf node_modules
 
@@ -52,10 +56,6 @@ USER www-data
 
 ENV OCTANE_PORT=8000
 EXPOSE ${OCTANE_PORT}
-
-ARG APP_VERSION=dev
-ARG APP_PR_NUMBER=
-ARG APP_BRANCH=
 
 ENV APP_VERSION=$APP_VERSION
 ENV APP_PR_NUMBER=$APP_PR_NUMBER

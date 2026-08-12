@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { FeedChrome } from '@/components/feed/FeedChrome';
 import { PostBackground } from '@/components/feed/PostBackground';
 import { PostContent } from '@/components/feed/PostContent';
+import { Spinner } from '@/components/ui/spinner';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
 import { CwStateProvider } from '@/hooks/useCwState';
 import { useFeedQueue } from '@/hooks/useFeedQueue';
@@ -10,6 +11,7 @@ import { useFeedTransition } from '@/hooks/useFeedTransition';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { registerFeedDebug, setupDebugWindow } from '@/lib/debug';
+import { cn } from '@/lib/utils';
 import type { Post } from '@/types/post';
 
 function extractFirstLink(html: string): string | null {
@@ -65,6 +67,9 @@ function FeedView({
     } = useWakeLock();
     const [readyForPostId, setReadyForPostId] = useState<string | null>(null);
     const animationReady = readyForPostId === current?.id;
+    // readyForPostId is only ever set, never reset, so this stays true for good
+    // once the first post has loaded.
+    const initialLoadComplete = readyForPostId !== null;
 
     const {
         bgRef,
@@ -213,6 +218,18 @@ function FeedView({
                     showHelp={showHelp}
                     cwBehavior={cwBehavior}
                 />
+
+                {/* Loading overlay: covers the first post's load, then fades out for good */}
+                <div
+                    data-testid="initial-load-overlay"
+                    aria-hidden={initialLoadComplete}
+                    className={cn(
+                        'pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black transition-opacity duration-300',
+                        initialLoadComplete ? 'opacity-0' : 'opacity-100',
+                    )}
+                >
+                    <Spinner className="size-8 text-white/70" />
+                </div>
             </div>
         </>
     );

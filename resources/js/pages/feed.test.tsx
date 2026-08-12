@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Post } from '@/types/post';
@@ -130,5 +130,22 @@ describe('Feed', () => {
         fireEvent.keyDown(window, { key: 'j' });
 
         expect(gsap.timeline).toHaveBeenCalled();
+    });
+
+    it('shows a loading spinner until the first post signals it is ready', async () => {
+        const { PostContent } = await import('@/components/feed/PostContent');
+
+        render(<Feed {...defaultProps} />);
+
+        const overlay = screen.getByTestId('initial-load-overlay');
+        expect(overlay).toHaveClass('opacity-100');
+        expect(screen.getByRole('status', { name: /loading/i })).toBeVisible();
+
+        const { onReady } = vi.mocked(PostContent).mock.calls.at(-1)![0] as {
+            onReady?: () => void;
+        };
+        act(() => onReady?.());
+
+        expect(overlay).toHaveClass('opacity-0');
     });
 });

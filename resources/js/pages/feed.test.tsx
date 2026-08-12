@@ -5,6 +5,7 @@ import type { Post } from '@/types/post';
 import Feed from './feed';
 
 vi.mock('@inertiajs/react', () => ({
+    Deferred: ({ children }: { children: ReactNode }) => <>{children}</>,
     Head: () => null,
     Link: ({ children }: { children: ReactNode }) => <>{children}</>,
     usePage: () => ({ props: { appVersion: null, isProduction: true } }),

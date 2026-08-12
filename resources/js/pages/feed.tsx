@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Deferred, Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { FeedChrome } from '@/components/feed/FeedChrome';
 import { PostBackground } from '@/components/feed/PostBackground';
@@ -21,8 +21,10 @@ function extractFirstLink(html: string): string | null {
 }
 
 export default function Feed(props: {
-    initialPosts: Post[];
-    initialCursor: string | null;
+    // Deferred on the backend (FeedController) — absent from the initial
+    // page load, then filled in once Inertia resolves them together.
+    initialPosts?: Post[];
+    initialCursor?: string | null;
     debugEnabled: boolean;
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
@@ -30,8 +32,25 @@ export default function Feed(props: {
 }) {
     return (
         <CwStateProvider initialAuthorWhitelist={props.cwAuthorWhitelist}>
-            <FeedView {...props} />
+            <Deferred
+                data={['initialPosts', 'initialCursor']}
+                fallback={<FeedLoadingScreen />}
+            >
+                <FeedView
+                    {...props}
+                    initialPosts={props.initialPosts ?? []}
+                    initialCursor={props.initialCursor ?? null}
+                />
+            </Deferred>
         </CwStateProvider>
+    );
+}
+
+function FeedLoadingScreen() {
+    return (
+        <div className="flex h-screen w-screen items-center justify-center bg-black">
+            <Spinner className="size-8 text-white/70" />
+        </div>
     );
 }
 

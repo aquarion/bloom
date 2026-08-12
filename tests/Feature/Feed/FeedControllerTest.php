@@ -18,9 +18,17 @@ it('renders the feed page for authenticated users', function () {
 
     $response = $this->actingAs($user)->withoutVite()->get(route('feed'));
 
+    // initialPosts/initialCursor are deferred so the page shell renders
+    // without waiting on the (potentially slow) provider fetch — they're
+    // absent from the initial payload and only resolve on the follow-up
+    // reload Inertia issues for deferred props.
     $response->assertInertia(fn ($page) => $page->component('feed', false)
-        ->has('initialPosts')
-        ->has('initialCursor')
+        ->missing('initialPosts')
+        ->missing('initialCursor')
+        ->loadDeferredProps(fn ($page) => $page
+            ->has('initialPosts')
+            ->has('initialCursor')
+        )
     );
 });
 
@@ -49,11 +57,9 @@ it('passes the persisted cw author whitelist to the feed page', function () {
         'feed_preferences' => ['cw_author_whitelist' => ['@alice@mastodon.social']],
     ]);
 
+    // cwAuthorWhitelist isn't deferred, so it's resolved on the initial
+    // load — the aggregator mock is never invoked in this test.
     $mockAggregator = Mockery::mock(FeedAggregator::class);
-    $mockAggregator->shouldReceive('fetch')->once()->andReturn([
-        'posts' => [],
-        'next_cursor' => null,
-    ]);
     app()->instance(FeedAggregator::class, $mockAggregator);
 
     $response = $this->actingAs($user)->withoutVite()->get(route('feed'));
@@ -76,5 +82,7 @@ it('enables mentions for users without the beta tester role', function () {
         ]);
     app()->instance(FeedAggregator::class, $mockAggregator);
 
-    $this->actingAs($user)->withoutVite()->get(route('feed'))->assertOk();
+    $response = $this->actingAs($user)->withoutVite()->get(route('feed'));
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->loadDeferredProps(fn ($page) => $page));
 });

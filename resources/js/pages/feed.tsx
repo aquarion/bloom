@@ -224,8 +224,10 @@ function FeedView({
                     data-testid="initial-load-overlay"
                     aria-hidden={initialLoadComplete}
                     className={cn(
-                        'pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black transition-opacity duration-300',
-                        initialLoadComplete ? 'opacity-0' : 'opacity-100',
+                        'absolute inset-0 z-20 flex items-center justify-center bg-black transition-opacity duration-300',
+                        initialLoadComplete
+                            ? 'pointer-events-none opacity-0'
+                            : 'pointer-events-auto opacity-100',
                     )}
                 >
                     <Spinner className="size-8 text-white/70" />

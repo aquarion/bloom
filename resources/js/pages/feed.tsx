@@ -1,9 +1,9 @@
 import { Deferred, Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { BloomSpinner } from '@/components/feed/BloomSpinner';
 import { FeedChrome } from '@/components/feed/FeedChrome';
 import { PostBackground } from '@/components/feed/PostBackground';
 import { PostContent } from '@/components/feed/PostContent';
-import { Spinner } from '@/components/ui/spinner';
 import { useAutoAdvance } from '@/hooks/useAutoAdvance';
 import { CwStateProvider } from '@/hooks/useCwState';
 import { useFeedQueue } from '@/hooks/useFeedQueue';
@@ -49,7 +49,7 @@ export default function Feed(props: {
 function FeedLoadingScreen() {
     return (
         <div className="flex h-screen w-screen items-center justify-center bg-black">
-            <Spinner className="size-8 text-white/70" />
+            <BloomSpinner className="size-8 text-white/70" />
         </div>
     );
 }
@@ -249,7 +249,7 @@ function FeedView({
                             : 'pointer-events-auto opacity-100',
                     )}
                 >
-                    <Spinner className="size-8 text-white/70" />
+                    <BloomSpinner className="size-8 text-white/70" />
                 </div>
             </div>
         </>

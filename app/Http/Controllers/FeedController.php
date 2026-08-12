@@ -14,6 +14,7 @@ class FeedController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $cursor = is_string($request->query('cursor')) ? $request->query('cursor') : null;
 
         // Fetching posts means synchronous round-trips to each connected
         // provider's API, which can take a while — deferring initialPosts/
@@ -22,8 +23,8 @@ class FeedController extends Controller
         // memoized closure so the fetch only happens once when Inertia
         // resolves them together on the follow-up request.
         $result = null;
-        $fetch = function () use (&$result, $user) {
-            return $result ??= $this->aggregator->fetch($user, mentionsEnabled: true);
+        $fetch = function () use (&$result, $user, $cursor) {
+            return $result ??= $this->aggregator->fetch($user, cursor: $cursor, mentionsEnabled: true);
         };
 
         if ($request->wantsJson()) {

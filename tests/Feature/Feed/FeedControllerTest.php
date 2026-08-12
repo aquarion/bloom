@@ -48,6 +48,24 @@ it('returns json for xhr requests', function () {
     $response->assertOk()->assertJsonStructure(['posts', 'next_cursor']);
 });
 
+it('forwards the cursor query param for xhr pagination requests', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $mockAggregator = Mockery::mock(FeedAggregator::class);
+    $mockAggregator->shouldReceive('fetch')
+        ->once()
+        ->with($user, 20, 'abc123', true)
+        ->andReturn([
+            'posts' => [],
+            'next_cursor' => null,
+        ]);
+    app()->instance(FeedAggregator::class, $mockAggregator);
+
+    $this->actingAs($user)
+        ->getJson(route('feed', ['cursor' => 'abc123']))
+        ->assertOk();
+});
+
 it('redirects guests to login', function () {
     $this->get(route('feed'))->assertRedirect(route('login'));
 });

@@ -406,6 +406,56 @@ it('redirects to login when an account fetch gets an expired session (419)', asy
     expect(router.visit).toHaveBeenCalledWith('/login');
 });
 
+it('marks an account as failed without discarding results from accounts that succeeded', async () => {
+    vi.mocked(axios.isAxiosError).mockReturnValue(false);
+    vi.mocked(axios.get).mockImplementation((url) => {
+        if (url === '/feed/accounts/1') {
+            return Promise.resolve({
+                data: {
+                    posts: [makePost('ok1', '2026-06-01T12:00:00Z')],
+                    next_cursor: null,
+                },
+            });
+        }
+
+        return Promise.reject(new Error('network error'));
+    });
+
+    const twoAccounts = [{ id: 1 }, { id: 2 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: twoAccounts }),
+    );
+
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(2));
+    expect(result.current.current?.id).toBe('ok1');
+    expect(result.current.failedAccounts).toBe(1);
+});
+
+it('retries a failed account on the next fetch instead of permanently treating it as exhausted', async () => {
+    vi.mocked(axios.isAxiosError).mockReturnValue(false);
+    let calls = 0;
+    vi.mocked(axios.get).mockImplementation(() => {
+        calls++;
+
+        if (calls === 1) {
+            return Promise.reject(new Error('network error'));
+        }
+
+        return Promise.resolve({
+            data: { posts: [makePost('recovered')], next_cursor: null },
+        });
+    });
+
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
+
+    // The empty queue (0 <= REFILL_THRESHOLD) triggers an automatic refill —
+    // it should retry account 1 rather than treating the failure's cursor as
+    // "exhausted" and never fetching it again.
+    await waitFor(() => expect(result.current.current?.id).toBe('recovered'));
+    expect(calls).toBeGreaterThanOrEqual(2);
+    expect(result.current.failedAccounts).toBe(0);
+});
+
 it('skips posts with cw_text when cwBehavior is skip', async () => {
     const cwPost = makePost('cw1');
     cwPost.cw_text = 'Content warning';

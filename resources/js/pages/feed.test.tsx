@@ -99,6 +99,7 @@ const oneAccount = [{ id: 1 }];
 
 const defaultProps = {
     accounts: oneAccount,
+    feedBufferSize: 200,
     debugEnabled: false,
     cwBehavior: 'show' as const,
     sensitiveMediaBehavior: 'show' as const,

@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\SocialAccount;
 use App\Services\Feed\FeedAggregator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class FeedAccountController extends Controller
 {
     public function __construct(private FeedAggregator $aggregator) {}
 
-    public function show(Request $request, SocialAccount $account)
+    public function show(Request $request, SocialAccount $account): JsonResponse
     {
         $user = $request->user();
         abort_unless($account->user_id === $user->id, 403);

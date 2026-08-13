@@ -321,7 +321,7 @@ class FeedAggregator
      * Cross-account de-duplication: exact match on original_url (or id, for posts
      * without one — keeps the newest of a repeated boost) plus a fuzzy content-similarity
      * pass that catches the same story/boost reposted from two different connected accounts
-     * within a day of each other. Scoped to a single fetch()/fetchAccounts() call's own
+     * within a day of each other. Scoped to a single fetch()/fetchAccount() call's own
      * batch — not persisted across pagination.
      *
      * @param  Collection<int, array<string, mixed>>  $posts

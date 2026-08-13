@@ -163,6 +163,26 @@ describe('dedupePosts', () => {
         ]);
     });
 
+    it('falls back to id for the exact-match dedup key when original_url is empty', () => {
+        const older = makePost({
+            id: 'shared-id',
+            original_url: '',
+            boosted_by: 'Bob',
+            created_at: '2024-01-01T00:00:00Z',
+        });
+        const newer = makePost({
+            id: 'shared-id',
+            original_url: '',
+            boosted_by: 'Alice',
+            created_at: '2024-01-01T00:05:00Z',
+        });
+
+        const result = dedupePosts([older, newer]);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].boosted_by).toBe('Alice');
+    });
+
     it('caps the result to the buffer size', () => {
         const posts = Array.from({ length: 250 }, (_, i) =>
             makePost({
@@ -173,5 +193,17 @@ describe('dedupePosts', () => {
         );
 
         expect(dedupePosts(posts)).toHaveLength(200);
+    });
+
+    it('respects a custom buffer size', () => {
+        const posts = Array.from({ length: 20 }, (_, i) =>
+            makePost({
+                id: String(i),
+                original_url: `https://example.com/${i}`,
+                created_at: new Date(2024, 0, 1, 0, 0, i).toISOString(),
+            }),
+        );
+
+        expect(dedupePosts(posts, 5)).toHaveLength(5);
     });
 });

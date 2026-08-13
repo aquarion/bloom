@@ -6,6 +6,7 @@ import { pickTemplate, SplitText } from '@/lib/animations';
 import type { AnimationTemplate } from '@/lib/animations/types';
 import { postLevelCwLabel } from '@/lib/cw';
 import { EmojiText } from '@/lib/emoji-text';
+import { computeParagraphHighlights } from '@/lib/paragraph-highlight';
 import type { PostColors } from '@/lib/post-colors';
 import { postColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
@@ -75,24 +76,24 @@ export function TextPost({
             return;
         }
 
-        // Apply highlight colour to the longest content word — must happen after SplitText
+        // Pick a highlight word per paragraph — must happen after SplitText
         // rewrites the DOM, as it strips any inline colour spans.
         // Exclude @mentions (PostNormalizer keeps inline mentions in the body by
         // design — see MentionClassifier::ROLE_INLINE) and #hashtags (PostNormalizer
         // always strips these; any that appear are from posts not yet re-normalized).
         const highlight =
             colors?.highlight ?? postColors(post.author_handle).highlight;
-        const contentWords = [...split.words].filter(
-            (w) => !/^[@#]/.test(w.textContent ?? ''),
-        );
-        const wordPool =
-            contentWords.length > 0 ? contentWords : [...split.words];
-        const longestEl = wordPool.reduce((a, b) =>
-            (a.textContent?.length ?? 0) >= (b.textContent?.length ?? 0)
-                ? a
-                : b,
-        );
-        gsap.set(longestEl, { color: highlight });
+        const { highlights } = computeParagraphHighlights({
+            words: split.words as Element[],
+            lineEls: lineRefs.current.slice(0, lines.length),
+            paragraphStarts,
+        });
+
+        for (const word of highlights) {
+            if (word) {
+                gsap.set(word, { color: highlight });
+            }
+        }
 
         const template = pickTemplate(lastTemplate.current);
         lastTemplate.current = template;

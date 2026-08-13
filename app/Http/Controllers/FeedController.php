@@ -18,6 +18,7 @@ class FeedController extends Controller
             // immediately fire one request per account (see FeedAccountController)
             // instead of waiting on a single all-accounts fetch.
             'accounts' => $user->socialAccounts->map(fn ($account) => ['id' => $account->id])->values(),
+            'feedBufferSize' => Config::get('feed.buffer_size', 200),
             'debugEnabled' => Config::get('app.debug', false),
             'cwBehavior' => $user->getPreference('cw_behavior', 'blur'),
             'sensitiveMediaBehavior' => $user->getPreference('sensitive_media_behavior', 'blur'),

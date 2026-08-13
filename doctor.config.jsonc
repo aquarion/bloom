@@ -1,0 +1,20 @@
+{
+  "$schema": "https://react.doctor/schema/config.json",
+  "rules": {
+    "react-doctor/no-flush-sync": "off"
+  },
+  "ignore": {
+    // These hooks opt out of React Compiler via a 'use no memo' directive,
+    // so the compiler won't auto-memoize for them — manual useMemo/useCallback
+    // is load-bearing there, not the redundant pattern this rule targets.
+    "overrides": [
+      {
+        "files": [
+          "resources/js/hooks/useFeedQueue.ts",
+          "resources/js/hooks/use-passkey.ts"
+        ],
+        "rules": ["react-doctor/react-compiler-no-manual-memoization"]
+      }
+    ]
+  }
+}

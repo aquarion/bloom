@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use RuntimeException;
 
+/**
+ * @property-read string|null $feed_name Virtual attribute (see feedName()) — not a DB column.
+ */
 class SocialAccount extends Model
 {
     use HasFactory, HasJsonPreferences;
@@ -37,6 +40,7 @@ class SocialAccount extends Model
         'max_age_days' => null,
     ];
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

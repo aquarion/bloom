@@ -19,8 +19,22 @@ function extractFirstLink(html: string): string | null {
     return match?.[1] ?? null;
 }
 
+function AccountFailureBanner({ failedAccounts }: { failedAccounts: number }) {
+    if (failedAccounts === 0) {
+        return null;
+    }
+
+    return (
+        <div className="absolute top-4 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/70 px-3 py-1 text-white/70 text-xs">
+            Couldn&apos;t load {failedAccounts} account
+            {failedAccounts > 1 ? 's' : ''} — retrying…
+        </div>
+    );
+}
+
 export default function Feed(props: {
     accounts: { id: number }[];
+    feedBufferSize: number;
     debugEnabled: boolean;
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
@@ -35,11 +49,13 @@ export default function Feed(props: {
 
 function FeedView({
     accounts,
+    feedBufferSize,
     debugEnabled,
     cwBehavior,
     sensitiveMediaBehavior,
 }: {
     accounts: { id: number }[];
+    feedBufferSize: number;
     debugEnabled: boolean;
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
@@ -53,7 +69,13 @@ function FeedView({
         canGoBack,
         loadedAccounts,
         totalAccounts,
-    } = useFeedQueue({ accounts, cwBehavior, sensitiveMediaBehavior });
+        failedAccounts,
+    } = useFeedQueue({
+        accounts,
+        cwBehavior,
+        sensitiveMediaBehavior,
+        bufferSize: feedBufferSize,
+    });
     const [paused, setPaused] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [panelOpen, setPanelOpen] = useState(false);
@@ -94,9 +116,9 @@ function FeedView({
         registerFeedDebug({
             current,
             queue,
-            cursor: null,
+            cursor: failedAccounts > 0 ? `${failedAccounts} failed` : null,
         });
-    }, [current, queue]);
+    }, [current, queue, failedAccounts]);
 
     const handleGoBack = () => {
         goBack();
@@ -164,7 +186,8 @@ function FeedView({
         // reported in with nothing to show, this is a genuinely empty feed.
         if (totalAccounts > 0 && loadedAccounts < totalAccounts) {
             return (
-                <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 bg-black text-white">
+                <div className="relative flex h-screen w-screen flex-col items-center justify-center gap-4 bg-black text-white">
+                    <AccountFailureBanner failedAccounts={failedAccounts} />
                     <BloomSpinner className="size-8 text-white/70" />
                     <p className="text-sm opacity-50">
                         Loading posts… ({loadedAccounts} of {totalAccounts})
@@ -174,7 +197,8 @@ function FeedView({
         }
 
         return (
-            <div className="flex h-screen items-center justify-center bg-black text-white">
+            <div className="relative flex h-screen items-center justify-center bg-black text-white">
+                <AccountFailureBanner failedAccounts={failedAccounts} />
                 <p className="text-sm opacity-50">
                     No posts — connect an account in Settings.
                 </p>
@@ -186,6 +210,7 @@ function FeedView({
         <>
             <Head title="Feed" />
             <div className="relative h-screen w-screen overflow-hidden bg-black">
+                <AccountFailureBanner failedAccounts={failedAccounts} />
                 {/* Background layer: bottom slot pre-renders next post's background */}
                 <div className="absolute inset-0 z-0">
                     <PostBackground post={nextBackground ?? current} />

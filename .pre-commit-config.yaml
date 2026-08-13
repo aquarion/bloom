@@ -66,5 +66,5 @@ repos:
             name: react-doctor
             entry: bin/react-doctor-precommit.sh
             language: node
-            additional_dependencies: ["react-doctor@0.7.4"]
+            additional_dependencies: ["react-doctor@0.9.12"]
             pass_filenames: false

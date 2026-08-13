@@ -2,8 +2,11 @@
 
 use App\Models\SocialAccount;
 use App\Models\User;
+use App\Services\Bluesky\BlueskyFeedService;
 use App\Services\Feed\FeedAggregator;
+use App\Services\Mastodon\MastodonFeedService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 
 uses(RefreshDatabase::class);
 
@@ -80,4 +83,23 @@ it('redirects guests to login', function () {
     $account = SocialAccount::factory()->create();
 
     $this->get(route('feed.accounts.show', $account))->assertRedirect(route('login'));
+});
+
+it('returns an empty result instead of a 500 when the provider throws through the real aggregator', function () {
+    $user = User::factory()->withPasskey()->create();
+    $account = SocialAccount::factory()->for($user)->create([
+        'provider' => 'mastodon',
+        'feed_type' => 'home',
+    ]);
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andThrow(new ConnectionException('timeout'));
+    app()->instance(MastodonFeedService::class, $mastodon);
+    app()->instance(BlueskyFeedService::class, Mockery::mock(BlueskyFeedService::class));
+    app()->forgetInstance(FeedAggregator::class);
+
+    $this->actingAs($user)
+        ->getJson(route('feed.accounts.show', $account))
+        ->assertOk()
+        ->assertJson(['posts' => [], 'next_cursor' => null]);
 });

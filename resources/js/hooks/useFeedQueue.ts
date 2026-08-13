@@ -14,22 +14,46 @@ import type { ContentBehavior } from '@/types/preferences';
 
 const REFILL_THRESHOLD = 5;
 const HISTORY_CAP = 50;
+// Bounds retries for an account whose fetch keeps erroring — without this, a
+// persistently-failing account (not just a one-off blip) would retry forever
+// on every refill tick, since a failed fetch's cursor deliberately isn't
+// treated as "exhausted" (see the enqueue reducer case below).
+const MAX_ACCOUNT_RETRIES = 3;
 
 type AccountCursors = Record<number, string | null>;
+
+// Raw per-account outcome of a fetch, before the reducer decides whether it
+// should be retried, given up on, or recorded as a successful page.
+type AccountResult = {
+    accountId: number;
+    posts: Post[];
+    nextCursor: string | null;
+    failed: boolean;
+};
 
 type State = {
     path: Post[];
     position: number;
     // Per-account pagination cursor — null means that account is exhausted
-    // (no more pages). An account absent from this map hasn't been fetched
-    // yet (only true before the very first batch arrives).
+    // (no more pages, or it kept failing past MAX_ACCOUNT_RETRIES). An
+    // account absent from this map hasn't been fetched yet (only true
+    // before the very first batch arrives).
     cursors: AccountCursors;
+    // Consecutive fetch failures per account, since the last success. Reset
+    // to 0 on success; once it hits MAX_ACCOUNT_RETRIES the account's cursor
+    // is set to null so it stops being retried.
+    failureCounts: Record<number, number>;
+    // Whether the account's most recent fetch attempt errored. Cleared back
+    // to false the next time that account fetches successfully. Distinct
+    // from failureCounts reaching the retry cap — this just reflects "last
+    // attempt didn't work", for UI display.
+    failed: Record<number, boolean>;
 };
 type Action =
     | { type: 'advance' }
     | { type: 'go_back' }
     | { type: 'skip_to'; postId: string }
-    | { type: 'enqueue'; posts: Post[]; cursors: AccountCursors };
+    | { type: 'enqueue'; posts: Post[]; results: AccountResult[] };
 
 function reducer(state: State, action: Action): State {
     switch (action.type) {
@@ -100,11 +124,29 @@ function reducer(state: State, action: Action): State {
                 .sort((a, b) => b.created_at.localeCompare(a.created_at));
             const merged = [...queuePosts, ...incoming];
             const historyPart = state.path.slice(0, state.position);
-            const cursors = { ...state.cursors, ...action.cursors };
+            const cursors = { ...state.cursors };
+            const failureCounts = { ...state.failureCounts };
+            const failed = { ...state.failed };
+
+            for (const r of action.results) {
+                if (r.failed) {
+                    const count = (failureCounts[r.accountId] ?? 0) + 1;
+                    failureCounts[r.accountId] = count;
+                    failed[r.accountId] = true;
+                    cursors[r.accountId] =
+                        count >= MAX_ACCOUNT_RETRIES
+                            ? null
+                            : (r.nextCursor ?? '');
+                } else {
+                    failureCounts[r.accountId] = 0;
+                    failed[r.accountId] = false;
+                    cursors[r.accountId] = r.nextCursor;
+                }
+            }
 
             if (currentPost === null) {
                 if (merged.length === 0) {
-                    return { ...state, cursors };
+                    return { ...state, cursors, failureCounts, failed };
                 }
 
                 return {
@@ -112,6 +154,8 @@ function reducer(state: State, action: Action): State {
                     path: [...historyPart, ...merged],
                     position: historyPart.length,
                     cursors,
+                    failureCounts,
+                    failed,
                 };
             }
 
@@ -119,6 +163,8 @@ function reducer(state: State, action: Action): State {
                 ...state,
                 path: [...historyPart, currentPost, ...merged],
                 cursors,
+                failureCounts,
+                failed,
             };
         }
     }
@@ -140,20 +186,19 @@ function shouldSkipPost(
     return false;
 }
 
-type AccountFetchResult = {
-    accountId: number;
-    posts: Post[];
-    nextCursor: string | null;
-};
-
 export function useFeedQueue({
     accounts,
     cwBehavior = 'blur' as ContentBehavior,
     sensitiveMediaBehavior = 'blur' as ContentBehavior,
+    // Mirrors config/feed.php's buffer_size default; callers with access to
+    // that config (see feed.tsx) should pass it through so the client-side
+    // memory ceiling stays in sync with the server's.
+    bufferSize = 200,
 }: {
     accounts: { id: number }[];
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
+    bufferSize?: number;
 }) {
     'use no memo';
 
@@ -167,6 +212,8 @@ export function useFeedQueue({
         path: [],
         position: 0,
         cursors: {},
+        failureCounts: {},
+        failed: {},
     });
 
     const current = state.path[state.position] ?? null;
@@ -182,7 +229,7 @@ export function useFeedQueue({
         async (
             accountId: number,
             cursor: string | null,
-        ): Promise<AccountFetchResult> => {
+        ): Promise<AccountResult> => {
             try {
                 const { data } = await axios.get<FeedResponse>(
                     `/feed/accounts/${accountId}`,
@@ -196,6 +243,7 @@ export function useFeedQueue({
                     accountId,
                     posts: data.posts,
                     nextCursor: data.next_cursor,
+                    failed: false,
                 };
             } catch (error) {
                 const status = axios.isAxiosError(error)
@@ -212,7 +260,15 @@ export function useFeedQueue({
                     );
                 }
 
-                return { accountId, posts: [], nextCursor: null };
+                // Echo back the cursor that was attempted — the reducer
+                // decides whether to retry it or give up, since only it
+                // knows this account's recent failure history.
+                return {
+                    accountId,
+                    posts: [],
+                    nextCursor: cursor,
+                    failed: true,
+                };
             }
         },
         [],
@@ -246,17 +302,15 @@ export function useFeedQueue({
                 .then((results) => {
                     const posts = dedupePosts(
                         results.flatMap((r) => r.posts),
+                        bufferSize,
                     ).filter(filterPost);
-                    const nextCursors = Object.fromEntries(
-                        results.map((r) => [r.accountId, r.nextCursor]),
-                    );
-                    dispatch({ type: 'enqueue', posts, cursors: nextCursors });
+                    dispatch({ type: 'enqueue', posts, results });
                 })
                 .finally(() => {
                     fetchingRef.current = false;
                 });
         },
-        [fetchAccount, filterPost],
+        [fetchAccount, filterPost, bufferSize],
     );
 
     // Initial load: fan out one request per connected account rather than
@@ -284,13 +338,11 @@ export function useFeedQueue({
                 return;
             }
 
-            const posts = dedupePosts(results.flatMap((r) => r.posts)).filter(
-                filterPost,
-            );
-            const cursors = Object.fromEntries(
-                results.map((r) => [r.accountId, r.nextCursor]),
-            );
-            dispatch({ type: 'enqueue', posts, cursors });
+            const posts = dedupePosts(
+                results.flatMap((r) => r.posts),
+                bufferSize,
+            ).filter(filterPost);
+            dispatch({ type: 'enqueue', posts, results });
         });
 
         return () => {
@@ -321,6 +373,11 @@ export function useFeedQueue({
         dispatch({ type: 'skip_to', postId });
     }, []);
 
+    const failedAccounts = useMemo(
+        () => Object.values(state.failed).filter(Boolean).length,
+        [state.failed],
+    );
+
     return {
         current,
         queue,
@@ -330,5 +387,6 @@ export function useFeedQueue({
         canGoBack: state.position > 0,
         loadedAccounts,
         totalAccounts,
+        failedAccounts,
     };
 }

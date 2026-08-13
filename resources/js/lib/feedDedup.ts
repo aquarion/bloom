@@ -7,8 +7,9 @@ import type { Post } from '@/types/post';
 // merge batch, matching the backend: not persisted across pagination.
 
 // Matches config/feed.php's buffer_size default — a memory ceiling, not a diversity
-// floor. Not read from a shared config since it's just a safety valve.
-const BUFFER_SIZE = 200;
+// floor. Callers on a page with access to that config value should pass it through
+// (see feed.tsx); this is only the fallback for callers that don't.
+const DEFAULT_BUFFER_SIZE = 200;
 const SIMILARITY_WINDOW_SECONDS = 86400;
 const SIMILARITY_THRESHOLD_PERCENT = 80;
 const MIN_BODY_LENGTH_FOR_SIMILARITY_CHECK = 30;
@@ -80,9 +81,12 @@ export function similarTextPercent(a: string, b: string): number {
  * exact match on original_url (or id, for posts without one — keeps the newest of
  * a repeated boost) plus a fuzzy content-similarity pass that catches the same
  * story/boost reposted from two different connected accounts within a day of
- * each other. Sorted newest-first, capped to BUFFER_SIZE.
+ * each other. Sorted newest-first, capped to bufferSize.
  */
-export function dedupePosts(posts: Post[]): Post[] {
+export function dedupePosts(
+    posts: Post[],
+    bufferSize: number = DEFAULT_BUFFER_SIZE,
+): Post[] {
     const sorted = posts.toSorted((a, b) =>
         b.created_at.localeCompare(a.created_at),
     );
@@ -116,16 +120,32 @@ export function dedupePosts(posts: Post[]): Post[] {
 
             for (const [existingBody, existingTime] of seenBodies) {
                 if (
-                    Math.abs(postTimeSeconds - existingTime) <=
+                    Math.abs(postTimeSeconds - existingTime) >
                     SIMILARITY_WINDOW_SECONDS
                 ) {
-                    if (
-                        similarTextPercent(normBody, existingBody) >=
-                        SIMILARITY_THRESHOLD_PERCENT
-                    ) {
-                        isDuplicate = true;
-                        break;
-                    }
+                    continue;
+                }
+
+                // similar_text()'s score is at most 2*min(lenA,lenB)/(lenA+lenB) —
+                // skip the O(n*m) comparison outright when that ceiling can't
+                // reach the threshold (exact bound, not a heuristic: avoids the
+                // expensive path for the large majority of non-duplicate pairs
+                // during an initial multi-account load without changing results).
+                const maxPossiblePercent =
+                    ((2 * Math.min(normBody.length, existingBody.length)) /
+                        (normBody.length + existingBody.length)) *
+                    100;
+
+                if (maxPossiblePercent < SIMILARITY_THRESHOLD_PERCENT) {
+                    continue;
+                }
+
+                if (
+                    similarTextPercent(normBody, existingBody) >=
+                    SIMILARITY_THRESHOLD_PERCENT
+                ) {
+                    isDuplicate = true;
+                    break;
                 }
             }
 
@@ -139,5 +159,5 @@ export function dedupePosts(posts: Post[]): Post[] {
         deduped.push(post);
     }
 
-    return deduped.slice(0, BUFFER_SIZE);
+    return deduped.slice(0, bufferSize);
 }

@@ -31,12 +31,18 @@ export function computeParagraphHighlights({
         paragraphStarts,
     );
 
-    const numParagraphs = paragraphStarts.size + 1;
+    // Derived from lineParagraph itself (rather than paragraphStarts.size + 1)
+    // so the group count can never drift out of sync with the indices used
+    // to populate it below.
+    const numParagraphs =
+        lineParagraph.length > 0
+            ? lineParagraph[lineParagraph.length - 1] + 1
+            : 0;
     const groups: Element[][] = Array.from({ length: numParagraphs }, () => []);
 
     words.forEach((word, i) => {
-        const paragraph = lineParagraph[lineOfWord[i]] ?? 0;
-        groups[paragraph]?.push(word);
+        const paragraph = lineParagraph[lineOfWord[i]];
+        groups[paragraph].push(word);
     });
 
     const highlights = groups.map(pickHighlightWord);

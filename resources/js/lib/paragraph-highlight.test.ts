@@ -104,10 +104,23 @@ describe('computeParagraphHighlights', () => {
         expect(highlights[0]?.textContent).toBe('#longesthashtag');
     });
 
-    it('returns an empty result for an empty word list', () => {
+    it('returns no paragraphs when there are no lines', () => {
         const { groups, highlights } = computeParagraphHighlights({
             words: [],
             lineEls: [],
+            paragraphStarts: new Set(),
+        });
+
+        expect(groups).toEqual([]);
+        expect(highlights).toEqual([]);
+    });
+
+    it('returns a single empty paragraph for a line with no words', () => {
+        const line = makeLine([]);
+
+        const { groups, highlights } = computeParagraphHighlights({
+            words: [],
+            lineEls: [line],
             paragraphStarts: new Set(),
         });
 

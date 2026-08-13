@@ -1,22 +1,35 @@
 import { router } from '@inertiajs/react';
 import axios from 'axios';
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+    useState,
+} from 'react';
+import { dedupePosts } from '@/lib/feedDedup';
 import type { FeedResponse, Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 
 const REFILL_THRESHOLD = 5;
 const HISTORY_CAP = 50;
 
+type AccountCursors = Record<number, string | null>;
+
 type State = {
     path: Post[];
     position: number;
-    cursor: string | null;
+    // Per-account pagination cursor — null means that account is exhausted
+    // (no more pages). An account absent from this map hasn't been fetched
+    // yet (only true before the very first batch arrives).
+    cursors: AccountCursors;
 };
 type Action =
     | { type: 'advance' }
     | { type: 'go_back' }
     | { type: 'skip_to'; postId: string }
-    | { type: 'enqueue'; posts: Post[]; cursor: string | null };
+    | { type: 'enqueue'; posts: Post[]; cursors: AccountCursors };
 
 function reducer(state: State, action: Action): State {
     switch (action.type) {
@@ -87,24 +100,25 @@ function reducer(state: State, action: Action): State {
                 .sort((a, b) => b.created_at.localeCompare(a.created_at));
             const merged = [...queuePosts, ...incoming];
             const historyPart = state.path.slice(0, state.position);
+            const cursors = { ...state.cursors, ...action.cursors };
 
             if (currentPost === null) {
                 if (merged.length === 0) {
-                    return { ...state, cursor: action.cursor };
+                    return { ...state, cursors };
                 }
 
                 return {
                     ...state,
                     path: [...historyPart, ...merged],
                     position: historyPart.length,
-                    cursor: action.cursor,
+                    cursors,
                 };
             }
 
             return {
                 ...state,
                 path: [...historyPart, currentPost, ...merged],
-                cursor: action.cursor,
+                cursors,
             };
         }
     }
@@ -126,14 +140,18 @@ function shouldSkipPost(
     return false;
 }
 
+type AccountFetchResult = {
+    accountId: number;
+    posts: Post[];
+    nextCursor: string | null;
+};
+
 export function useFeedQueue({
-    initialPosts,
-    initialCursor,
+    accounts,
     cwBehavior = 'blur' as ContentBehavior,
     sensitiveMediaBehavior = 'blur' as ContentBehavior,
 }: {
-    initialPosts: Post[];
-    initialCursor: string | null;
+    accounts: { id: number }[];
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
 }) {
@@ -145,12 +163,10 @@ export function useFeedQueue({
         [cwBehavior, sensitiveMediaBehavior],
     );
 
-    const filteredInitial = initialPosts.filter(filterPost);
-
     const [state, dispatch] = useReducer(reducer, {
-        path: filteredInitial,
+        path: [],
         position: 0,
-        cursor: initialCursor,
+        cursors: {},
     });
 
     const current = state.path[state.position] ?? null;
@@ -159,26 +175,28 @@ export function useFeedQueue({
         [state.path, state.position],
     );
 
-    const fetchingRef = useRef(false);
+    const [loadedAccounts, setLoadedAccounts] = useState(0);
+    const totalAccounts = accounts.length;
 
-    const fetchMore = useCallback(
-        async (activeCursor: string) => {
-            if (fetchingRef.current) {
-                return;
-            }
-
-            fetchingRef.current = true;
-
+    const fetchAccount = useCallback(
+        async (
+            accountId: number,
+            cursor: string | null,
+        ): Promise<AccountFetchResult> => {
             try {
-                const { data } = await axios.get<FeedResponse>('/feed', {
-                    params: { cursor: activeCursor },
-                    headers: { Accept: 'application/json' },
-                });
-                dispatch({
-                    type: 'enqueue',
-                    posts: data.posts.filter(filterPost),
-                    cursor: data.next_cursor,
-                });
+                const { data } = await axios.get<FeedResponse>(
+                    `/feed/accounts/${accountId}`,
+                    {
+                        params: cursor ? { cursor } : undefined,
+                        headers: { Accept: 'application/json' },
+                    },
+                );
+
+                return {
+                    accountId,
+                    posts: data.posts,
+                    nextCursor: data.next_cursor,
+                };
             } catch (error) {
                 const status = axios.isAxiosError(error)
                     ? error.response?.status
@@ -188,22 +206,108 @@ export function useFeedQueue({
                     router.visit('/login');
                 } else {
                     console.error(
-                        '[useFeedQueue] Failed to fetch more posts',
+                        '[useFeedQueue] Failed to fetch account',
+                        accountId,
                         error,
                     );
                 }
-            } finally {
-                fetchingRef.current = false;
+
+                return { accountId, posts: [], nextCursor: null };
             }
         },
-        [filterPost],
+        [],
     );
 
+    const fetchingRef = useRef(false);
+
+    const fetchMore = useCallback(
+        // Promise chaining rather than async/await + try/finally — the
+        // React Compiler can't lower a try without a catch clause.
+        (cursors: AccountCursors) => {
+            if (fetchingRef.current) {
+                return;
+            }
+
+            const active = Object.entries(cursors).filter(
+                (entry): entry is [string, string] => entry[1] !== null,
+            );
+
+            if (active.length === 0) {
+                return;
+            }
+
+            fetchingRef.current = true;
+
+            return Promise.all(
+                active.map(([accountId, cursor]) =>
+                    fetchAccount(Number(accountId), cursor),
+                ),
+            )
+                .then((results) => {
+                    const posts = dedupePosts(
+                        results.flatMap((r) => r.posts),
+                    ).filter(filterPost);
+                    const nextCursors = Object.fromEntries(
+                        results.map((r) => [r.accountId, r.nextCursor]),
+                    );
+                    dispatch({ type: 'enqueue', posts, cursors: nextCursors });
+                })
+                .finally(() => {
+                    fetchingRef.current = false;
+                });
+        },
+        [fetchAccount, filterPost],
+    );
+
+    // Initial load: fan out one request per connected account rather than
+    // waiting on a single combined fetch, then merge+dedupe as results
+    // arrive. loadedAccounts/totalAccounts let the UI show real progress.
     useEffect(() => {
-        if (queue.length <= REFILL_THRESHOLD && state.cursor) {
-            fetchMore(state.cursor);
+        if (accounts.length === 0) {
+            return;
         }
-    }, [queue.length, state.cursor, fetchMore]);
+
+        let cancelled = false;
+
+        Promise.all(
+            accounts.map(async (account) => {
+                const result = await fetchAccount(account.id, null);
+
+                if (!cancelled) {
+                    setLoadedAccounts((n) => n + 1);
+                }
+
+                return result;
+            }),
+        ).then((results) => {
+            if (cancelled) {
+                return;
+            }
+
+            const posts = dedupePosts(results.flatMap((r) => r.posts)).filter(
+                filterPost,
+            );
+            const cursors = Object.fromEntries(
+                results.map((r) => [r.accountId, r.nextCursor]),
+            );
+            dispatch({ type: 'enqueue', posts, cursors });
+        });
+
+        return () => {
+            cancelled = true;
+        };
+        // fetchAccount/filterPost are deliberately omitted: including them
+        // would also re-run this effect (and refetch everything) whenever
+        // cwBehavior/sensitiveMediaBehavior change, which should only
+        // re-filter already-loaded posts, not restart the fetch.
+        // eslint-disable-next-line react-hooks/exhaustive-deps, @eslint-react/exhaustive-deps
+    }, [accounts]);
+
+    useEffect(() => {
+        if (queue.length <= REFILL_THRESHOLD) {
+            fetchMore(state.cursors);
+        }
+    }, [queue.length, state.cursors, fetchMore]);
 
     const advance = useCallback(() => {
         dispatch({ type: 'advance' });
@@ -224,5 +328,7 @@ export function useFeedQueue({
         goBack,
         skipTo,
         canGoBack: state.position > 0,
+        loadedAccounts,
+        totalAccounts,
     };
 }

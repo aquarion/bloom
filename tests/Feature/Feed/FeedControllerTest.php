@@ -1,7 +1,7 @@
 <?php
 
+use App\Models\SocialAccount;
 use App\Models\User;
-use App\Services\Feed\FeedAggregator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -9,35 +9,23 @@ uses(RefreshDatabase::class);
 it('renders the feed page for authenticated users', function () {
     $user = User::factory()->withPasskey()->create();
 
-    $mockAggregator = Mockery::mock(FeedAggregator::class);
-    $mockAggregator->shouldReceive('fetch')->once()->andReturn([
-        'posts' => [],
-        'next_cursor' => null,
-    ]);
-    app()->instance(FeedAggregator::class, $mockAggregator);
+    $response = $this->actingAs($user)->withoutVite()->get(route('feed'));
+
+    $response->assertInertia(fn ($page) => $page->component('feed', false)
+        ->has('accounts')
+    );
+});
+
+it('passes the user\'s account ids so the frontend can fetch each one directly', function () {
+    $user = User::factory()->withPasskey()->create();
+    $accounts = SocialAccount::factory()->for($user)->count(2)->create();
 
     $response = $this->actingAs($user)->withoutVite()->get(route('feed'));
 
     $response->assertInertia(fn ($page) => $page->component('feed', false)
-        ->has('initialPosts')
-        ->has('initialCursor')
+        ->where('accounts', fn ($value) => collect($value)->pluck('id')->sort()->values()->all()
+            === $accounts->pluck('id')->sort()->values()->all())
     );
-});
-
-it('returns json for xhr requests', function () {
-    $user = User::factory()->withPasskey()->create();
-
-    $mockAggregator = Mockery::mock(FeedAggregator::class);
-    $mockAggregator->shouldReceive('fetch')->once()->andReturn([
-        'posts' => [],
-        'next_cursor' => null,
-    ]);
-    app()->instance(FeedAggregator::class, $mockAggregator);
-
-    $response = $this->actingAs($user)
-        ->getJson(route('feed'));
-
-    $response->assertOk()->assertJsonStructure(['posts', 'next_cursor']);
 });
 
 it('redirects guests to login', function () {
@@ -49,32 +37,9 @@ it('passes the persisted cw author whitelist to the feed page', function () {
         'feed_preferences' => ['cw_author_whitelist' => ['@alice@mastodon.social']],
     ]);
 
-    $mockAggregator = Mockery::mock(FeedAggregator::class);
-    $mockAggregator->shouldReceive('fetch')->once()->andReturn([
-        'posts' => [],
-        'next_cursor' => null,
-    ]);
-    app()->instance(FeedAggregator::class, $mockAggregator);
-
     $response = $this->actingAs($user)->withoutVite()->get(route('feed'));
 
     $response->assertInertia(fn ($page) => $page->component('feed', false)
         ->where('cwAuthorWhitelist', ['@alice@mastodon.social'])
     );
-});
-
-it('enables mentions for users without the beta tester role', function () {
-    $user = User::factory()->withPasskey()->create();
-
-    $mockAggregator = Mockery::mock(FeedAggregator::class);
-    $mockAggregator->shouldReceive('fetch')
-        ->once()
-        ->with($user, 20, null, true)
-        ->andReturn([
-            'posts' => [],
-            'next_cursor' => null,
-        ]);
-    app()->instance(FeedAggregator::class, $mockAggregator);
-
-    $this->actingAs($user)->withoutVite()->get(route('feed'))->assertOk();
 });

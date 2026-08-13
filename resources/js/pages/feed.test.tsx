@@ -1,9 +1,17 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from '@testing-library/react';
+import axios from 'axios';
 import type { ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Post } from '@/types/post';
 import Feed from './feed';
 
+vi.mock('axios');
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Link: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -52,7 +60,7 @@ vi.mock('@/lib/debug', () => ({
     setupDebugWindow: vi.fn(),
 }));
 
-const makePost = (id: string): Post => ({
+const makePost = (id: string, created_at?: string): Post => ({
     id,
     source: 'mastodon',
     source_handle: '',
@@ -63,8 +71,8 @@ const makePost = (id: string): Post => ({
     author_banner: null,
     body: 'hello',
     media: [],
-    created_at: new Date().toISOString(),
-    original_url: 'https://example.com',
+    created_at: created_at ?? new Date().toISOString(),
+    original_url: `https://example.com/${id}`,
     link_url: null,
     link_title: null,
     link_description: null,
@@ -87,25 +95,64 @@ const makePost = (id: string): Post => ({
     sensitive_media: false,
 });
 
+const oneAccount = [{ id: 1 }];
+
 const defaultProps = {
-    initialPosts: [makePost('1')],
-    initialCursor: null,
+    accounts: oneAccount,
     debugEnabled: false,
     cwBehavior: 'show' as const,
     sensitiveMediaBehavior: 'show' as const,
     cwAuthorWhitelist: [] as string[],
 };
 
+beforeEach(() => {
+    vi.mocked(axios.get).mockReset();
+});
+
 describe('Feed', () => {
-    it('renders the navigation toggle button (not a link)', () => {
+    it('shows loading progress before any account has responded', () => {
+        vi.mocked(axios.get).mockReturnValue(new Promise(() => {}));
+
         render(<Feed {...defaultProps} />);
-        const btn = screen.getByRole('button', { name: /open navigation/i });
+
+        expect(screen.getByText('Loading posts… (0 of 1)')).toBeInTheDocument();
+    });
+
+    it('shows the empty state once every account has responded with nothing', async () => {
+        vi.mocked(axios.get).mockResolvedValue({
+            data: { posts: [], next_cursor: null },
+        });
+
+        render(<Feed {...defaultProps} />);
+
+        await waitFor(() =>
+            expect(
+                screen.getByText(/No posts — connect an account/i),
+            ).toBeInTheDocument(),
+        );
+    });
+
+    it('renders the navigation toggle button (not a link)', async () => {
+        vi.mocked(axios.get).mockResolvedValue({
+            data: { posts: [makePost('1')], next_cursor: null },
+        });
+
+        render(<Feed {...defaultProps} />);
+
+        const btn = await screen.findByRole('button', {
+            name: /open navigation/i,
+        });
         expect(btn).toBeInTheDocument();
     });
 
-    it('opens the sidebar panel when the navigation button is clicked', () => {
+    it('opens the sidebar panel when the navigation button is clicked', async () => {
+        vi.mocked(axios.get).mockResolvedValue({
+            data: { posts: [makePost('1')], next_cursor: null },
+        });
+
         render(<Feed {...defaultProps} />);
-        const panel = screen.getByTestId('sidebar-panel');
+
+        const panel = await screen.findByTestId('sidebar-panel');
         expect(panel).toHaveAttribute('data-open', 'false');
 
         fireEvent.click(
@@ -120,15 +167,40 @@ describe('Feed', () => {
         const { gsap } = gsapModule;
         vi.mocked(gsap.timeline).mockClear();
 
-        render(
-            <Feed
-                {...defaultProps}
-                initialPosts={[makePost('1'), makePost('2')]}
-            />,
-        );
+        vi.mocked(axios.get).mockResolvedValue({
+            data: {
+                posts: [makePost('1'), makePost('2')],
+                next_cursor: null,
+            },
+        });
+
+        render(<Feed {...defaultProps} />);
+
+        await screen.findByRole('button', { name: /open navigation/i });
 
         fireEvent.keyDown(window, { key: 'j' });
 
         expect(gsap.timeline).toHaveBeenCalled();
+    });
+
+    it('shows a loading spinner until the first post signals it is ready', async () => {
+        const { PostContent } = await import('@/components/feed/PostContent');
+
+        vi.mocked(axios.get).mockResolvedValue({
+            data: { posts: [makePost('1')], next_cursor: null },
+        });
+
+        render(<Feed {...defaultProps} />);
+
+        const overlay = await screen.findByTestId('initial-load-overlay');
+        expect(overlay).toHaveClass('opacity-100');
+        expect(screen.getByRole('status', { name: /loading/i })).toBeVisible();
+
+        const { onReady } = vi.mocked(PostContent).mock.calls.at(-1)![0] as {
+            onReady?: () => void;
+        };
+        act(() => onReady?.());
+
+        expect(overlay).toHaveClass('opacity-0');
     });
 });

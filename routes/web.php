@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\TombstoneController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocsController;
+use App\Http\Controllers\FeedAccountController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
@@ -53,6 +54,7 @@ Route::get('docs/{slug}', [DocsController::class, 'show'])->name('docs.show');
 Route::middleware(['auth', 'passkey.exists'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('feed', [FeedController::class, 'index'])->name('feed');
+    Route::get('feed/accounts/{account}', [FeedAccountController::class, 'show'])->name('feed.accounts.show');
 
     Route::get('auth/passkey/confirm/options', [PasskeyAuthController::class, 'confirmOptions'])
         ->name('passkey.confirm.options');

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Post } from '@/types/post';
-import { dedupePosts, normaliseBodyForDedup, similarTextPercent } from './feedDedup';
+import {
+    dedupePosts,
+    normaliseBodyForDedup,
+    similarTextPercent,
+} from './feedDedup';
 
 function makePost(overrides: Partial<Post> = {}): Post {
     return {
@@ -130,7 +134,8 @@ describe('dedupePosts', () => {
         });
         const blueskyPost = makePost({
             id: 'bsky2',
-            original_url: 'https://bsky.app/profile/alice.bsky.social/post/xyz2',
+            original_url:
+                'https://bsky.app/profile/alice.bsky.social/post/xyz2',
             body,
             created_at: new Date(
                 Date.now() - 2 * 24 * 60 * 60 * 1000,

@@ -34,7 +34,11 @@ function similarChars(a: string, b: string): number {
         for (let j = 0; j < b.length; j++) {
             let k = 0;
 
-            while (i + k < a.length && j + k < b.length && a[i + k] === b[j + k]) {
+            while (
+                i + k < a.length &&
+                j + k < b.length &&
+                a[i + k] === b[j + k]
+            ) {
                 k++;
             }
 
@@ -68,7 +72,7 @@ export function similarTextPercent(a: string, b: string): number {
         return 0;
     }
 
-    return (similarChars(a, b) * 2) / (a.length + b.length) * 100;
+    return ((similarChars(a, b) * 2) / (a.length + b.length)) * 100;
 }
 
 /**
@@ -79,7 +83,7 @@ export function similarTextPercent(a: string, b: string): number {
  * each other. Sorted newest-first, capped to BUFFER_SIZE.
  */
 export function dedupePosts(posts: Post[]): Post[] {
-    const sorted = [...posts].sort((a, b) =>
+    const sorted = posts.toSorted((a, b) =>
         b.created_at.localeCompare(a.created_at),
     );
 
@@ -111,8 +115,14 @@ export function dedupePosts(posts: Post[]): Post[] {
             let isDuplicate = false;
 
             for (const [existingBody, existingTime] of seenBodies) {
-                if (Math.abs(postTimeSeconds - existingTime) <= SIMILARITY_WINDOW_SECONDS) {
-                    if (similarTextPercent(normBody, existingBody) >= SIMILARITY_THRESHOLD_PERCENT) {
+                if (
+                    Math.abs(postTimeSeconds - existingTime) <=
+                    SIMILARITY_WINDOW_SECONDS
+                ) {
+                    if (
+                        similarTextPercent(normBody, existingBody) >=
+                        SIMILARITY_THRESHOLD_PERCENT
+                    ) {
                         isDuplicate = true;
                         break;
                     }

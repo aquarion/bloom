@@ -91,9 +91,7 @@ it('loads posts from a single connected account', async () => {
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     expect(result.current.queue).toHaveLength(1);
@@ -191,9 +189,7 @@ it('dequeues the head of the queue', async () => {
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
 
@@ -207,7 +203,12 @@ it('fetches more posts from accounts that still have a cursor when the queue dro
 
     mockAccountResponses(
         { data: { posts, next_cursor: 'cursor123' } },
-        { data: { posts: [makePost('extra1'), makePost('extra2')], next_cursor: null } },
+        {
+            data: {
+                posts: [makePost('extra1'), makePost('extra2')],
+                next_cursor: null,
+            },
+        },
     );
 
     renderHook(() => useFeedQueue({ accounts: oneAccount }));
@@ -228,9 +229,7 @@ it('does not refetch an account once it reports next_cursor: null', async () => 
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('0'));
 
@@ -263,9 +262,7 @@ it('deduplicates posts already in the queue and the current post when a refill b
         },
     );
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.queue).toHaveLength(2));
 
@@ -295,9 +292,7 @@ it('appends incoming posts after existing queue to avoid skipping buffered posts
         },
     );
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.queue).toHaveLength(2));
     expect(result.current.queue.map((p) => p.id)).toEqual(['old', 'new']);
@@ -308,9 +303,7 @@ it('advancing past the end of the queue sets current to null, and further advanc
         data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
 
@@ -332,9 +325,7 @@ it('restores current from an incoming batch after the feed was exhausted', async
         { data: { posts: [makePost('1'), makePost('2')], next_cursor: null } },
     );
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     expect(result.current.queue.map((p) => p.id)).toEqual(['2']);
@@ -345,9 +336,7 @@ it('stays exhausted when a refill while current is null returns no posts', async
         data: { posts: [], next_cursor: null },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(1));
     expect(result.current.current).toBeNull();
@@ -362,9 +351,7 @@ it('goBack still walks back to the correct pre-enqueue post after an enqueue at 
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('0'));
 
@@ -489,7 +476,9 @@ it('filters cw posts from a refill response when cwBehavior is skip', async () =
     mockAccountResponses(
         {
             data: {
-                posts: Array.from({ length: 6 }, (_, i) => makePost(`init-${i}`)),
+                posts: Array.from({ length: 6 }, (_, i) =>
+                    makePost(`init-${i}`),
+                ),
                 next_cursor: 'cursor123',
             },
         },
@@ -519,9 +508,7 @@ it('goBack is a no-op when history is empty', async () => {
         data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.goBack());
@@ -536,9 +523,7 @@ it('goBack restores the previous post after one advance', async () => {
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.advance());
@@ -555,9 +540,7 @@ it('goBack restores the departed post to the front of the queue', async () => {
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.advance());
@@ -570,9 +553,7 @@ it('canGoBack is false when history is empty', async () => {
         data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     expect(result.current.canGoBack).toBe(false);
@@ -583,9 +564,7 @@ it('canGoBack is true after advancing at least once', async () => {
         data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.advance());
@@ -600,9 +579,7 @@ it('goBack then advance again restores the original order without dropping posts
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
 
@@ -619,9 +596,7 @@ it('canGoBack returns to false once history is exhausted by goBack', async () =>
         data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.advance());
@@ -637,9 +612,7 @@ it('skipTo reorders the target post to the front of the queue', async () => {
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.skipTo('3'));
@@ -656,9 +629,7 @@ it('skipTo followed by advance moves straight to the target post', async () => {
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.skipTo('3'));
@@ -676,9 +647,7 @@ it('skipTo targeting the current post is a no-op', async () => {
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.skipTo('1'));
@@ -695,9 +664,7 @@ it('skipTo targeting a post already in history is a no-op', async () => {
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.advance()); // current: '2', history: ['1']
@@ -712,9 +679,7 @@ it('skipTo targeting an unknown post id is a no-op', async () => {
         data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.skipTo('does-not-exist'));
@@ -731,9 +696,7 @@ it('caps history at 50 posts', async () => {
         },
     });
 
-    const { result } = renderHook(() =>
-        useFeedQueue({ accounts: oneAccount }),
-    );
+    const { result } = renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await waitFor(() => expect(result.current.current?.id).toBe('0'));
 

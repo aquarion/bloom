@@ -221,7 +221,9 @@ export function useFeedQueue({
     const fetchingRef = useRef(false);
 
     const fetchMore = useCallback(
-        async (cursors: AccountCursors) => {
+        // Promise chaining rather than async/await + try/finally — the
+        // React Compiler can't lower a try without a catch clause.
+        (cursors: AccountCursors) => {
             if (fetchingRef.current) {
                 return;
             }
@@ -236,22 +238,23 @@ export function useFeedQueue({
 
             fetchingRef.current = true;
 
-            try {
-                const results = await Promise.all(
-                    active.map(([accountId, cursor]) =>
-                        fetchAccount(Number(accountId), cursor),
-                    ),
-                );
-                const posts = dedupePosts(
-                    results.flatMap((r) => r.posts),
-                ).filter(filterPost);
-                const nextCursors = Object.fromEntries(
-                    results.map((r) => [r.accountId, r.nextCursor]),
-                );
-                dispatch({ type: 'enqueue', posts, cursors: nextCursors });
-            } finally {
-                fetchingRef.current = false;
-            }
+            return Promise.all(
+                active.map(([accountId, cursor]) =>
+                    fetchAccount(Number(accountId), cursor),
+                ),
+            )
+                .then((results) => {
+                    const posts = dedupePosts(
+                        results.flatMap((r) => r.posts),
+                    ).filter(filterPost);
+                    const nextCursors = Object.fromEntries(
+                        results.map((r) => [r.accountId, r.nextCursor]),
+                    );
+                    dispatch({ type: 'enqueue', posts, cursors: nextCursors });
+                })
+                .finally(() => {
+                    fetchingRef.current = false;
+                });
         },
         [fetchAccount, filterPost],
     );
@@ -281,9 +284,9 @@ export function useFeedQueue({
                 return;
             }
 
-            const posts = dedupePosts(
-                results.flatMap((r) => r.posts),
-            ).filter(filterPost);
+            const posts = dedupePosts(results.flatMap((r) => r.posts)).filter(
+                filterPost,
+            );
             const cursors = Object.fromEntries(
                 results.map((r) => [r.accountId, r.nextCursor]),
             );

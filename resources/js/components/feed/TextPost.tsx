@@ -83,47 +83,23 @@ export function TextPost({
         // always strips these; any that appear are from posts not yet re-normalized).
         const highlight =
             colors?.highlight ?? postColors(post.author_handle).highlight;
-        const { groups, highlights } = computeParagraphHighlights({
+        const { highlights } = computeParagraphHighlights({
             words: split.words as Element[],
             lineEls: lineRefs.current.slice(0, lines.length),
             paragraphStarts,
         });
+
+        for (const word of highlights) {
+            if (word) {
+                gsap.set(word, { color: highlight });
+            }
+        }
 
         const template = pickTemplate(lastTemplate.current);
         lastTemplate.current = template;
 
         const tl = gsap.timeline({ onComplete: () => onReadyRef.current?.() });
         template(tl, split.words as Element[], container);
-
-        // Resolve each paragraph's highlight word to its highlight colour once
-        // that paragraph's own words have finished entering, so the highlight
-        // settles paragraph-by-paragraph instead of all at once up front.
-        const totalWords = split.words.length;
-        const revealDuration = tl.duration();
-        const colorDuration = 0.3;
-        let wordsSeen = 0;
-
-        groups.forEach((group, i) => {
-            wordsSeen += group.length;
-
-            const word = highlights[i];
-
-            if (!word) {
-                return;
-            }
-
-            const resolveAt =
-                revealDuration * (wordsSeen / totalWords) - colorDuration;
-            tl.to(
-                word,
-                {
-                    color: highlight,
-                    duration: colorDuration,
-                    ease: 'power2.out',
-                },
-                Math.max(0, resolveAt),
-            );
-        });
 
         if (panelsRef.current) {
             tl.fromTo(

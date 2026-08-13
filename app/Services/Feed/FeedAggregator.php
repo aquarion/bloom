@@ -9,6 +9,7 @@ use App\Services\Mastodon\MastodonFeedService;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class FeedAggregator
@@ -48,244 +49,286 @@ class FeedAggregator
         }
         $posts = collect();
 
-        $defaultLimit = config('feed.per_provider_limit', 20);
-
         foreach ($user->socialAccounts as $account) {
-            $accountCursor = $cursors[$account->id] ?? null;
-            $normalised = [];
-            $nextCursor = null;
-            $authAccount = null;
-            // Pre-normalisation items for this account's batch, kept alongside $normalised
-            // (same order/count) so self-reply thread detection can inspect provider-specific
-            // fields (reply counts, raw ids) that don't survive normalisation. $threadAccount is
-            // whichever account authenticates context/thread lookups for this batch (mirrors the
-            // account already used for that branch's own timeline fetch — null skips thread
-            // detection entirely, e.g. an unauthenticated public Mastodon instance).
-            $rawItems = [];
-            $threadAccount = null;
-            $threadSourceHandle = null;
-
-            try {
-                if ($account->feed_type === 'home' && $account->provider === 'mastodon') {
-                    $host = parse_url($account->instance_url, PHP_URL_HOST);
-                    $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
-                    $statuses = $this->mastodon->getHomeTimeline($account, $perAccountLimit, $accountCursor);
-
-                    $parents = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['in_reply_to_id'] ?? null);
-                    // Quote IDs point to foreign posts — they are never in the timeline batch,
-                    // so the batch short-circuit inside fetchMastodonStatuses is always bypassed here.
-                    $quotes = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['quote_id'] ?? null);
-
-                    $normalised = array_map(function ($s) use ($host, $parents, $quotes, $account, $mentionsEnabled) {
-                        $source = $s['reblog'] ?? $s;
-                        // $quoteId matches the key used by the extractor above, so $quotes[$quoteId] resolves
-                        // the pre-fetched status (or null if unavailable) to pass into the normalizer.
-                        $quoteId = $source['quote_id'] ?? null;
-
-                        return $this->normalizer->fromMastodon(
-                            $s,
-                            $host,
-                            $parents[$source['in_reply_to_id'] ?? ''] ?? null,
-                            $account->handle,
-                            $quoteId ? ($quotes[$quoteId] ?? null) : null,
-                            $mentionsEnabled,
-                        );
-                    }, $statuses);
-                    $rawItems = $statuses;
-                    $threadAccount = $account;
-                    $threadSourceHandle = $account->handle;
-
-                    if ($mentionsEnabled) {
-                        $normalised = $this->mastodon->resolveMentionProfiles($normalised, $account);
-                    }
-
-                    $nextCursor = ! empty($statuses) ? end($statuses)['id'] : null;
-                } elseif ($account->feed_type === 'public_mastodon') {
-                    $host = parse_url($account->instance_url, PHP_URL_HOST);
-                    $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
-                    $statuses = $this->mastodon->getPublicTimeline($account->instance_url, $perAccountLimit);
-
-                    if ($statuses === null) {
-                        // Instance requires auth — fall back to a home account on the same instance
-                        $authAccount = $user->socialAccounts
-                            ->where('provider', 'mastodon')
-                            ->where('feed_type', 'home')
-                            ->first(fn ($a) => parse_url($a->instance_url, PHP_URL_HOST) === $host);
-
-                        if ($authAccount === null) {
-                            Log::warning('Public Mastodon instance requires auth with no matching home account', [
-                                'account_id' => $account->id,
-                                'host' => $host,
-                            ]);
-                            $account->update(['auth_failed_at' => now()]);
-
-                            continue;
-                        }
-
-                        Log::info('Public Mastodon instance requires auth; falling back to home timeline', [
-                            'account_id' => $account->id,
-                            'host' => $host,
-                            'auth_account_id' => $authAccount->id,
-                        ]);
-
-                        $statuses = $this->mastodon->getHomeTimeline($authAccount, $perAccountLimit, $accountCursor);
-
-                        if ($account->auth_failed_at !== null) {
-                            $account->update(['auth_failed_at' => null]);
-                        }
-                    }
-
-                    $parents = $authAccount !== null
-                        ? $this->fetchMastodonStatuses($authAccount, $statuses, fn ($s) => ($s['reblog'] ?? $s)['in_reply_to_id'] ?? null)
-                        : [];
-                    $quotes = $authAccount !== null
-                        ? $this->fetchMastodonStatuses($authAccount, $statuses, fn ($s) => ($s['reblog'] ?? $s)['quote_id'] ?? null)
-                        : [];
-
-                    $normalised = array_map(function ($s) use ($host, $parents, $quotes, $mentionsEnabled) {
-                        $source = $s['reblog'] ?? $s;
-                        $quoteId = $source['quote_id'] ?? null;
-
-                        return $this->normalizer->fromMastodon(
-                            $s,
-                            $host,
-                            $parents[$source['in_reply_to_id'] ?? ''] ?? null,
-                            null,
-                            $quoteId ? ($quotes[$quoteId] ?? null) : null,
-                            $mentionsEnabled,
-                        );
-                    }, $statuses);
-                    $rawItems = $statuses;
-                    // No sourceHandle for this branch's own normalizer calls either (see above) —
-                    // a public timeline isn't scoped to a single authenticated account's handle.
-                    $threadAccount = $authAccount;
-
-                    if ($mentionsEnabled && $authAccount !== null) {
-                        $normalised = $this->mastodon->resolveMentionProfiles($normalised, $authAccount);
-                    }
-
-                    $nextCursor = null;
-                } elseif ($account->feed_type === 'home') {
-                    $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
-                    $result = $this->bluesky->getHomeTimeline($account, $perAccountLimit, $accountCursor);
-                    $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle, $mentionsEnabled), $result['posts']);
-                    $rawItems = $result['posts'];
-                    $threadAccount = $account;
-                    $threadSourceHandle = $account->handle;
-
-                    if ($mentionsEnabled) {
-                        $normalised = $this->bluesky->resolveMentionProfiles($normalised, $account);
-                    }
-
-                    $nextCursor = $result['cursor'] ?: null;
-                } elseif ($account->feed_type === 'bluesky_feed') {
-                    $feedUri = $account->getPreference('feed_uri');
-                    if (empty($feedUri)) {
-                        Log::warning('bluesky_feed account is missing feed_uri', ['account_id' => $account->id]);
-
-                        continue;
-                    }
-
-                    $homeAccount = $user->socialAccounts
-                        ->where('provider', 'bluesky')
-                        ->where('feed_type', 'home')
-                        ->sortBy('id')
-                        ->first();
-
-                    if ($homeAccount === null) {
-                        Log::warning('bluesky_feed account has no associated home account', ['account_id' => $account->id]);
-
-                        continue;
-                    }
-
-                    $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
-                    $result = $this->bluesky->getFeed($homeAccount, $feedUri, $perAccountLimit, $accountCursor);
-                    $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $homeAccount->handle, $mentionsEnabled), $result['posts']);
-                    $rawItems = $result['posts'];
-                    $threadAccount = $homeAccount;
-                    $threadSourceHandle = $homeAccount->handle;
-
-                    if ($mentionsEnabled) {
-                        $normalised = $this->bluesky->resolveMentionProfiles($normalised, $homeAccount);
-                    }
-
-                    $nextCursor = $result['cursor'] ?: null;
-                }
-            } catch (ConnectionException|RequestException $e) {
-                Log::warning('Provider request failed for account', [
-                    'account_id' => $account->id,
-                    'auth_account_id' => $authAccount?->id,
-                    'provider' => $account->provider,
-                    'feed_type' => $account->feed_type,
-                    'http_status' => $e instanceof RequestException ? $e->response->status() : null,
-                    'error' => $e->getMessage(),
-                ]);
-
-                continue;
-            } catch (\Throwable $e) {
-                Log::error('Unexpected error fetching feed for account', [
-                    'account_id' => $account->id,
-                    'auth_account_id' => $authAccount?->id,
-                    'provider' => $account->provider,
-                    'exception' => $e::class,
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-
-                continue;
-            }
-
-            $feedName = $account->feed_name;
-            $normalised = array_map(function (array $post) use ($account, $feedName) {
-                $post['feed_type'] = $account->feed_type;
-                $post['feed_name'] = $feedName;
-
-                return $post;
-            }, $normalised);
-
-            if ($threadAccount !== null) {
-                // parse_url() can return null/false for a malformed or scheme-less
-                // instance_url — attachMastodonThreads() requires a string host, so
-                // check upfront rather than relying on the catch below for what's
-                // an expected, mundane edge case rather than a genuine bug.
-                $threadHost = $account->provider === 'mastodon'
-                    ? parse_url($threadAccount->instance_url, PHP_URL_HOST)
-                    : null;
-
-                if ($account->provider === 'mastodon' && ! is_string($threadHost)) {
-                    Log::warning('Skipping thread detection: could not parse host from instance_url', [
-                        'account_id' => $account->id,
-                        'thread_account_id' => $threadAccount->id,
-                        'instance_url' => $threadAccount->instance_url,
-                    ]);
-                } else {
-                    try {
-                        $normalised = $account->provider === 'mastodon'
-                            ? $this->attachMastodonThreads($normalised, $rawItems, $threadAccount, $threadHost, $threadSourceHandle, $mentionsEnabled)
-                            : $this->attachBlueskyThreads($normalised, $rawItems, $threadAccount, $threadSourceHandle, $mentionsEnabled);
-                    } catch (\Throwable $e) {
-                        // Thread detection is an enhancement, not core to rendering the feed —
-                        // a malformed API response or chain-walking bug here shouldn't take down
-                        // the whole page. Fall back to $normalised as already built (ungrouped).
-                        Log::error('Thread detection failed for account; falling back to ungrouped posts', [
-                            'account_id' => $account->id,
-                            'thread_account_id' => $threadAccount->id,
-                            'provider' => $account->provider,
-                            'exception' => $e::class,
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString(),
-                        ]);
-                    }
-                }
-            }
-
-            $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
-            $posts = $posts->concat($normalised);
-            if ($nextCursor) {
-                $cursors[$account->id] = $nextCursor;
+            $result = $this->fetchAccount($user, $account, $cursors[$account->id] ?? null, $mentionsEnabled);
+            $posts = $posts->concat($result['posts']);
+            if ($result['next_cursor']) {
+                $cursors[$account->id] = $result['next_cursor'];
             }
         }
 
+        $deduped = $this->dedupe($posts);
+
+        $muteWords = $user->getPreference('mute_words', []);
+        $deduped = $this->applyMuteWords($deduped, $muteWords);
+
+        $cwLabelWhitelist = $user->getPreference('cw_label_whitelist', []);
+        $deduped = $this->applyCwWhitelist($deduped, $cwLabelWhitelist);
+
+        $nextCursor = ! empty($deduped) ? base64_encode(json_encode($cursors)) : null;
+
+        return ['posts' => $deduped, 'next_cursor' => $nextCursor];
+    }
+
+    /**
+     * Fetch and normalise posts for a single social account — timeline, parent/quote
+     * lookups, self-reply thread grouping, mention resolution, and age cutoff.
+     *
+     * Deliberately does not do cross-account work (dedup, mute words, CW whitelist):
+     * fetch() layers that on top after combining several accounts' results, and
+     * FeedAccountController applies applyMuteWords()/applyCwWhitelist() itself for
+     * the single-account JSON endpoint, since a lone account has nothing to dedupe
+     * against.
+     *
+     * @return array{posts: array<int, array<string, mixed>>, next_cursor: ?string}
+     */
+    public function fetchAccount(User $user, SocialAccount $account, ?string $cursor = null, bool $mentionsEnabled = false): array
+    {
+        $defaultLimit = config('feed.per_provider_limit', 20);
+        $normalised = [];
+        $nextCursor = null;
+        $authAccount = null;
+        // Pre-normalisation items for this account's batch, kept alongside $normalised
+        // (same order/count) so self-reply thread detection can inspect provider-specific
+        // fields (reply counts, raw ids) that don't survive normalisation. $threadAccount is
+        // whichever account authenticates context/thread lookups for this batch (mirrors the
+        // account already used for that branch's own timeline fetch — null skips thread
+        // detection entirely, e.g. an unauthenticated public Mastodon instance).
+        $rawItems = [];
+        $threadAccount = null;
+        $threadSourceHandle = null;
+
+        try {
+            if ($account->feed_type === 'home' && $account->provider === 'mastodon') {
+                $host = parse_url($account->instance_url, PHP_URL_HOST);
+                $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
+                $statuses = $this->mastodon->getHomeTimeline($account, $perAccountLimit, $cursor);
+
+                $parents = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['in_reply_to_id'] ?? null);
+                // Quote IDs point to foreign posts — they are never in the timeline batch,
+                // so the batch short-circuit inside fetchMastodonStatuses is always bypassed here.
+                $quotes = $this->fetchMastodonStatuses($account, $statuses, fn ($s) => ($s['reblog'] ?? $s)['quote_id'] ?? null);
+
+                $normalised = array_map(function ($s) use ($host, $parents, $quotes, $account, $mentionsEnabled) {
+                    $source = $s['reblog'] ?? $s;
+                    // $quoteId matches the key used by the extractor above, so $quotes[$quoteId] resolves
+                    // the pre-fetched status (or null if unavailable) to pass into the normalizer.
+                    $quoteId = $source['quote_id'] ?? null;
+
+                    return $this->normalizer->fromMastodon(
+                        $s,
+                        $host,
+                        $parents[$source['in_reply_to_id'] ?? ''] ?? null,
+                        $account->handle,
+                        $quoteId ? ($quotes[$quoteId] ?? null) : null,
+                        $mentionsEnabled,
+                    );
+                }, $statuses);
+                $rawItems = $statuses;
+                $threadAccount = $account;
+                $threadSourceHandle = $account->handle;
+
+                if ($mentionsEnabled) {
+                    $normalised = $this->mastodon->resolveMentionProfiles($normalised, $account);
+                }
+
+                $nextCursor = ! empty($statuses) ? end($statuses)['id'] : null;
+            } elseif ($account->feed_type === 'public_mastodon') {
+                $host = parse_url($account->instance_url, PHP_URL_HOST);
+                $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
+                $statuses = $this->mastodon->getPublicTimeline($account->instance_url, $perAccountLimit);
+
+                if ($statuses === null) {
+                    // Instance requires auth — fall back to a home account on the same instance
+                    $authAccount = $user->socialAccounts
+                        ->where('provider', 'mastodon')
+                        ->where('feed_type', 'home')
+                        ->first(fn ($a) => parse_url($a->instance_url, PHP_URL_HOST) === $host);
+
+                    if ($authAccount === null) {
+                        Log::warning('Public Mastodon instance requires auth with no matching home account', [
+                            'account_id' => $account->id,
+                            'host' => $host,
+                        ]);
+                        $account->update(['auth_failed_at' => now()]);
+
+                        return ['posts' => [], 'next_cursor' => null];
+                    }
+
+                    Log::info('Public Mastodon instance requires auth; falling back to home timeline', [
+                        'account_id' => $account->id,
+                        'host' => $host,
+                        'auth_account_id' => $authAccount->id,
+                    ]);
+
+                    $statuses = $this->mastodon->getHomeTimeline($authAccount, $perAccountLimit, $cursor);
+
+                    if ($account->auth_failed_at !== null) {
+                        $account->update(['auth_failed_at' => null]);
+                    }
+                }
+
+                $parents = $authAccount !== null
+                    ? $this->fetchMastodonStatuses($authAccount, $statuses, fn ($s) => ($s['reblog'] ?? $s)['in_reply_to_id'] ?? null)
+                    : [];
+                $quotes = $authAccount !== null
+                    ? $this->fetchMastodonStatuses($authAccount, $statuses, fn ($s) => ($s['reblog'] ?? $s)['quote_id'] ?? null)
+                    : [];
+
+                $normalised = array_map(function ($s) use ($host, $parents, $quotes, $mentionsEnabled) {
+                    $source = $s['reblog'] ?? $s;
+                    $quoteId = $source['quote_id'] ?? null;
+
+                    return $this->normalizer->fromMastodon(
+                        $s,
+                        $host,
+                        $parents[$source['in_reply_to_id'] ?? ''] ?? null,
+                        null,
+                        $quoteId ? ($quotes[$quoteId] ?? null) : null,
+                        $mentionsEnabled,
+                    );
+                }, $statuses);
+                $rawItems = $statuses;
+                // No sourceHandle for this branch's own normalizer calls either (see above) —
+                // a public timeline isn't scoped to a single authenticated account's handle.
+                $threadAccount = $authAccount;
+
+                if ($mentionsEnabled && $authAccount !== null) {
+                    $normalised = $this->mastodon->resolveMentionProfiles($normalised, $authAccount);
+                }
+
+                $nextCursor = null;
+            } elseif ($account->feed_type === 'home') {
+                $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
+                $result = $this->bluesky->getHomeTimeline($account, $perAccountLimit, $cursor);
+                $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $account->handle, $mentionsEnabled), $result['posts']);
+                $rawItems = $result['posts'];
+                $threadAccount = $account;
+                $threadSourceHandle = $account->handle;
+
+                if ($mentionsEnabled) {
+                    $normalised = $this->bluesky->resolveMentionProfiles($normalised, $account);
+                }
+
+                $nextCursor = $result['cursor'] ?: null;
+            } elseif ($account->feed_type === 'bluesky_feed') {
+                $feedUri = $account->getPreference('feed_uri');
+                if (empty($feedUri)) {
+                    Log::warning('bluesky_feed account is missing feed_uri', ['account_id' => $account->id]);
+
+                    return ['posts' => [], 'next_cursor' => null];
+                }
+
+                $homeAccount = $user->socialAccounts
+                    ->where('provider', 'bluesky')
+                    ->where('feed_type', 'home')
+                    ->sortBy('id')
+                    ->first();
+
+                if ($homeAccount === null) {
+                    Log::warning('bluesky_feed account has no associated home account', ['account_id' => $account->id]);
+
+                    return ['posts' => [], 'next_cursor' => null];
+                }
+
+                $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
+                $result = $this->bluesky->getFeed($homeAccount, $feedUri, $perAccountLimit, $cursor);
+                $normalised = array_map(fn ($p) => $this->normalizer->fromBluesky($p, $homeAccount->handle, $mentionsEnabled), $result['posts']);
+                $rawItems = $result['posts'];
+                $threadAccount = $homeAccount;
+                $threadSourceHandle = $homeAccount->handle;
+
+                if ($mentionsEnabled) {
+                    $normalised = $this->bluesky->resolveMentionProfiles($normalised, $homeAccount);
+                }
+
+                $nextCursor = $result['cursor'] ?: null;
+            }
+        } catch (ConnectionException|RequestException $e) {
+            Log::warning('Provider request failed for account', [
+                'account_id' => $account->id,
+                'auth_account_id' => $authAccount?->id,
+                'provider' => $account->provider,
+                'feed_type' => $account->feed_type,
+                'http_status' => $e instanceof RequestException ? $e->response->status() : null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['posts' => [], 'next_cursor' => null];
+        } catch (\Throwable $e) {
+            Log::error('Unexpected error fetching feed for account', [
+                'account_id' => $account->id,
+                'auth_account_id' => $authAccount?->id,
+                'provider' => $account->provider,
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return ['posts' => [], 'next_cursor' => null];
+        }
+
+        $feedName = $account->feed_name;
+        $normalised = array_map(function (array $post) use ($account, $feedName) {
+            $post['feed_type'] = $account->feed_type;
+            $post['feed_name'] = $feedName;
+
+            return $post;
+        }, $normalised);
+
+        if ($threadAccount !== null) {
+            // parse_url() can return null/false for a malformed or scheme-less
+            // instance_url — attachMastodonThreads() requires a string host, so
+            // check upfront rather than relying on the catch below for what's
+            // an expected, mundane edge case rather than a genuine bug.
+            $threadHost = $account->provider === 'mastodon'
+                ? parse_url($threadAccount->instance_url, PHP_URL_HOST)
+                : null;
+
+            if ($account->provider === 'mastodon' && ! is_string($threadHost)) {
+                Log::warning('Skipping thread detection: could not parse host from instance_url', [
+                    'account_id' => $account->id,
+                    'thread_account_id' => $threadAccount->id,
+                    'instance_url' => $threadAccount->instance_url,
+                ]);
+            } else {
+                try {
+                    $normalised = $account->provider === 'mastodon'
+                        ? $this->attachMastodonThreads($normalised, $rawItems, $threadAccount, $threadHost, $threadSourceHandle, $mentionsEnabled)
+                        : $this->attachBlueskyThreads($normalised, $rawItems, $threadAccount, $threadSourceHandle, $mentionsEnabled);
+                } catch (\Throwable $e) {
+                    // Thread detection is an enhancement, not core to rendering the feed —
+                    // a malformed API response or chain-walking bug here shouldn't take down
+                    // the whole page. Fall back to $normalised as already built (ungrouped).
+                    Log::error('Thread detection failed for account; falling back to ungrouped posts', [
+                        'account_id' => $account->id,
+                        'thread_account_id' => $threadAccount->id,
+                        'provider' => $account->provider,
+                        'exception' => $e::class,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                }
+            }
+        }
+
+        $normalised = $this->applyAgeCutoff($normalised, $this->resolveMaxAgeDays($user, $account));
+
+        return ['posts' => $normalised, 'next_cursor' => $nextCursor];
+    }
+
+    /**
+     * Cross-account de-duplication: exact match on original_url (or id, for posts
+     * without one — keeps the newest of a repeated boost) plus a fuzzy content-similarity
+     * pass that catches the same story/boost reposted from two different connected accounts
+     * within a day of each other. Scoped to a single fetch()/fetchAccounts() call's own
+     * batch — not persisted across pagination.
+     *
+     * @param  Collection<int, array<string, mixed>>  $posts
+     * @return array<int, array<string, mixed>>
+     */
+    public function dedupe(Collection $posts): array
+    {
         // Memory ceiling — prevent unbounded allocations when many accounts
         // are connected or per-feed limits are high. Not a diversity floor:
         // the dedup pool should include everything fetched.
@@ -295,7 +338,7 @@ class FeedAggregator
         $seen = [];
         $seenBodies = [];
 
-        $deduped = $sorted->filter(function ($post) use (&$seen, &$seenBodies) {
+        return $sorted->filter(function ($post) use (&$seen, &$seenBodies) {
             $key = $post['original_url'] ?: $post['id'];
             if (isset($seen[$key])) {
                 return false;
@@ -325,16 +368,6 @@ class FeedAggregator
 
             return true;
         })->values()->take($bufferSize)->all();
-
-        $muteWords = $user->getPreference('mute_words', []);
-        $deduped = $this->applyMuteWords($deduped, $muteWords);
-
-        $cwLabelWhitelist = $user->getPreference('cw_label_whitelist', []);
-        $deduped = $this->applyCwWhitelist($deduped, $cwLabelWhitelist);
-
-        $nextCursor = ! empty($deduped) ? base64_encode(json_encode($cursors)) : null;
-
-        return ['posts' => $deduped, 'next_cursor' => $nextCursor];
     }
 
     private function resolveMaxAgeDays(User $user, SocialAccount $account): ?int
@@ -392,7 +425,7 @@ class FeedAggregator
         return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
     }
 
-    private function applyMuteWords(array $posts, array $muteWords): array
+    public function applyMuteWords(array $posts, array $muteWords): array
     {
         if (empty($muteWords)) {
             return $posts;
@@ -415,7 +448,7 @@ class FeedAggregator
      * it just suppresses the CW fields so PostContent no longer shows an overlay for it,
      * on both the post itself and any nested reply/quoted post carrying the same category.
      */
-    private function applyCwWhitelist(array $posts, array $whitelist): array
+    public function applyCwWhitelist(array $posts, array $whitelist): array
     {
         if (empty($whitelist)) {
             return $posts;

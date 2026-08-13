@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import type { Post } from '@/types/post';
 import { useFeedQueue } from './useFeedQueue';
 
@@ -11,6 +11,14 @@ vi.mock('@inertiajs/react', () => ({
         visit: vi.fn(),
     },
 }));
+
+// Posts get merged/deduped through dedupePosts(), which sorts by created_at —
+// a real-clock default here would make call order vs. sort order flaky
+// whenever two calls straddle a millisecond boundary. Each call without an
+// explicit created_at gets a timestamp one second older than the last, so
+// bare `makePost(id)` calls sort in the order they were made, deterministically.
+let nextPostSequence = 0;
+const BASE_POST_TIME = Date.parse('2026-06-01T12:00:00Z');
 
 const makePost = (id: string, created_at?: string): Post => ({
     id,
@@ -23,8 +31,10 @@ const makePost = (id: string, created_at?: string): Post => ({
     author_banner: null,
     body: 'hello',
     media: [],
-    created_at: created_at ?? new Date().toISOString(),
-    original_url: 'https://example.com',
+    created_at:
+        created_at ??
+        new Date(BASE_POST_TIME - nextPostSequence++ * 1000).toISOString(),
+    original_url: `https://example.com/${id}`,
     link_url: null,
     link_title: null,
     link_description: null,
@@ -47,65 +57,214 @@ const makePost = (id: string, created_at?: string): Post => ({
     sensitive_media: false,
 });
 
-it('initialises with provided posts', () => {
-    const posts = [makePost('1'), makePost('2')];
-    const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
-    );
-    expect(result.current.current?.id).toBe('1');
-    expect(result.current.queue).toHaveLength(1);
+const oneAccount = [{ id: 1 }];
+
+type GetConfig = { params?: { cursor?: string } };
+type GetResponse = { data: { posts: Post[]; next_cursor: string | null } };
+
+// The low-queue refill effect can fire as soon as the queue is under
+// threshold — not necessarily only right after an explicit advance() call —
+// so tests that need a distinct "initial load" vs. "refill" response key
+// off the cursor param itself rather than call order, which stays correct
+// regardless of exactly when the refill fires.
+function mockAccountResponses(initial: GetResponse, refill: GetResponse) {
+    vi.mocked(axios.get).mockImplementation(((
+        _url: string,
+        config?: GetConfig,
+    ) => Promise.resolve(config?.params?.cursor ? refill : initial)) as never);
+}
+
+beforeEach(() => {
+    vi.mocked(axios.get).mockReset();
+    vi.mocked(axios.isAxiosError).mockReset();
+    vi.mocked(router.visit).mockClear();
 });
 
-it('dequeues the head of the queue', () => {
-    const posts = [makePost('1'), makePost('2'), makePost('3')];
-    const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
-    );
-    act(() => result.current.advance());
-    expect(result.current.current?.id).toBe('2');
-    expect(result.current.queue).toHaveLength(1);
-});
-
-it('fetches more posts when queue drops to 5', async () => {
-    const posts = Array.from({ length: 6 }, (_, i) => makePost(String(i)));
-    const newPosts = [makePost('extra1'), makePost('extra2')];
-
-    vi.mocked(axios.get).mockResolvedValue({
-        data: { posts: newPosts, next_cursor: null },
-    });
-
-    const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: 'cursor123' }),
-    );
-
-    await act(async () => result.current.advance());
-
-    expect(axios.get).toHaveBeenCalledWith('/feed', {
-        params: { cursor: 'cursor123' },
-        headers: { Accept: 'application/json' },
-    });
-});
-
-it('deduplicates posts already in the queue and the current post when new batch arrives', async () => {
-    // post "1" is current, "2" is in queue — both should be excluded from the incoming batch
-    const posts = [
-        makePost('1', '2026-06-01T12:00:00Z'),
-        makePost('2', '2026-06-01T11:00:00Z'),
-    ];
-
+it('loads posts from a single connected account', async () => {
     vi.mocked(axios.get).mockResolvedValue({
         data: {
             posts: [
                 makePost('1', '2026-06-01T12:00:00Z'),
                 makePost('2', '2026-06-01T11:00:00Z'),
-                makePost('3', '2026-06-01T10:00:00Z'),
             ],
             next_cursor: null,
         },
     });
 
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: 'cursor123' }),
+        useFeedQueue({ accounts: oneAccount }),
+    );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
+    expect(result.current.queue).toHaveLength(1);
+    expect(axios.get).toHaveBeenCalledWith('/feed/accounts/1', {
+        params: undefined,
+        headers: { Accept: 'application/json' },
+    });
+});
+
+it('renders nothing when there are no connected accounts', () => {
+    const { result } = renderHook(() => useFeedQueue({ accounts: [] }));
+
+    expect(result.current.current).toBeNull();
+    expect(axios.get).not.toHaveBeenCalled();
+});
+
+it('fires one request per account and merges the results', async () => {
+    vi.mocked(axios.get).mockImplementation((url) => {
+        if (url === '/feed/accounts/1') {
+            return Promise.resolve({
+                data: {
+                    posts: [makePost('a1', '2026-06-01T12:00:00Z')],
+                    next_cursor: null,
+                },
+            });
+        }
+
+        return Promise.resolve({
+            data: {
+                posts: [makePost('a2', '2026-06-01T11:00:00Z')],
+                next_cursor: null,
+            },
+        });
+    });
+
+    const twoAccounts = [{ id: 1 }, { id: 2 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: twoAccounts }),
+    );
+
+    await waitFor(() => expect(result.current.totalAccounts).toBe(2));
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(2));
+
+    const ids = [
+        result.current.current?.id,
+        ...result.current.queue.map((p) => p.id),
+    ];
+    expect(ids).toEqual(['a1', 'a2']);
+});
+
+it('tracks loadedAccounts as each account settles, independent of totalAccounts', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [], next_cursor: null },
+    });
+
+    const threeAccounts = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: threeAccounts }),
+    );
+
+    expect(result.current.totalAccounts).toBe(3);
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(3));
+});
+
+it('deduplicates cross-account posts by original_url when merging the initial batch', async () => {
+    const shared = makePost('dup', '2026-06-01T12:00:00Z');
+
+    vi.mocked(axios.get).mockImplementation((url) => {
+        if (url === '/feed/accounts/1') {
+            return Promise.resolve({
+                data: { posts: [shared], next_cursor: null },
+            });
+        }
+
+        return Promise.resolve({
+            data: { posts: [shared], next_cursor: null },
+        });
+    });
+
+    const twoAccounts = [{ id: 1 }, { id: 2 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: twoAccounts }),
+    );
+
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(2));
+    expect(result.current.current?.id).toBe('dup');
+    expect(result.current.queue).toHaveLength(0);
+});
+
+it('dequeues the head of the queue', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: {
+            posts: [makePost('1'), makePost('2'), makePost('3')],
+            next_cursor: null,
+        },
+    });
+
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: oneAccount }),
+    );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
+
+    act(() => result.current.advance());
+    expect(result.current.current?.id).toBe('2');
+    expect(result.current.queue).toHaveLength(1);
+});
+
+it('fetches more posts from accounts that still have a cursor when the queue drops to 5', async () => {
+    const posts = Array.from({ length: 6 }, (_, i) => makePost(String(i)));
+
+    mockAccountResponses(
+        { data: { posts, next_cursor: 'cursor123' } },
+        { data: { posts: [makePost('extra1'), makePost('extra2')], next_cursor: null } },
+    );
+
+    renderHook(() => useFeedQueue({ accounts: oneAccount }));
+
+    await waitFor(() =>
+        expect(axios.get).toHaveBeenCalledWith('/feed/accounts/1', {
+            params: { cursor: 'cursor123' },
+            headers: { Accept: 'application/json' },
+        }),
+    );
+});
+
+it('does not refetch an account once it reports next_cursor: null', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: {
+            posts: Array.from({ length: 6 }, (_, i) => makePost(String(i))),
+            next_cursor: null,
+        },
+    });
+
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: oneAccount }),
+    );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('0'));
+
+    const callsBefore = vi.mocked(axios.get).mock.calls.length;
+    await act(async () => result.current.advance());
+    expect(vi.mocked(axios.get).mock.calls.length).toBe(callsBefore);
+});
+
+it('deduplicates posts already in the queue and the current post when a refill batch arrives', async () => {
+    // post "1" is current, "2" is in queue — both should be excluded from the incoming batch
+    mockAccountResponses(
+        {
+            data: {
+                posts: [
+                    makePost('1', '2026-06-01T12:00:00Z'),
+                    makePost('2', '2026-06-01T11:00:00Z'),
+                ],
+                next_cursor: 'cursor123',
+            },
+        },
+        {
+            data: {
+                posts: [
+                    makePost('1', '2026-06-01T12:00:00Z'),
+                    makePost('2', '2026-06-01T11:00:00Z'),
+                    makePost('3', '2026-06-01T10:00:00Z'),
+                ],
+                next_cursor: null,
+            },
+        },
+    );
+
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: oneAccount }),
     );
 
     await waitFor(() => expect(result.current.queue).toHaveLength(2));
@@ -118,34 +277,42 @@ it('deduplicates posts already in the queue and the current post when new batch 
 });
 
 it('appends incoming posts after existing queue to avoid skipping buffered posts', async () => {
-    // "mid" is current, "old" is in queue — "new" (newer timestamp) should be
-    // appended after "old" so buffered posts are never skipped.
-    const posts = [
-        makePost('mid', '2026-06-01T10:00:00Z'),
-        makePost('old', '2026-06-01T09:00:00Z'),
-    ];
-
-    vi.mocked(axios.get).mockResolvedValue({
-        data: {
-            posts: [makePost('new', '2026-06-01T12:00:00Z')],
-            next_cursor: null,
+    mockAccountResponses(
+        {
+            data: {
+                posts: [
+                    makePost('mid', '2026-06-01T10:00:00Z'),
+                    makePost('old', '2026-06-01T09:00:00Z'),
+                ],
+                next_cursor: 'cursor123',
+            },
         },
-    });
+        {
+            data: {
+                posts: [makePost('new', '2026-06-01T12:00:00Z')],
+                next_cursor: null,
+            },
+        },
+    );
 
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: 'cursor123' }),
+        useFeedQueue({ accounts: oneAccount }),
     );
 
     await waitFor(() => expect(result.current.queue).toHaveLength(2));
-
     expect(result.current.queue.map((p) => p.id)).toEqual(['old', 'new']);
 });
 
-it('advancing past the end of the queue sets current to null, and further advance is a no-op', () => {
-    const posts = [makePost('1'), makePost('2')];
+it('advancing past the end of the queue sets current to null, and further advance is a no-op', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
 
     act(() => result.current.advance());
     expect(result.current.current?.id).toBe('2');
@@ -160,28 +327,26 @@ it('advancing past the end of the queue sets current to null, and further advanc
 });
 
 it('restores current from an incoming batch after the feed was exhausted', async () => {
-    vi.mocked(axios.get).mockResolvedValue({
-        data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
-    });
-
-    const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: [], initialCursor: 'cursor123' }),
+    mockAccountResponses(
+        { data: { posts: [], next_cursor: 'cursor123' } },
+        { data: { posts: [makePost('1'), makePost('2')], next_cursor: null } },
     );
 
-    expect(result.current.current).toBeNull();
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: oneAccount }),
+    );
 
     await waitFor(() => expect(result.current.current?.id).toBe('1'));
     expect(result.current.queue.map((p) => p.id)).toEqual(['2']);
 });
 
 it('stays exhausted when a refill while current is null returns no posts', async () => {
-    vi.mocked(axios.get).mockClear();
     vi.mocked(axios.get).mockResolvedValue({
         data: { posts: [], next_cursor: null },
     });
 
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: [], initialCursor: 'cursor123' }),
+        useFeedQueue({ accounts: oneAccount }),
     );
 
     await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(1));
@@ -190,15 +355,22 @@ it('stays exhausted when a refill while current is null returns no posts', async
 });
 
 it('goBack still walks back to the correct pre-enqueue post after an enqueue at a non-zero position', async () => {
-    const posts = Array.from({ length: 7 }, (_, i) => makePost(String(i)));
-
-    vi.mocked(axios.get).mockResolvedValue({
-        data: { posts: [makePost('new')], next_cursor: null },
+    vi.mocked(axios.get).mockResolvedValueOnce({
+        data: {
+            posts: Array.from({ length: 7 }, (_, i) => makePost(String(i))),
+            next_cursor: 'cursor123',
+        },
     });
 
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: 'cursor123' }),
+        useFeedQueue({ accounts: oneAccount }),
     );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('0'));
+
+    vi.mocked(axios.get).mockResolvedValueOnce({
+        data: { posts: [makePost('new')], next_cursor: null },
+    });
 
     act(() => result.current.advance()); // current: '1', history: ['0']
 
@@ -219,104 +391,39 @@ it('goBack still walks back to the correct pre-enqueue post after an enqueue at 
     ]);
 });
 
-it('redirects to login when feed refill gets unauthenticated', async () => {
-    const posts = Array.from({ length: 6 }, (_, i) => makePost(String(i)));
-
+it('redirects to login when an account fetch gets unauthenticated', async () => {
     vi.mocked(axios.isAxiosError).mockReturnValue(true);
     vi.mocked(axios.get).mockRejectedValue({
         isAxiosError: true,
         response: { status: 401 },
     });
-    vi.mocked(router.visit).mockClear();
 
-    renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: 'cursor123' }),
-    );
+    renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await act(async () => Promise.resolve());
 
     expect(router.visit).toHaveBeenCalledWith('/login');
 });
 
-it('redirects to login when feed refill gets an expired session (419)', async () => {
-    const posts = Array.from({ length: 6 }, (_, i) => makePost(String(i)));
-
+it('redirects to login when an account fetch gets an expired session (419)', async () => {
     vi.mocked(axios.isAxiosError).mockReturnValue(true);
     vi.mocked(axios.get).mockRejectedValue({
         isAxiosError: true,
         response: { status: 419 },
     });
-    vi.mocked(router.visit).mockClear();
 
-    renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: 'cursor123' }),
-    );
+    renderHook(() => useFeedQueue({ accounts: oneAccount }));
 
     await act(async () => Promise.resolve());
 
     expect(router.visit).toHaveBeenCalledWith('/login');
 });
 
-it('skips posts with cw_text when cwBehavior is skip', () => {
+it('skips posts with cw_text when cwBehavior is skip', async () => {
     const cwPost = makePost('cw1');
     cwPost.cw_text = 'Content warning';
 
     const normalPost = makePost('normal1');
-
-    const { result } = renderHook(() =>
-        useFeedQueue({
-            initialPosts: [cwPost, normalPost],
-            initialCursor: null,
-            cwBehavior: 'skip',
-            sensitiveMediaBehavior: 'show',
-        }),
-    );
-
-    expect(result.current.current?.id).toBe('normal1');
-    expect(result.current.queue).toHaveLength(0);
-});
-
-it('skips posts with sensitive_media when sensitiveMediaBehavior is skip', () => {
-    const sensitivePost = makePost('sensitive1');
-    sensitivePost.sensitive_media = true;
-
-    const normalPost = makePost('normal2');
-
-    const { result } = renderHook(() =>
-        useFeedQueue({
-            initialPosts: [sensitivePost, normalPost],
-            initialCursor: null,
-            cwBehavior: 'show',
-            sensitiveMediaBehavior: 'skip',
-        }),
-    );
-
-    expect(result.current.current?.id).toBe('normal2');
-});
-
-it('does not skip cw posts when cwBehavior is blur', () => {
-    const cwPost = makePost('cw2');
-    cwPost.cw_text = 'Spoiler';
-
-    const { result } = renderHook(() =>
-        useFeedQueue({
-            initialPosts: [cwPost],
-            initialCursor: null,
-            cwBehavior: 'blur',
-            sensitiveMediaBehavior: 'show',
-        }),
-    );
-
-    expect(result.current.current?.id).toBe('cw2');
-});
-
-it('filters cw posts from fetchMore response when cwBehavior is skip', async () => {
-    const normalPost = makePost('normal-fetch');
-    const cwPost = makePost('cw-fetch');
-    cwPost.cw_text = 'Spoiler content';
-
-    // Start with enough posts and a cursor so fetchMore will be triggered
-    const posts = Array.from({ length: 6 }, (_, i) => makePost(`init-${i}`));
 
     vi.mocked(axios.get).mockResolvedValue({
         data: { posts: [cwPost, normalPost], next_cursor: null },
@@ -324,18 +431,80 @@ it('filters cw posts from fetchMore response when cwBehavior is skip', async () 
 
     const { result } = renderHook(() =>
         useFeedQueue({
-            initialPosts: posts,
-            initialCursor: 'cursor123',
+            accounts: oneAccount,
             cwBehavior: 'skip',
             sensitiveMediaBehavior: 'show',
         }),
     );
 
-    // Advance enough to trigger fetchMore
-    await act(async () => result.current.advance());
+    await waitFor(() => expect(result.current.current?.id).toBe('normal1'));
+    expect(result.current.queue).toHaveLength(0);
+});
+
+it('skips posts with sensitive_media when sensitiveMediaBehavior is skip', async () => {
+    const sensitivePost = makePost('sensitive1');
+    sensitivePost.sensitive_media = true;
+
+    const normalPost = makePost('normal2');
+
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [sensitivePost, normalPost], next_cursor: null },
+    });
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            accounts: oneAccount,
+            cwBehavior: 'show',
+            sensitiveMediaBehavior: 'skip',
+        }),
+    );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('normal2'));
+});
+
+it('does not skip cw posts when cwBehavior is blur', async () => {
+    const cwPost = makePost('cw2');
+    cwPost.cw_text = 'Spoiler';
+
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [cwPost], next_cursor: null },
+    });
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            accounts: oneAccount,
+            cwBehavior: 'blur',
+            sensitiveMediaBehavior: 'show',
+        }),
+    );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('cw2'));
+});
+
+it('filters cw posts from a refill response when cwBehavior is skip', async () => {
+    const normalPost = makePost('normal-fetch');
+    const cwPost = makePost('cw-fetch');
+    cwPost.cw_text = 'Spoiler content';
+
+    mockAccountResponses(
+        {
+            data: {
+                posts: Array.from({ length: 6 }, (_, i) => makePost(`init-${i}`)),
+                next_cursor: 'cursor123',
+            },
+        },
+        { data: { posts: [cwPost, normalPost], next_cursor: null } },
+    );
+
+    const { result } = renderHook(() =>
+        useFeedQueue({
+            accounts: oneAccount,
+            cwBehavior: 'skip',
+            sensitiveMediaBehavior: 'show',
+        }),
+    );
 
     await waitFor(() => {
-        // The CW post should be filtered, only normalPost added to queue
         const allIds = [
             result.current.current?.id,
             ...result.current.queue.map((p) => p.id),
@@ -345,58 +514,97 @@ it('filters cw posts from fetchMore response when cwBehavior is skip', async () 
     });
 });
 
-it('goBack is a no-op when history is empty', () => {
-    const posts = [makePost('1'), makePost('2')];
+it('goBack is a no-op when history is empty', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.goBack());
     expect(result.current.current?.id).toBe('1');
 });
 
-it('goBack restores the previous post after one advance', () => {
-    const posts = [makePost('1'), makePost('2'), makePost('3')];
+it('goBack restores the previous post after one advance', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: {
+            posts: [makePost('1'), makePost('2'), makePost('3')],
+            next_cursor: null,
+        },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.advance());
     expect(result.current.current?.id).toBe('2');
     act(() => result.current.goBack());
     expect(result.current.current?.id).toBe('1');
 });
 
-it('goBack restores the departed post to the front of the queue', () => {
-    const posts = [makePost('1'), makePost('2'), makePost('3')];
+it('goBack restores the departed post to the front of the queue', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: {
+            posts: [makePost('1'), makePost('2'), makePost('3')],
+            next_cursor: null,
+        },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.advance());
     act(() => result.current.goBack());
     expect(result.current.queue.map((p) => p.id)).toEqual(['2', '3']);
 });
 
-it('canGoBack is false when history is empty', () => {
-    const posts = [makePost('1'), makePost('2')];
+it('canGoBack is false when history is empty', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     expect(result.current.canGoBack).toBe(false);
 });
 
-it('canGoBack is true after advancing at least once', () => {
-    const posts = [makePost('1'), makePost('2')];
+it('canGoBack is true after advancing at least once', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.advance());
     expect(result.current.canGoBack).toBe(true);
 });
 
-it('goBack then advance again restores the original order without dropping posts', () => {
-    const posts = [makePost('1'), makePost('2'), makePost('3')];
+it('goBack then advance again restores the original order without dropping posts', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: {
+            posts: [makePost('1'), makePost('2'), makePost('3')],
+            next_cursor: null,
+        },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
 
     act(() => result.current.advance()); // current: 2, queue: [3]
     act(() => result.current.goBack()); // current: 1, queue should become [2, 3]
@@ -406,34 +614,53 @@ it('goBack then advance again restores the original order without dropping posts
     expect(result.current.queue.map((p) => p.id)).toEqual(['3']);
 });
 
-it('canGoBack returns to false once history is exhausted by goBack', () => {
-    const posts = [makePost('1'), makePost('2')];
+it('canGoBack returns to false once history is exhausted by goBack', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.advance());
     act(() => result.current.goBack());
     expect(result.current.canGoBack).toBe(false);
 });
 
-it('skipTo reorders the target post to the front of the queue', () => {
-    const posts = [makePost('1'), makePost('2'), makePost('3'), makePost('4')];
+it('skipTo reorders the target post to the front of the queue', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: {
+            posts: [makePost('1'), makePost('2'), makePost('3'), makePost('4')],
+            next_cursor: null,
+        },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
 
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.skipTo('3'));
 
     expect(result.current.current?.id).toBe('1');
     expect(result.current.queue.map((p) => p.id)).toEqual(['3', '2', '4']);
 });
 
-it('skipTo followed by advance moves straight to the target post', () => {
-    const posts = [makePost('1'), makePost('2'), makePost('3'), makePost('4')];
+it('skipTo followed by advance moves straight to the target post', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: {
+            posts: [makePost('1'), makePost('2'), makePost('3'), makePost('4')],
+            next_cursor: null,
+        },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
 
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.skipTo('3'));
     act(() => result.current.advance());
 
@@ -441,24 +668,38 @@ it('skipTo followed by advance moves straight to the target post', () => {
     expect(result.current.queue.map((p) => p.id)).toEqual(['2', '4']);
 });
 
-it('skipTo targeting the current post is a no-op', () => {
-    const posts = [makePost('1'), makePost('2'), makePost('3')];
+it('skipTo targeting the current post is a no-op', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: {
+            posts: [makePost('1'), makePost('2'), makePost('3')],
+            next_cursor: null,
+        },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
 
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.skipTo('1'));
 
     expect(result.current.current?.id).toBe('1');
     expect(result.current.queue.map((p) => p.id)).toEqual(['2', '3']);
 });
 
-it('skipTo targeting a post already in history is a no-op', () => {
-    const posts = [makePost('1'), makePost('2'), makePost('3')];
+it('skipTo targeting a post already in history is a no-op', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: {
+            posts: [makePost('1'), makePost('2'), makePost('3')],
+            next_cursor: null,
+        },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
 
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.advance()); // current: '2', history: ['1']
     act(() => result.current.skipTo('1'));
 
@@ -466,23 +707,35 @@ it('skipTo targeting a post already in history is a no-op', () => {
     expect(result.current.queue.map((p) => p.id)).toEqual(['3']);
 });
 
-it('skipTo targeting an unknown post id is a no-op', () => {
-    const posts = [makePost('1'), makePost('2')];
+it('skipTo targeting an unknown post id is a no-op', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: { posts: [makePost('1'), makePost('2')], next_cursor: null },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
 
+    await waitFor(() => expect(result.current.current?.id).toBe('1'));
     act(() => result.current.skipTo('does-not-exist'));
 
     expect(result.current.current?.id).toBe('1');
     expect(result.current.queue.map((p) => p.id)).toEqual(['2']);
 });
 
-it('caps history at 50 posts', () => {
-    const posts = Array.from({ length: 60 }, (_, i) => makePost(String(i)));
+it('caps history at 50 posts', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+        data: {
+            posts: Array.from({ length: 60 }, (_, i) => makePost(String(i))),
+            next_cursor: null,
+        },
+    });
+
     const { result } = renderHook(() =>
-        useFeedQueue({ initialPosts: posts, initialCursor: null }),
+        useFeedQueue({ accounts: oneAccount }),
     );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('0'));
 
     for (let i = 0; i < 55; i++) {
         act(() => result.current.advance());

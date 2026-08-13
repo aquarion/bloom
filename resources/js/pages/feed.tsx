@@ -1,4 +1,4 @@
-import { Deferred, Head } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { BloomSpinner } from '@/components/feed/BloomSpinner';
 import { FeedChrome } from '@/components/feed/FeedChrome';
@@ -12,7 +12,6 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { registerFeedDebug, setupDebugWindow } from '@/lib/debug';
 import { cn } from '@/lib/utils';
-import type { Post } from '@/types/post';
 
 function extractFirstLink(html: string): string | null {
     const match = html.match(/href="([^"]+)"/);
@@ -21,10 +20,7 @@ function extractFirstLink(html: string): string | null {
 }
 
 export default function Feed(props: {
-    // Deferred on the backend (FeedController) — absent from the initial
-    // page load, then filled in once Inertia resolves them together.
-    initialPosts?: Post[];
-    initialCursor?: string | null;
+    accounts: { id: number }[];
     debugEnabled: boolean;
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
@@ -32,49 +28,32 @@ export default function Feed(props: {
 }) {
     return (
         <CwStateProvider initialAuthorWhitelist={props.cwAuthorWhitelist}>
-            <Deferred
-                data={['initialPosts', 'initialCursor']}
-                fallback={<FeedLoadingScreen />}
-            >
-                <FeedView
-                    {...props}
-                    initialPosts={props.initialPosts ?? []}
-                    initialCursor={props.initialCursor ?? null}
-                />
-            </Deferred>
+            <FeedView {...props} />
         </CwStateProvider>
     );
 }
 
-function FeedLoadingScreen() {
-    return (
-        <div className="flex h-screen w-screen items-center justify-center bg-black">
-            <BloomSpinner className="size-8 text-white/70" />
-        </div>
-    );
-}
-
 function FeedView({
-    initialPosts,
-    initialCursor,
+    accounts,
     debugEnabled,
     cwBehavior,
     sensitiveMediaBehavior,
 }: {
-    initialPosts: Post[];
-    initialCursor: string | null;
+    accounts: { id: number }[];
     debugEnabled: boolean;
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
 }) {
-    const { current, advance, queue, goBack, skipTo, canGoBack } = useFeedQueue(
-        {
-            initialPosts,
-            initialCursor,
-            cwBehavior,
-            sensitiveMediaBehavior,
-        },
-    );
+    const {
+        current,
+        advance,
+        queue,
+        goBack,
+        skipTo,
+        canGoBack,
+        loadedAccounts,
+        totalAccounts,
+    } = useFeedQueue({ accounts, cwBehavior, sensitiveMediaBehavior });
     const [paused, setPaused] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [panelOpen, setPanelOpen] = useState(false);
@@ -98,7 +77,11 @@ function FeedView({
         handleAdvance,
         handleCarouselProgress,
         resetCarouselProgress,
-    } = useFeedTransition({ current, queue, advance, initialPosts });
+        // Posts now always arrive asynchronously (one fetch per account), so
+        // there's never a synchronously-available post to seed nextBackground
+        // with here — it falls back to `current` via `nextBackground ?? current`
+        // below until the first transition's onComplete populates it for real.
+    } = useFeedTransition({ current, queue, advance, initialPosts: [] });
 
     useEffect(() => {
         if (debugEnabled) {
@@ -111,9 +94,9 @@ function FeedView({
         registerFeedDebug({
             current,
             queue,
-            cursor: initialCursor,
+            cursor: null,
         });
-    }, [current, queue, initialCursor]);
+    }, [current, queue]);
 
     const handleGoBack = () => {
         goBack();
@@ -176,6 +159,20 @@ function FeedView({
     });
 
     if (!current) {
+        // Still waiting on one or more accounts' initial fetch — show real
+        // progress rather than an indefinite spinner. Once every account has
+        // reported in with nothing to show, this is a genuinely empty feed.
+        if (totalAccounts > 0 && loadedAccounts < totalAccounts) {
+            return (
+                <div className="flex h-screen w-screen flex-col items-center justify-center gap-4 bg-black text-white">
+                    <BloomSpinner className="size-8 text-white/70" />
+                    <p className="text-sm opacity-50">
+                        Loading posts… ({loadedAccounts} of {totalAccounts})
+                    </p>
+                </div>
+            );
+        }
+
         return (
             <div className="flex h-screen items-center justify-center bg-black text-white">
                 <p className="text-sm opacity-50">

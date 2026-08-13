@@ -40,7 +40,7 @@
 		"@biomejs/biome": "^2.5.6",
 		"@gsap/react": "^2.1.2",
 		"@headlessui/react": "^2.2.0",
-		"@inertiajs/react": "^3.0.0",
+		"@inertiajs/react": "^3.6.1",
 		"@inertiajs/vite": "^3.6.1",
 		"@istic-co/otel-browser-errors": "^0.3.0",
 		"@radix-ui/react-avatar": "^1.2.1",

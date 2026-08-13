@@ -6,6 +6,7 @@ import { pickTemplate, SplitText } from '@/lib/animations';
 import type { AnimationTemplate } from '@/lib/animations/types';
 import { postLevelCwLabel } from '@/lib/cw';
 import { EmojiText } from '@/lib/emoji-text';
+import { computeParagraphHighlights } from '@/lib/paragraph-highlight';
 import type { PostColors } from '@/lib/post-colors';
 import { postColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
@@ -75,30 +76,50 @@ export function TextPost({
             return;
         }
 
-        // Apply highlight colour to the longest content word — must happen after SplitText
+        // Pick a highlight word per paragraph — must happen after SplitText
         // rewrites the DOM, as it strips any inline colour spans.
         // Exclude @mentions (PostNormalizer keeps inline mentions in the body by
         // design — see MentionClassifier::ROLE_INLINE) and #hashtags (PostNormalizer
         // always strips these; any that appear are from posts not yet re-normalized).
         const highlight =
             colors?.highlight ?? postColors(post.author_handle).highlight;
-        const contentWords = [...split.words].filter(
-            (w) => !/^[@#]/.test(w.textContent ?? ''),
-        );
-        const wordPool =
-            contentWords.length > 0 ? contentWords : [...split.words];
-        const longestEl = wordPool.reduce((a, b) =>
-            (a.textContent?.length ?? 0) >= (b.textContent?.length ?? 0)
-                ? a
-                : b,
-        );
-        gsap.set(longestEl, { color: highlight });
+        const { groups, highlights } = computeParagraphHighlights({
+            words: split.words as Element[],
+            lineEls: lineRefs.current.slice(0, lines.length),
+            paragraphStarts,
+        });
 
         const template = pickTemplate(lastTemplate.current);
         lastTemplate.current = template;
 
         const tl = gsap.timeline({ onComplete: () => onReadyRef.current?.() });
         template(tl, split.words as Element[], container);
+
+        // Resolve each paragraph's highlight word to its highlight colour once
+        // that paragraph's own words have finished entering, so the highlight
+        // settles paragraph-by-paragraph instead of all at once up front.
+        const totalWords = split.words.length;
+        const revealDuration = tl.duration();
+        const colorDuration = 0.3;
+        let wordsSeen = 0;
+
+        groups.forEach((group, i) => {
+            wordsSeen += group.length;
+
+            const word = highlights[i];
+
+            if (!word) {
+                return;
+            }
+
+            const resolveAt =
+                revealDuration * (wordsSeen / totalWords) - colorDuration;
+            tl.to(
+                word,
+                { color: highlight, duration: colorDuration, ease: 'power2.out' },
+                Math.max(0, resolveAt),
+            );
+        });
 
         if (panelsRef.current) {
             tl.fromTo(

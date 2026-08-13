@@ -116,7 +116,11 @@ export function TextPost({
                 revealDuration * (wordsSeen / totalWords) - colorDuration;
             tl.to(
                 word,
-                { color: highlight, duration: colorDuration, ease: 'power2.out' },
+                {
+                    color: highlight,
+                    duration: colorDuration,
+                    ease: 'power2.out',
+                },
                 Math.max(0, resolveAt),
             );
         });

@@ -26,7 +26,10 @@ export function computeParagraphHighlights({
     paragraphStarts,
 }: ParagraphHighlightInput): ParagraphHighlightResult {
     const lineOfWord = mapWordsToLines(words, lineEls);
-    const lineParagraph = paragraphIndexPerLine(lineEls.length, paragraphStarts);
+    const lineParagraph = paragraphIndexPerLine(
+        lineEls.length,
+        paragraphStarts,
+    );
 
     const numParagraphs = paragraphStarts.size + 1;
     const groups: Element[][] = Array.from({ length: numParagraphs }, () => []);

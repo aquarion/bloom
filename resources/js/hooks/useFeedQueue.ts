@@ -8,7 +8,7 @@ import {
     useRef,
     useState,
 } from 'react';
-import { dedupePosts } from '@/lib/feedDedup';
+import { dedupeAgainstHistory } from '@/lib/feedDedup';
 import type { FeedResponse, Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 
@@ -53,7 +53,46 @@ type Action =
     | { type: 'advance' }
     | { type: 'go_back' }
     | { type: 'skip_to'; postId: string }
-    | { type: 'enqueue'; posts: Post[]; results: AccountResult[] };
+    | {
+          type: 'enqueue';
+          posts: Post[];
+          results: AccountResult[];
+          bufferSize: number;
+          // Initial load streams one dispatch per account as each resolves
+          // (see the effect below) rather than waiting for all of them —
+          // sortedMerge interleaves each arrival into the queue by
+          // created_at so that streaming doesn't put an account's older
+          // first page ahead of another account's newer one. Refills
+          // (fetchMore) always append instead: once something is queued,
+          // a later page shouldn't reorder it out from under the user.
+          sortedMerge: boolean;
+      };
+
+// `incoming` is sorted newest-first, but `existing` (the current queue)
+// isn't guaranteed to be — skipTo() deliberately reorders it, and an
+// append-only refill (fetchMore) can land in between two streamed initial-
+// load dispatches. So rather than a two-pointer merge that assumes both
+// sides are globally sorted (and would silently misorder anything after
+// the first out-of-order item), each incoming post is inserted just before
+// the first existing post it's newer than or equal to — leaving every
+// other existing post, and any prior reordering, untouched.
+function mergeSortedByDate(existing: Post[], incoming: Post[]): Post[] {
+    const result = [...existing];
+
+    for (const post of incoming) {
+        const insertAt = result.findIndex(
+            (p) => p.created_at.localeCompare(post.created_at) <= 0,
+        );
+
+        if (insertAt === -1) {
+            result.push(post);
+        } else {
+            result.splice(insertAt, 0, post);
+        }
+    }
+
+    return result;
+}
 
 function reducer(state: State, action: Action): State {
     switch (action.type) {
@@ -107,64 +146,67 @@ function reducer(state: State, action: Action): State {
         case 'enqueue': {
             const currentPost = state.path[state.position] ?? null;
             const queuePosts = state.path.slice(state.position + 1);
-            const seen = new Set<string>([
-                ...(currentPost ? [currentPost.id] : []),
-                ...queuePosts.map((p) => p.id),
-            ]);
-            const incoming = action.posts
-                .filter((p) => {
-                    if (seen.has(p.id)) {
-                        return false;
-                    }
-
-                    seen.add(p.id);
-
-                    return true;
-                })
-                .sort((a, b) => b.created_at.localeCompare(a.created_at));
-            const merged = [...queuePosts, ...incoming];
             const historyPart = state.path.slice(0, state.position);
+
+            // Dedup against the whole path (history + current + queue), not
+            // just this batch — accounts resolve one at a time now, so a
+            // duplicate can arrive in a later dispatch than the post it
+            // duplicates. Uncapped here: bufferSize is enforced on the
+            // merged queue below instead of per streamed batch, since a
+            // single account's batch is far smaller than bufferSize and
+            // would make the cap inert if applied per-dispatch.
+            const incoming = dedupeAgainstHistory(
+                action.posts,
+                state.path,
+                Number.POSITIVE_INFINITY,
+            );
+            const merged = (
+                action.sortedMerge
+                    ? mergeSortedByDate(queuePosts, incoming)
+                    : [...queuePosts, ...incoming]
+            ).slice(0, action.bufferSize);
             const cursors = { ...state.cursors };
             const failureCounts = { ...state.failureCounts };
             const failed = { ...state.failed };
 
-            for (const r of action.results) {
-                if (r.failed) {
-                    const count = (failureCounts[r.accountId] ?? 0) + 1;
-                    failureCounts[r.accountId] = count;
-                    failed[r.accountId] = true;
-                    cursors[r.accountId] =
+            for (const result of action.results) {
+                if (result.failed) {
+                    const count = (failureCounts[result.accountId] ?? 0) + 1;
+                    failureCounts[result.accountId] = count;
+                    failed[result.accountId] = true;
+                    cursors[result.accountId] =
                         count >= MAX_ACCOUNT_RETRIES
                             ? null
-                            : (r.nextCursor ?? '');
+                            : (result.nextCursor ?? '');
                 } else {
-                    failureCounts[r.accountId] = 0;
-                    failed[r.accountId] = false;
-                    cursors[r.accountId] = r.nextCursor;
+                    failureCounts[result.accountId] = 0;
+                    failed[result.accountId] = false;
+                    cursors[result.accountId] = result.nextCursor;
                 }
             }
 
+            const withAccountState = {
+                ...state,
+                cursors,
+                failureCounts,
+                failed,
+            };
+
             if (currentPost === null) {
                 if (merged.length === 0) {
-                    return { ...state, cursors, failureCounts, failed };
+                    return withAccountState;
                 }
 
                 return {
-                    ...state,
+                    ...withAccountState,
                     path: [...historyPart, ...merged],
                     position: historyPart.length,
-                    cursors,
-                    failureCounts,
-                    failed,
                 };
             }
 
             return {
-                ...state,
+                ...withAccountState,
                 path: [...historyPart, currentPost, ...merged],
-                cursors,
-                failureCounts,
-                failed,
             };
         }
     }
@@ -300,11 +342,19 @@ export function useFeedQueue({
                 ),
             )
                 .then((results) => {
-                    const posts = dedupePosts(
-                        results.flatMap((r) => r.posts),
+                    const posts = results.flatMap((result) =>
+                        result.posts.filter(filterPost),
+                    );
+                    // Append, not sortedMerge: once something's queued, a
+                    // refill page shouldn't reorder it out from under the
+                    // user even if the new page happens to skew newer.
+                    dispatch({
+                        type: 'enqueue',
+                        posts,
+                        results,
                         bufferSize,
-                    ).filter(filterPost);
-                    dispatch({ type: 'enqueue', posts, results });
+                        sortedMerge: false,
+                    });
                 })
                 .finally(() => {
                     fetchingRef.current = false;
@@ -313,9 +363,12 @@ export function useFeedQueue({
         [fetchAccount, filterPost, bufferSize],
     );
 
-    // Initial load: fan out one request per connected account rather than
-    // waiting on a single combined fetch, then merge+dedupe as results
-    // arrive. loadedAccounts/totalAccounts let the UI show real progress.
+    // Initial load: fan out one request per connected account and dispatch
+    // each as it resolves, instead of waiting on every account before
+    // showing anything — the point is to not let one slow account hold up
+    // first paint. sortedMerge interleaves each arrival by created_at so a
+    // slower account's result still lands in the right chronological spot.
+    // loadedAccounts/totalAccounts let the UI show real progress meanwhile.
     useEffect(() => {
         if (accounts.length === 0) {
             return;
@@ -323,27 +376,24 @@ export function useFeedQueue({
 
         let cancelled = false;
 
-        Promise.all(
-            accounts.map(async (account) => {
-                const result = await fetchAccount(account.id, null);
-
-                if (!cancelled) {
-                    setLoadedAccounts((n) => n + 1);
+        for (const account of accounts) {
+            fetchAccount(account.id, null).then((result) => {
+                if (cancelled) {
+                    return;
                 }
 
-                return result;
-            }),
-        ).then((results) => {
-            if (cancelled) {
-                return;
-            }
+                setLoadedAccounts((n) => n + 1);
 
-            const posts = dedupePosts(
-                results.flatMap((r) => r.posts),
-                bufferSize,
-            ).filter(filterPost);
-            dispatch({ type: 'enqueue', posts, results });
-        });
+                const posts = result.posts.filter(filterPost);
+                dispatch({
+                    type: 'enqueue',
+                    posts,
+                    results: [result],
+                    bufferSize,
+                    sortedMerge: true,
+                });
+            });
+        }
 
         return () => {
             cancelled = true;

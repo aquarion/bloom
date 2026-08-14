@@ -181,6 +181,123 @@ it('deduplicates cross-account posts by original_url when merging the initial ba
     expect(result.current.queue).toHaveLength(0);
 });
 
+it("shows the first account's post without waiting for a slower account to resolve", async () => {
+    let resolveSecond: (value: unknown) => void = () => {};
+    const second = new Promise((resolve) => {
+        resolveSecond = resolve;
+    });
+
+    vi.mocked(axios.get).mockImplementation((url) => {
+        if (url === '/feed/accounts/1') {
+            return Promise.resolve({
+                data: {
+                    posts: [makePost('fast', '2026-06-01T12:00:00Z')],
+                    next_cursor: null,
+                },
+            });
+        }
+
+        return second.then(() => ({
+            data: {
+                posts: [makePost('slow', '2026-06-01T11:00:00Z')],
+                next_cursor: null,
+            },
+        }));
+    });
+
+    const twoAccounts = [{ id: 1 }, { id: 2 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: twoAccounts }),
+    );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('fast'));
+    // Account 2's fetch is still pending — the first account's post rendered
+    // without waiting for it.
+    expect(result.current.loadedAccounts).toBe(1);
+
+    resolveSecond(undefined);
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(2));
+});
+
+it("interleaves a slower account's post into the correct chronological position once it resolves", async () => {
+    let resolveSecond: (value: unknown) => void = () => {};
+    const second = new Promise((resolve) => {
+        resolveSecond = resolve;
+    });
+
+    vi.mocked(axios.get).mockImplementation((url) => {
+        if (url === '/feed/accounts/1') {
+            return Promise.resolve({
+                data: {
+                    posts: [
+                        makePost('a-new', '2026-06-01T12:00:00Z'),
+                        makePost('a-old', '2026-06-01T09:00:00Z'),
+                    ],
+                    next_cursor: null,
+                },
+            });
+        }
+
+        return second.then(() => ({
+            data: {
+                posts: [makePost('b-mid', '2026-06-01T10:30:00Z')],
+                next_cursor: null,
+            },
+        }));
+    });
+
+    const twoAccounts = [{ id: 1 }, { id: 2 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: twoAccounts }),
+    );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('a-new'));
+    expect(result.current.queue.map((p) => p.id)).toEqual(['a-old']);
+
+    resolveSecond(undefined);
+
+    // b-mid (10:30) belongs between a-new (12:00, already current) and
+    // a-old (09:00) — a plain append would have put it after a-old instead.
+    await waitFor(() =>
+        expect(result.current.queue.map((p) => p.id)).toEqual([
+            'b-mid',
+            'a-old',
+        ]),
+    );
+});
+
+it('deduplicates a post that arrives from a second account after the first has already been queued', async () => {
+    const shared = makePost('dup', '2026-06-01T12:00:00Z');
+    let resolveSecond: (value: unknown) => void = () => {};
+    const second = new Promise((resolve) => {
+        resolveSecond = resolve;
+    });
+
+    vi.mocked(axios.get).mockImplementation((url) => {
+        if (url === '/feed/accounts/1') {
+            return Promise.resolve({
+                data: { posts: [shared], next_cursor: null },
+            });
+        }
+
+        return second.then(() => ({
+            data: { posts: [shared], next_cursor: null },
+        }));
+    });
+
+    const twoAccounts = [{ id: 1 }, { id: 2 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: twoAccounts }),
+    );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('dup'));
+
+    resolveSecond(undefined);
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(2));
+
+    expect(result.current.queue).toHaveLength(0);
+});
+
 it('dequeues the head of the queue', async () => {
     vi.mocked(axios.get).mockResolvedValue({
         data: {

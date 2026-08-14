@@ -3,8 +3,9 @@ import type { Post } from '@/types/post';
 // Client-side port of app/Services/Feed/FeedAggregator.php's dedupe() pipeline.
 // The backend now fetches each account independently (see FeedAccountController),
 // so cross-account de-duplication — exact URL match plus fuzzy content-similarity —
-// has to happen here after the per-account responses are merged. Scoped to a single
-// merge batch, matching the backend: not persisted across pagination.
+// has to happen here. Accounts resolve one at a time rather than all at once
+// (see useFeedQueue), so dedupeAgainstHistory() below checks each incoming batch
+// against everything already shown or queued, not just its own batch.
 
 // Matches config/feed.php's buffer_size default — a memory ceiling, not a diversity
 // floor. Callers on a page with access to that config value should pass it through
@@ -76,6 +77,121 @@ export function similarTextPercent(a: string, b: string): number {
     return ((similarChars(a, b) * 2) / (a.length + b.length)) * 100;
 }
 
+type DedupContext = {
+    seenKeys: Set<string>;
+    // [normalised body, unix seconds] for every post already accepted whose
+    // body cleared MIN_BODY_LENGTH_FOR_SIMILARITY_CHECK.
+    seenBodies: Array<[string, number]>;
+};
+
+function isDuplicateBody(
+    normBody: string,
+    postTimeSeconds: number,
+    seenBodies: Array<[string, number]>,
+): boolean {
+    for (const [existingBody, existingTime] of seenBodies) {
+        if (
+            Math.abs(postTimeSeconds - existingTime) > SIMILARITY_WINDOW_SECONDS
+        ) {
+            continue;
+        }
+
+        // similar_text()'s score is at most 2*min(lenA,lenB)/(lenA+lenB) —
+        // skip the O(n*m) comparison outright when that ceiling can't reach
+        // the threshold (exact bound, not a heuristic: avoids the expensive
+        // path for the large majority of non-duplicate pairs).
+        const maxPossiblePercent =
+            ((2 * Math.min(normBody.length, existingBody.length)) /
+                (normBody.length + existingBody.length)) *
+            100;
+
+        if (maxPossiblePercent < SIMILARITY_THRESHOLD_PERCENT) {
+            continue;
+        }
+
+        if (
+            similarTextPercent(normBody, existingBody) >=
+            SIMILARITY_THRESHOLD_PERCENT
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Seeds a dedup context from posts already accepted elsewhere (e.g. a
+// caller's running history), so a later dedupeAgainstContext() call catches
+// duplicates against that history, not just within its own posts array.
+function buildDedupContext(existingPosts: Post[]): DedupContext {
+    const context: DedupContext = { seenKeys: new Set(), seenBodies: [] };
+
+    for (const post of existingPosts) {
+        context.seenKeys.add(post.original_url || post.id);
+
+        const normBody = normaliseBodyForDedup(post.body ?? '');
+
+        if (normBody.length < MIN_BODY_LENGTH_FOR_SIMILARITY_CHECK) {
+            continue;
+        }
+
+        const postTime = Date.parse(post.created_at);
+
+        if (!Number.isNaN(postTime)) {
+            context.seenBodies.push([normBody, postTime / 1000]);
+        }
+    }
+
+    return context;
+}
+
+// Sorts `posts` newest-first and filters out anything matching `context`
+// (exact original_url/id, or fuzzy body similarity within the time window),
+// mutating `context` with whatever it accepts so a later call sees these too.
+function dedupeAgainstContext(posts: Post[], context: DedupContext): Post[] {
+    const sorted = posts.toSorted((a, b) =>
+        b.created_at.localeCompare(a.created_at),
+    );
+
+    const deduped: Post[] = [];
+
+    for (const post of sorted) {
+        const key = post.original_url || post.id;
+
+        if (context.seenKeys.has(key)) {
+            continue;
+        }
+
+        context.seenKeys.add(key);
+
+        const normBody = normaliseBodyForDedup(post.body ?? '');
+
+        if (normBody.length >= MIN_BODY_LENGTH_FOR_SIMILARITY_CHECK) {
+            const postTime = Date.parse(post.created_at);
+
+            if (Number.isNaN(postTime)) {
+                context.seenBodies.push([normBody, 0]);
+                deduped.push(post);
+                continue;
+            }
+
+            const postTimeSeconds = postTime / 1000;
+
+            if (
+                isDuplicateBody(normBody, postTimeSeconds, context.seenBodies)
+            ) {
+                continue;
+            }
+
+            context.seenBodies.push([normBody, postTimeSeconds]);
+        }
+
+        deduped.push(post);
+    }
+
+    return deduped;
+}
+
 /**
  * Merge and de-duplicate posts pooled from several accounts' independent fetches:
  * exact match on original_url (or id, for posts without one — keeps the newest of
@@ -87,77 +203,23 @@ export function dedupePosts(
     posts: Post[],
     bufferSize: number = DEFAULT_BUFFER_SIZE,
 ): Post[] {
-    const sorted = posts.toSorted((a, b) =>
-        b.created_at.localeCompare(a.created_at),
-    );
+    const context: DedupContext = { seenKeys: new Set(), seenBodies: [] };
 
-    const seen = new Set<string>();
-    const seenBodies: Array<[string, number]> = [];
-    const deduped: Post[] = [];
+    return dedupeAgainstContext(posts, context).slice(0, bufferSize);
+}
 
-    for (const post of sorted) {
-        const key = post.original_url || post.id;
+/**
+ * Like dedupePosts, but also checks `incoming` against posts already present
+ * in `history` — for deduping one batch at a time (e.g. as each connected
+ * account's fetch resolves) against everything shown or queued so far,
+ * instead of requiring every account's response up front to dedup correctly.
+ */
+export function dedupeAgainstHistory(
+    incoming: Post[],
+    history: Post[],
+    bufferSize: number = DEFAULT_BUFFER_SIZE,
+): Post[] {
+    const context = buildDedupContext(history);
 
-        if (seen.has(key)) {
-            continue;
-        }
-
-        seen.add(key);
-
-        const normBody = normaliseBodyForDedup(post.body ?? '');
-
-        if (normBody.length >= MIN_BODY_LENGTH_FOR_SIMILARITY_CHECK) {
-            const postTime = Date.parse(post.created_at);
-
-            if (Number.isNaN(postTime)) {
-                seenBodies.push([normBody, 0]);
-                deduped.push(post);
-                continue;
-            }
-
-            const postTimeSeconds = postTime / 1000;
-            let isDuplicate = false;
-
-            for (const [existingBody, existingTime] of seenBodies) {
-                if (
-                    Math.abs(postTimeSeconds - existingTime) >
-                    SIMILARITY_WINDOW_SECONDS
-                ) {
-                    continue;
-                }
-
-                // similar_text()'s score is at most 2*min(lenA,lenB)/(lenA+lenB) —
-                // skip the O(n*m) comparison outright when that ceiling can't
-                // reach the threshold (exact bound, not a heuristic: avoids the
-                // expensive path for the large majority of non-duplicate pairs
-                // during an initial multi-account load without changing results).
-                const maxPossiblePercent =
-                    ((2 * Math.min(normBody.length, existingBody.length)) /
-                        (normBody.length + existingBody.length)) *
-                    100;
-
-                if (maxPossiblePercent < SIMILARITY_THRESHOLD_PERCENT) {
-                    continue;
-                }
-
-                if (
-                    similarTextPercent(normBody, existingBody) >=
-                    SIMILARITY_THRESHOLD_PERCENT
-                ) {
-                    isDuplicate = true;
-                    break;
-                }
-            }
-
-            if (isDuplicate) {
-                continue;
-            }
-
-            seenBodies.push([normBody, postTimeSeconds]);
-        }
-
-        deduped.push(post);
-    }
-
-    return deduped.slice(0, bufferSize);
+    return dedupeAgainstContext(incoming, context).slice(0, bufferSize);
 }

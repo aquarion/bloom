@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Post } from '@/types/post';
 import {
+    dedupeAgainstHistory,
     dedupePosts,
     normaliseBodyForDedup,
     similarTextPercent,
@@ -205,5 +206,59 @@ describe('dedupePosts', () => {
         );
 
         expect(dedupePosts(posts, 5)).toHaveLength(5);
+    });
+});
+
+describe('dedupeAgainstHistory', () => {
+    it('drops an incoming post that exact-matches a post already in history', () => {
+        const existing = makePost({
+            id: '1',
+            original_url: 'https://fosstodon.org/@alice/1',
+            created_at: '2024-01-01T00:00:00Z',
+        });
+        const duplicate = makePost({
+            id: '2',
+            original_url: 'https://fosstodon.org/@alice/1',
+            created_at: '2024-01-01T00:01:00Z',
+        });
+
+        expect(dedupeAgainstHistory([duplicate], [existing])).toHaveLength(0);
+    });
+
+    it('drops an incoming post that fuzzy-matches a post already in history within 24h', () => {
+        const body =
+            'This is a cross-posted message about interesting things happening in the world today.';
+        const now = new Date().toISOString();
+
+        const existing = makePost({
+            id: 'masto1',
+            original_url: 'https://fosstodon.org/@alice/masto1',
+            body,
+            created_at: now,
+        });
+        const duplicate = makePost({
+            id: 'bsky1',
+            original_url: 'https://bsky.app/profile/alice.bsky.social/post/xyz',
+            body,
+            created_at: now,
+        });
+
+        expect(dedupeAgainstHistory([duplicate], [existing])).toHaveLength(0);
+    });
+
+    it('keeps an incoming post with no match in history', () => {
+        const existing = makePost({
+            id: '1',
+            original_url: 'https://example.com/1',
+            created_at: '2024-01-01T00:00:00Z',
+        });
+        const distinct = makePost({
+            id: '2',
+            original_url: 'https://example.com/2',
+            body: 'completely unrelated content about something else entirely',
+            created_at: '2024-01-01T00:01:00Z',
+        });
+
+        expect(dedupeAgainstHistory([distinct], [existing])).toHaveLength(1);
     });
 });

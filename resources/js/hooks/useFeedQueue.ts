@@ -8,7 +8,7 @@ import {
     useRef,
     useState,
 } from 'react';
-import { dedupePosts } from '@/lib/feedDedup';
+import { dedupeAgainstHistory } from '@/lib/feedDedup';
 import type { FeedResponse, Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 
@@ -53,7 +53,40 @@ type Action =
     | { type: 'advance' }
     | { type: 'go_back' }
     | { type: 'skip_to'; postId: string }
-    | { type: 'enqueue'; posts: Post[]; results: AccountResult[] };
+    | {
+          type: 'enqueue';
+          posts: Post[];
+          results: AccountResult[];
+          bufferSize: number;
+          // Initial load streams one dispatch per account as each resolves
+          // (see the effect below) rather than waiting for all of them —
+          // sortedMerge interleaves each arrival into the queue by
+          // created_at so that streaming doesn't put an account's older
+          // first page ahead of another account's newer one. Refills
+          // (fetchMore) always append instead: once something is queued,
+          // a later page shouldn't reorder it out from under the user.
+          sortedMerge: boolean;
+      };
+
+// Both queuePosts and incoming are already sorted newest-first; this
+// interleaves them by created_at instead of concatenating, so a streamed
+// dispatch from a slower account can't push its content behind an
+// already-queued older post from a faster one.
+function mergeSortedByDate(a: Post[], b: Post[]): Post[] {
+    const merged: Post[] = [];
+    let i = 0;
+    let j = 0;
+
+    while (i < a.length && j < b.length) {
+        if (a[i].created_at.localeCompare(b[j].created_at) >= 0) {
+            merged.push(a[i++]);
+        } else {
+            merged.push(b[j++]);
+        }
+    }
+
+    return [...merged, ...a.slice(i), ...b.slice(j)];
+}
 
 function reducer(state: State, action: Action): State {
     switch (action.type) {
@@ -107,23 +140,20 @@ function reducer(state: State, action: Action): State {
         case 'enqueue': {
             const currentPost = state.path[state.position] ?? null;
             const queuePosts = state.path.slice(state.position + 1);
-            const seen = new Set<string>([
-                ...(currentPost ? [currentPost.id] : []),
-                ...queuePosts.map((p) => p.id),
-            ]);
-            const incoming = action.posts
-                .filter((p) => {
-                    if (seen.has(p.id)) {
-                        return false;
-                    }
-
-                    seen.add(p.id);
-
-                    return true;
-                })
-                .sort((a, b) => b.created_at.localeCompare(a.created_at));
-            const merged = [...queuePosts, ...incoming];
             const historyPart = state.path.slice(0, state.position);
+
+            // Dedup against the whole path (history + current + queue), not
+            // just this batch — accounts resolve one at a time now, so a
+            // duplicate can arrive in a later dispatch than the post it
+            // duplicates.
+            const incoming = dedupeAgainstHistory(
+                action.posts,
+                state.path,
+                action.bufferSize,
+            );
+            const merged = action.sortedMerge
+                ? mergeSortedByDate(queuePosts, incoming)
+                : [...queuePosts, ...incoming];
             const cursors = { ...state.cursors };
             const failureCounts = { ...state.failureCounts };
             const failed = { ...state.failed };
@@ -300,11 +330,19 @@ export function useFeedQueue({
                 ),
             )
                 .then((results) => {
-                    const posts = dedupePosts(
-                        results.flatMap((r) => r.posts),
+                    const posts = results.flatMap((r) =>
+                        r.posts.filter(filterPost),
+                    );
+                    // Append, not sortedMerge: once something's queued, a
+                    // refill page shouldn't reorder it out from under the
+                    // user even if the new page happens to skew newer.
+                    dispatch({
+                        type: 'enqueue',
+                        posts,
+                        results,
                         bufferSize,
-                    ).filter(filterPost);
-                    dispatch({ type: 'enqueue', posts, results });
+                        sortedMerge: false,
+                    });
                 })
                 .finally(() => {
                     fetchingRef.current = false;
@@ -313,9 +351,12 @@ export function useFeedQueue({
         [fetchAccount, filterPost, bufferSize],
     );
 
-    // Initial load: fan out one request per connected account rather than
-    // waiting on a single combined fetch, then merge+dedupe as results
-    // arrive. loadedAccounts/totalAccounts let the UI show real progress.
+    // Initial load: fan out one request per connected account and dispatch
+    // each as it resolves, instead of waiting on every account before
+    // showing anything — the point is to not let one slow account hold up
+    // first paint. sortedMerge interleaves each arrival by created_at so a
+    // slower account's result still lands in the right chronological spot.
+    // loadedAccounts/totalAccounts let the UI show real progress meanwhile.
     useEffect(() => {
         if (accounts.length === 0) {
             return;
@@ -323,27 +364,24 @@ export function useFeedQueue({
 
         let cancelled = false;
 
-        Promise.all(
-            accounts.map(async (account) => {
-                const result = await fetchAccount(account.id, null);
-
-                if (!cancelled) {
-                    setLoadedAccounts((n) => n + 1);
+        for (const account of accounts) {
+            fetchAccount(account.id, null).then((result) => {
+                if (cancelled) {
+                    return;
                 }
 
-                return result;
-            }),
-        ).then((results) => {
-            if (cancelled) {
-                return;
-            }
+                setLoadedAccounts((n) => n + 1);
 
-            const posts = dedupePosts(
-                results.flatMap((r) => r.posts),
-                bufferSize,
-            ).filter(filterPost);
-            dispatch({ type: 'enqueue', posts, results });
-        });
+                const posts = result.posts.filter(filterPost);
+                dispatch({
+                    type: 'enqueue',
+                    posts,
+                    results: [result],
+                    bufferSize,
+                    sortedMerge: true,
+                });
+            });
+        }
 
         return () => {
             cancelled = true;

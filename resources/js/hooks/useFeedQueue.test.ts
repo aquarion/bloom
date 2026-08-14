@@ -349,6 +349,160 @@ it('deduplicates a post that arrives from a second account after the first has a
     expect(result.current.queue).toHaveLength(0);
 });
 
+it('caps the merged queue to bufferSize across combined per-account batches', async () => {
+    vi.mocked(axios.get).mockImplementation((url) => {
+        if (url === '/feed/accounts/1') {
+            return Promise.resolve({
+                data: {
+                    posts: [
+                        makePost('a1', '2026-06-01T12:00:00Z'),
+                        makePost('a2', '2026-06-01T11:00:00Z'),
+                    ],
+                    next_cursor: null,
+                },
+            });
+        }
+
+        return Promise.resolve({
+            data: {
+                posts: [
+                    makePost('b1', '2026-06-01T10:00:00Z'),
+                    makePost('b2', '2026-06-01T09:00:00Z'),
+                ],
+                next_cursor: null,
+            },
+        });
+    });
+
+    const twoAccounts = [{ id: 1 }, { id: 2 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: twoAccounts, bufferSize: 2 }),
+    );
+
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(2));
+
+    // Neither account's own batch (2 posts) exceeds bufferSize on its own —
+    // this only fails if the cap is applied per streamed batch instead of
+    // to the combined queue.
+    expect(result.current.queue).toHaveLength(2);
+    expect(result.current.queue.map((p) => p.id)).not.toContain('b2');
+});
+
+it('handles a refill firing while a slower account is still streaming into the initial load', async () => {
+    let resolveSecond: (value: unknown) => void = () => {};
+    const second = new Promise((resolve) => {
+        resolveSecond = resolve;
+    });
+
+    vi.mocked(axios.get).mockImplementation((url, config) => {
+        const cursor = (config as GetConfig | undefined)?.params?.cursor;
+
+        if (url === '/feed/accounts/1') {
+            if (cursor === 'cursor1') {
+                return Promise.resolve({
+                    data: {
+                        posts: [makePost('a1-page2', '2026-06-01T08:00:00Z')],
+                        next_cursor: null,
+                    },
+                });
+            }
+
+            return Promise.resolve({
+                data: {
+                    posts: [makePost('a1', '2026-06-01T12:00:00Z')],
+                    next_cursor: 'cursor1',
+                },
+            });
+        }
+
+        // Account 2 is deferred so it resolves after account 1's refill.
+        return second.then(() => ({
+            data: {
+                posts: [makePost('b1', '2026-06-01T10:00:00Z')],
+                next_cursor: null,
+            },
+        }));
+    });
+
+    const twoAccounts = [{ id: 1 }, { id: 2 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: twoAccounts }),
+    );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('a1'));
+
+    // The refill fires automatically (queue is under REFILL_THRESHOLD) while
+    // account 2 is still pending — let it land first.
+    await waitFor(() =>
+        expect(result.current.queue.map((p) => p.id)).toContain('a1-page2'),
+    );
+
+    resolveSecond(undefined);
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(2));
+
+    // b1 (10:00) should be correctly interleaved ahead of a1-page2 (08:00)
+    // despite the refill's append landing in between the two streamed
+    // initial-load dispatches — nothing got dropped or corrupted.
+    expect(result.current.queue.map((p) => p.id)).toEqual(['b1', 'a1-page2']);
+    expect(result.current.current?.id).toBe('a1');
+});
+
+it('interleaves three accounts resolving out of order into correct chronological order', async () => {
+    let resolveFirst: (value: unknown) => void = () => {};
+    const first = new Promise((resolve) => {
+        resolveFirst = resolve;
+    });
+    let resolveThird: (value: unknown) => void = () => {};
+    const third = new Promise((resolve) => {
+        resolveThird = resolve;
+    });
+
+    vi.mocked(axios.get).mockImplementation((url) => {
+        if (url === '/feed/accounts/1') {
+            return first.then(() => ({
+                data: {
+                    posts: [makePost('p1', '2026-06-01T10:00:00Z')],
+                    next_cursor: null,
+                },
+            }));
+        }
+
+        if (url === '/feed/accounts/2') {
+            return Promise.resolve({
+                data: {
+                    posts: [makePost('p2', '2026-06-01T12:00:00Z')],
+                    next_cursor: null,
+                },
+            });
+        }
+
+        return third.then(() => ({
+            data: {
+                posts: [makePost('p3', '2026-06-01T11:00:00Z')],
+                next_cursor: null,
+            },
+        }));
+    });
+
+    const threeAccounts = [{ id: 1 }, { id: 2 }, { id: 3 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: threeAccounts }),
+    );
+
+    // Account 2 resolves fastest, becomes current immediately.
+    await waitFor(() => expect(result.current.current?.id).toBe('p2'));
+
+    resolveThird(undefined);
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(2));
+
+    resolveFirst(undefined);
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(3));
+
+    // p2 (12:00) is current; p3 (11:00) then p1 (10:00) queue in
+    // chronological order despite resolving in the order 2, 3, 1.
+    expect(result.current.queue.map((p) => p.id)).toEqual(['p3', 'p1']);
+});
+
 it('dequeues the head of the queue', async () => {
     vi.mocked(axios.get).mockResolvedValue({
         data: {

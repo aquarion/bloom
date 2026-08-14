@@ -151,56 +151,62 @@ function reducer(state: State, action: Action): State {
             // Dedup against the whole path (history + current + queue), not
             // just this batch — accounts resolve one at a time now, so a
             // duplicate can arrive in a later dispatch than the post it
-            // duplicates.
+            // duplicates. Uncapped here: bufferSize is enforced on the
+            // merged queue below instead of per streamed batch, since a
+            // single account's batch is far smaller than bufferSize and
+            // would make the cap inert if applied per-dispatch.
             const incoming = dedupeAgainstHistory(
                 action.posts,
                 state.path,
-                action.bufferSize,
+                Number.POSITIVE_INFINITY,
             );
-            const merged = action.sortedMerge
-                ? mergeSortedByDate(queuePosts, incoming)
-                : [...queuePosts, ...incoming];
+            const merged = (
+                action.sortedMerge
+                    ? mergeSortedByDate(queuePosts, incoming)
+                    : [...queuePosts, ...incoming]
+            ).slice(0, action.bufferSize);
             const cursors = { ...state.cursors };
             const failureCounts = { ...state.failureCounts };
             const failed = { ...state.failed };
 
-            for (const r of action.results) {
-                if (r.failed) {
-                    const count = (failureCounts[r.accountId] ?? 0) + 1;
-                    failureCounts[r.accountId] = count;
-                    failed[r.accountId] = true;
-                    cursors[r.accountId] =
+            for (const result of action.results) {
+                if (result.failed) {
+                    const count = (failureCounts[result.accountId] ?? 0) + 1;
+                    failureCounts[result.accountId] = count;
+                    failed[result.accountId] = true;
+                    cursors[result.accountId] =
                         count >= MAX_ACCOUNT_RETRIES
                             ? null
-                            : (r.nextCursor ?? '');
+                            : (result.nextCursor ?? '');
                 } else {
-                    failureCounts[r.accountId] = 0;
-                    failed[r.accountId] = false;
-                    cursors[r.accountId] = r.nextCursor;
+                    failureCounts[result.accountId] = 0;
+                    failed[result.accountId] = false;
+                    cursors[result.accountId] = result.nextCursor;
                 }
             }
 
+            const withAccountState = {
+                ...state,
+                cursors,
+                failureCounts,
+                failed,
+            };
+
             if (currentPost === null) {
                 if (merged.length === 0) {
-                    return { ...state, cursors, failureCounts, failed };
+                    return withAccountState;
                 }
 
                 return {
-                    ...state,
+                    ...withAccountState,
                     path: [...historyPart, ...merged],
                     position: historyPart.length,
-                    cursors,
-                    failureCounts,
-                    failed,
                 };
             }
 
             return {
-                ...state,
+                ...withAccountState,
                 path: [...historyPart, currentPost, ...merged],
-                cursors,
-                failureCounts,
-                failed,
             };
         }
     }
@@ -336,8 +342,8 @@ export function useFeedQueue({
                 ),
             )
                 .then((results) => {
-                    const posts = results.flatMap((r) =>
-                        r.posts.filter(filterPost),
+                    const posts = results.flatMap((result) =>
+                        result.posts.filter(filterPost),
                     );
                     // Append, not sortedMerge: once something's queued, a
                     // refill page shouldn't reorder it out from under the

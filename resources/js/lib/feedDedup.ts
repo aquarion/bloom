@@ -135,11 +135,16 @@ function buildDedupContext(existingPosts: Post[]): DedupContext {
             continue;
         }
 
+        // An unparseable created_at gets time 0 rather than being skipped —
+        // matching dedupeAgainstContext's handling of the same case below,
+        // so a bad timestamp doesn't make a post invisible to the fuzzy
+        // pass on one side but not the other.
         const postTime = Date.parse(post.created_at);
 
-        if (!Number.isNaN(postTime)) {
-            context.seenBodies.push([normBody, postTime / 1000]);
-        }
+        context.seenBodies.push([
+            normBody,
+            Number.isNaN(postTime) ? 0 : postTime / 1000,
+        ]);
     }
 
     return context;
@@ -203,9 +208,7 @@ export function dedupePosts(
     posts: Post[],
     bufferSize: number = DEFAULT_BUFFER_SIZE,
 ): Post[] {
-    const context: DedupContext = { seenKeys: new Set(), seenBodies: [] };
-
-    return dedupeAgainstContext(posts, context).slice(0, bufferSize);
+    return dedupeAgainstHistory(posts, [], bufferSize);
 }
 
 /**

@@ -6,7 +6,7 @@ import laravel from "laravel-vite-plugin";
 import { bunny } from "laravel-vite-plugin/fonts";
 import { defineConfig } from "vite";
 import { defaultExclude } from "vitest/config";
-import { iconGenerationPlugin } from "./bin/icons/vite-plugin";
+import { iconGenerationPlugin } from "./bin/icons/vite-plugin.js";
 
 export default defineConfig({
 	plugins: [

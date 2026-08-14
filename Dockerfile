@@ -1,4 +1,4 @@
-FROM node:26-alpine@sha256:e88a35be04478413b7c71c455cd9865de9b9360e1f43456be5951032d7ac1a66 AS node-deps
+FROM node:26-alpine@sha256:aadf416b2cdce311a8811ba3f0608a61b77dbf997500e2eafe781b51f6a0b019 AS node-deps
 WORKDIR /var/www/html
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -8,7 +8,7 @@ RUN npm ci
 # invalidating the Docker layer cache for every layer below on every
 # build, even when nothing in this repo changed. Dependabot's docker
 # ecosystem bumps this digest deliberately.
-FROM dunglas/frankenphp:1-php8.4-alpine@sha256:e97c47096c8d2301b59f5eb601ab006ca60912c68a9bba2d344908c4766e17fc
+FROM dunglas/frankenphp:1-php8.4-alpine@sha256:3354314945be903be25ae88aa1d7de7eaebc7f244c9017d4005f60746bd35084
 WORKDIR /var/www/html
 
 ARG APP_ENV=production

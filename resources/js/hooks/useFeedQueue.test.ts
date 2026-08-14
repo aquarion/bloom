@@ -266,6 +266,57 @@ it("interleaves a slower account's post into the correct chronological position 
     );
 });
 
+it('preserves a skipTo-reordered queue when a later streamed dispatch interleaves new posts', async () => {
+    let resolveSecond: (value: unknown) => void = () => {};
+    const second = new Promise((resolve) => {
+        resolveSecond = resolve;
+    });
+
+    vi.mocked(axios.get).mockImplementation((url) => {
+        if (url === '/feed/accounts/1') {
+            return Promise.resolve({
+                data: {
+                    posts: [
+                        makePost('x-new', '2026-06-01T12:00:00Z'),
+                        makePost('x-mid', '2026-06-01T10:00:00Z'),
+                        makePost('x-old', '2026-06-01T08:00:00Z'),
+                    ],
+                    next_cursor: null,
+                },
+            });
+        }
+
+        return second.then(() => ({
+            data: {
+                posts: [makePost('y-new', '2026-06-01T11:00:00Z')],
+                next_cursor: null,
+            },
+        }));
+    });
+
+    const twoAccounts = [{ id: 1 }, { id: 2 }];
+    const { result } = renderHook(() =>
+        useFeedQueue({ accounts: twoAccounts }),
+    );
+
+    await waitFor(() => expect(result.current.current?.id).toBe('x-new'));
+    expect(result.current.queue.map((p) => p.id)).toEqual(['x-mid', 'x-old']);
+
+    // User jumps to x-old before account 2 has resolved, reordering the
+    // queue out of chronological order.
+    act(() => result.current.skipTo('x-old'));
+    expect(result.current.queue.map((p) => p.id)).toEqual(['x-old', 'x-mid']);
+
+    resolveSecond(undefined);
+    await waitFor(() => expect(result.current.loadedAccounts).toBe(2));
+
+    // The skipTo-established order must survive the later streamed merge —
+    // y-new gets slotted in without disturbing x-old-before-x-mid.
+    const ids = result.current.queue.map((p) => p.id);
+    expect(ids.indexOf('x-old')).toBeLessThan(ids.indexOf('x-mid'));
+    expect(ids).toContain('y-new');
+});
+
 it('deduplicates a post that arrives from a second account after the first has already been queued', async () => {
     const shared = makePost('dup', '2026-06-01T12:00:00Z');
     let resolveSecond: (value: unknown) => void = () => {};

@@ -68,24 +68,30 @@ type Action =
           sortedMerge: boolean;
       };
 
-// Both queuePosts and incoming are already sorted newest-first; this
-// interleaves them by created_at instead of concatenating, so a streamed
-// dispatch from a slower account can't push its content behind an
-// already-queued older post from a faster one.
-function mergeSortedByDate(a: Post[], b: Post[]): Post[] {
-    const merged: Post[] = [];
-    let i = 0;
-    let j = 0;
+// `incoming` is sorted newest-first, but `existing` (the current queue)
+// isn't guaranteed to be — skipTo() deliberately reorders it, and an
+// append-only refill (fetchMore) can land in between two streamed initial-
+// load dispatches. So rather than a two-pointer merge that assumes both
+// sides are globally sorted (and would silently misorder anything after
+// the first out-of-order item), each incoming post is inserted just before
+// the first existing post it's newer than or equal to — leaving every
+// other existing post, and any prior reordering, untouched.
+function mergeSortedByDate(existing: Post[], incoming: Post[]): Post[] {
+    const result = [...existing];
 
-    while (i < a.length && j < b.length) {
-        if (a[i].created_at.localeCompare(b[j].created_at) >= 0) {
-            merged.push(a[i++]);
+    for (const post of incoming) {
+        const insertAt = result.findIndex(
+            (p) => p.created_at.localeCompare(post.created_at) <= 0,
+        );
+
+        if (insertAt === -1) {
+            result.push(post);
         } else {
-            merged.push(b[j++]);
+            result.splice(insertAt, 0, post);
         }
     }
 
-    return [...merged, ...a.slice(i), ...b.slice(j)];
+    return result;
 }
 
 function reducer(state: State, action: Action): State {

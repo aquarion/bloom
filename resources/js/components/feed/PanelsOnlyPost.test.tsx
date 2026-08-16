@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react';
+import { useLayoutEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CwStateProvider } from '@/hooks/useCwState';
 import type { Post } from '@/types/post';
@@ -14,9 +15,14 @@ vi.mock('gsap', () => ({
     },
 }));
 
+// useGSAP defers to a layout effect in the real implementation, so refs are
+// attached by the time the callback runs — a plain synchronous invocation
+// during render would see panelsRef.current as still null.
 vi.mock('@gsap/react', () => ({
     useGSAP: (callback: () => void | (() => void)) => {
-        callback();
+        useLayoutEffect(() => {
+            callback();
+        });
     },
 }));
 

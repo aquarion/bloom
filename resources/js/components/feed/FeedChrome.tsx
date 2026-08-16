@@ -63,6 +63,13 @@ export function FeedChrome({
 }) {
     const { appVersion, isProduction } = usePage().props;
 
+    // A thread can now alternate between two participants (#313), so the
+    // chrome bar must attribute the post actually on screen — the active
+    // thread entry — rather than always the head post's author.
+    const attributedPost = current.thread
+        ? (current.thread[carouselProgress?.activeIndex ?? 0] ?? current)
+        : current;
+
     return (
         <div
             className={`pointer-events-none absolute inset-0 z-20 flex flex-col border-4 transition-colors duration-300 ${
@@ -114,7 +121,7 @@ export function FeedChrome({
             <div className="flex-1" />
 
             <div className="pointer-events-auto flex items-center gap-2 px-4 pt-2 pb-3">
-                <Attribution post={current} cwBehavior={cwBehavior} />
+                <Attribution post={attributedPost} cwBehavior={cwBehavior} />
                 {current.chip_mentions.length > 0 && (
                     <>
                         <AtSign className="size-4 shrink-0 text-white/30" />

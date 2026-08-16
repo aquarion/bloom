@@ -85,48 +85,62 @@
                 return;
             }
 
-            var settled = false;
+            var revealed = false;
             var timer;
 
-            function reveal() {
-                if (settled) {
+            function reveal(reason) {
+                // #app may have painted since the triggering event fired (or
+                // this is a stray error unrelated to app boot) — never show
+                // a failure screen over an app that's actually up.
+                if (root.children.length > 0) {
                     return;
                 }
 
-                settled = true;
+                if (revealed) {
+                    return;
+                }
+
+                revealed = true;
+                console.error('[app-fallback] revealing fallback UI:', reason);
                 fallback.classList.remove('hidden');
                 fallback.classList.add('flex');
             }
 
-            function markMounted() {
-                if (settled) {
-                    return;
+            // Authoritative regardless of whether the fallback was ever
+            // revealed — a stray pre-mount error must not leave a working
+            // app stuck behind a permanent "reload" screen once it does mount.
+            function hideAndTeardown() {
+                if (revealed) {
+                    revealed = false;
+                    fallback.classList.add('hidden');
+                    fallback.classList.remove('flex');
                 }
 
-                settled = true;
-                window.removeEventListener('error', reveal);
-                window.removeEventListener('unhandledrejection', reveal);
+                window.removeEventListener('error', onError);
+                window.removeEventListener('unhandledrejection', onError);
                 observer.disconnect();
                 clearTimeout(timer);
             }
 
+            function onError(event) {
+                reveal(event);
+            }
+
             var observer = new MutationObserver(function () {
                 if (root.children.length > 0) {
-                    markMounted();
+                    hideAndTeardown();
                 }
             });
             observer.observe(root, { childList: true });
 
-            window.addEventListener('error', reveal);
-            window.addEventListener('unhandledrejection', reveal);
+            window.addEventListener('error', onError);
+            window.addEventListener('unhandledrejection', onError);
 
             // Grace period: if nothing has painted into #app within 8s, assume
             // the failure happened silently (no error event at all) and show
             // the fallback anyway rather than leaving a blank screen forever.
             timer = setTimeout(function () {
-                if (root.children.length === 0) {
-                    reveal();
-                }
+                reveal('timeout: #app had not painted within 8s');
             }, 8000);
         })();
     </script>

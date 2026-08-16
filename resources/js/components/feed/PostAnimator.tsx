@@ -75,6 +75,7 @@ export function PostAnimator({
                     post={post}
                     onReady={onReady}
                     cwBehavior={cwBehavior}
+                    reduceMotion={reduceMotion}
                 />
             );
         }

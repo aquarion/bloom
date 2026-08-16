@@ -111,7 +111,7 @@ export function TextPost({
         if (panelsRef.current) {
             tl.fromTo(
                 panelsRef.current,
-                { opacity: 0, y: -8 },
+                { opacity: 0, y: reduceMotion ? 0 : -8 },
                 { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' },
                 0,
             );

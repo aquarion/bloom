@@ -10,16 +10,19 @@ const TICK_MS = 100;
 
 const readyCallbacks = new Map<string, () => void>();
 const advanceCallbacks = new Map<string, () => void>();
+const reduceMotionByPost = new Map<string, boolean | undefined>();
 
 vi.mock('@/components/feed/PostAnimator', () => ({
     PostAnimator: ({
         post,
         onReady,
         onAdvance,
+        reduceMotion,
     }: {
         post: Post;
         onReady?: () => void;
         onAdvance?: () => void;
+        reduceMotion?: boolean;
     }) => {
         if (onReady) {
             readyCallbacks.set(post.id, onReady);
@@ -28,6 +31,8 @@ vi.mock('@/components/feed/PostAnimator', () => ({
         if (onAdvance) {
             advanceCallbacks.set(post.id, onAdvance);
         }
+
+        reduceMotionByPost.set(post.id, reduceMotion);
 
         return <div data-testid={`post-animator-${post.id}`} />;
     },
@@ -95,6 +100,7 @@ const makePost = (overrides: Partial<Post> = {}): Post => ({
 beforeEach(() => {
     readyCallbacks.clear();
     advanceCallbacks.clear();
+    reduceMotionByPost.clear();
     vi.useFakeTimers();
 });
 
@@ -222,6 +228,38 @@ describe('ThreadPost', () => {
         act(() => vi.advanceTimersByTime(DURATION * 3));
 
         expect(onAdvance).not.toHaveBeenCalled();
+    });
+
+    it('threads reduceMotion through to the active thread entry (#312)', () => {
+        const thread = [makePost({ id: 'a' }), makePost({ id: 'b' })];
+        renderWithCw(
+            <ThreadPost
+                thread={thread}
+                duration={DURATION}
+                onAdvance={vi.fn()}
+                reduceMotion
+            />,
+        );
+
+        expect(reduceMotionByPost.get('a')).toBe(true);
+
+        act(() => readyCallbacks.get('a')?.());
+        act(() => vi.advanceTimersByTime(DURATION + TICK_MS));
+
+        expect(reduceMotionByPost.get('b')).toBe(true);
+    });
+
+    it('defaults reduceMotion to false when omitted', () => {
+        const thread = [makePost({ id: 'a' })];
+        renderWithCw(
+            <ThreadPost
+                thread={thread}
+                duration={DURATION}
+                onAdvance={vi.fn()}
+            />,
+        );
+
+        expect(reduceMotionByPost.get('a')).toBe(false);
     });
 
     it("applies each entry's own content warning independently", () => {

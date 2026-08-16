@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { X } from 'lucide-react';
+import { Filter, Palette, TriangleAlert, X } from 'lucide-react';
 import { useState } from 'react';
 import AppearanceToggleTab from '@/components/appearance-tabs';
 import Heading from '@/components/heading';
@@ -117,290 +117,301 @@ export default function FeedSettings({
                 )}
 
                 {/* Limits */}
-                <section className="space-y-4">
-                    <Heading
-                        variant="small"
-                        title="Limits"
-                        description="Control how much of your feed you see."
-                    />
-
-                    {/* Age cutoff */}
-                    <div className="space-y-2">
-                        <Label htmlFor="max_age_days">
-                            Hide posts older than (days)
-                        </Label>
-                        <div className="flex items-center gap-3">
-                            <Input
-                                id="max_age_days"
-                                type="number"
-                                min={1}
-                                max={365}
-                                value={data.max_age_days ?? ''}
-                                onChange={(e) =>
-                                    setData(
-                                        'max_age_days',
-                                        e.target.value === ''
-                                            ? null
-                                            : Number(e.target.value),
-                                    )
-                                }
-                                className="w-24"
-                                placeholder="7"
-                            />
-                            <label className="flex items-center gap-1.5 text-muted-foreground text-sm">
-                                <input
-                                    type="checkbox"
-                                    checked={data.max_age_days === null}
+                <section className="rounded-lg border p-6">
+                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-base">
+                        <Filter className="size-4" /> Limits
+                    </h3>
+                    <div className="space-y-4">
+                        {/* Age cutoff */}
+                        <div className="space-y-2">
+                            <Label htmlFor="max_age_days">
+                                Hide posts older than (days)
+                            </Label>
+                            <div className="flex items-center gap-3">
+                                <Input
+                                    id="max_age_days"
+                                    type="number"
+                                    min={1}
+                                    max={365}
+                                    value={data.max_age_days ?? ''}
                                     onChange={(e) =>
                                         setData(
                                             'max_age_days',
-                                            e.target.checked ? null : 7,
+                                            e.target.value === ''
+                                                ? null
+                                                : Number(e.target.value),
                                         )
                                     }
+                                    className="w-24"
+                                    placeholder="7"
                                 />
-                                No limit
-                            </label>
-                        </div>
-                        <p className="text-muted-foreground text-xs">
-                            Boosted posts always appear regardless of age.
-                        </p>
-                        {errors.max_age_days && (
-                            <p className="text-destructive text-sm">
-                                {errors.max_age_days}
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Mute words */}
-                    <div className="space-y-2">
-                        <Label>Mute words</Label>
-                        <div className="flex gap-2">
-                            <Input
-                                value={muteInput}
-                                onChange={(e) => setMuteInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        addMuteWord();
-                                    }
-                                }}
-                                placeholder="Add a word or phrase…"
-                                className="flex-1"
-                            />
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={addMuteWord}
-                            >
-                                Add
-                            </Button>
-                        </div>
-                        {data.mute_words.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {data.mute_words.map((word) => (
-                                    <span
-                                        key={word}
-                                        className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
-                                    >
-                                        {word}
-                                        <button
-                                            type="button"
-                                            onClick={() => removeMuteWord(word)}
-                                            className="text-muted-foreground hover:text-foreground"
-                                            aria-label={`Remove "${word}"`}
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </span>
-                                ))}
+                                <label className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={data.max_age_days === null}
+                                        onChange={(e) =>
+                                            setData(
+                                                'max_age_days',
+                                                e.target.checked ? null : 7,
+                                            )
+                                        }
+                                    />
+                                    No limit
+                                </label>
                             </div>
-                        )}
+                            <p className="text-muted-foreground text-xs">
+                                Boosted posts always appear regardless of age.
+                            </p>
+                            {errors.max_age_days && (
+                                <p className="text-destructive text-sm">
+                                    {errors.max_age_days}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Mute words */}
+                        <div className="space-y-2">
+                            <Label>Mute words</Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    value={muteInput}
+                                    onChange={(e) =>
+                                        setMuteInput(e.target.value)
+                                    }
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            addMuteWord();
+                                        }
+                                    }}
+                                    placeholder="Add a word or phrase…"
+                                    className="flex-1"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={addMuteWord}
+                                >
+                                    Add
+                                </Button>
+                            </div>
+                            {data.mute_words.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {data.mute_words.map((word) => (
+                                        <span
+                                            key={word}
+                                            className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
+                                        >
+                                            {word}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    removeMuteWord(word)
+                                                }
+                                                className="text-muted-foreground hover:text-foreground"
+                                                aria-label={`Remove "${word}"`}
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </section>
 
                 {/* Content Warnings */}
-                <section className="space-y-4">
-                    <Heading
-                        variant="small"
-                        title="Content Warnings"
-                        description="Control how sensitive content is handled."
-                    />
-
-                    {/* CW behavior */}
-                    <div className="space-y-2">
-                        <Label htmlFor="cw_behavior">
-                            Posts with content warnings
-                        </Label>
-                        <Select
-                            value={data.cw_behavior}
-                            onValueChange={(v) =>
-                                setData('cw_behavior', v as ContentBehavior)
-                            }
-                        >
-                            <SelectTrigger id="cw_behavior" className="w-48">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="show">Show</SelectItem>
-                                <SelectItem value="blur">
-                                    Blur (tap to reveal)
-                                </SelectItem>
-                                <SelectItem value="skip">Skip</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {errors.cw_behavior && (
-                            <p className="text-destructive text-sm">
-                                {errors.cw_behavior}
-                            </p>
-                        )}
-                    </div>
-
-                    {/* CW label whitelist */}
-                    <div className="space-y-2">
-                        <Label>Always show these content warning types</Label>
-                        <p className="text-muted-foreground text-xs">
-                            Posts labelled with a whitelisted type skip the
-                            content warning above entirely.
-                        </p>
+                <section className="rounded-lg border p-6">
+                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-base">
+                        <TriangleAlert className="size-4" /> Content Warnings
+                    </h3>
+                    <div className="space-y-4">
+                        {/* CW behavior */}
                         <div className="space-y-2">
-                            {CW_LABEL_OPTIONS.map((option) => {
-                                const checked =
-                                    data.cw_label_whitelist.includes(
-                                        option.value,
-                                    );
-
-                                return (
-                                    <div key={option.value}>
-                                        <label className="flex items-center gap-2 text-sm">
-                                            <Checkbox
-                                                checked={checked}
-                                                onCheckedChange={(next) =>
-                                                    toggleCwLabelWhitelist(
-                                                        option.value,
-                                                        next === true,
-                                                    )
-                                                }
-                                            />
-                                            {option.label}
-                                        </label>
-                                        {checked && option.warning && (
-                                            <p className="mt-1 ml-6 text-destructive text-xs">
-                                                {option.warning}
-                                            </p>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        {cwLabelWhitelistError && (
-                            <p className="text-destructive text-sm">
-                                {cwLabelWhitelistError}
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Always-shown authors */}
-                    {data.cw_author_whitelist.length > 0 && (
-                        <div className="space-y-2">
-                            <Label>Always-shown authors</Label>
-                            <p className="text-muted-foreground text-xs">
-                                Revealing an author-level content warning in the
-                                feed adds them here — their posts skip the
-                                warning from now on.
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                                {data.cw_author_whitelist.map((handle) => (
-                                    <span
-                                        key={handle}
-                                        className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
-                                    >
-                                        {handle}
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                removeWhitelistedAuthor(handle)
-                                            }
-                                            className="text-muted-foreground hover:text-foreground"
-                                            aria-label={`Remove "${handle}"`}
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </span>
-                                ))}
-                            </div>
-                            {errors.cw_author_whitelist && (
+                            <Label htmlFor="cw_behavior">
+                                Posts with content warnings
+                            </Label>
+                            <Select
+                                value={data.cw_behavior}
+                                onValueChange={(v) =>
+                                    setData('cw_behavior', v as ContentBehavior)
+                                }
+                            >
+                                <SelectTrigger
+                                    id="cw_behavior"
+                                    className="w-48"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="show">Show</SelectItem>
+                                    <SelectItem value="blur">
+                                        Blur (tap to reveal)
+                                    </SelectItem>
+                                    <SelectItem value="skip">Skip</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.cw_behavior && (
                                 <p className="text-destructive text-sm">
-                                    {errors.cw_author_whitelist}
+                                    {errors.cw_behavior}
                                 </p>
                             )}
                         </div>
-                    )}
 
-                    {/* Sensitive media behavior */}
-                    <div className="space-y-2">
-                        <Label htmlFor="sensitive_media_behavior">
-                            Posts with sensitive media
-                        </Label>
-                        <Select
-                            value={data.sensitive_media_behavior}
-                            onValueChange={(v) =>
-                                setData(
-                                    'sensitive_media_behavior',
-                                    v as ContentBehavior,
-                                )
-                            }
-                        >
-                            <SelectTrigger
-                                id="sensitive_media_behavior"
-                                className="w-48"
-                            >
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="show">Show</SelectItem>
-                                <SelectItem value="blur">
-                                    Blur (tap to reveal)
-                                </SelectItem>
-                                <SelectItem value="skip">Skip</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {errors.sensitive_media_behavior && (
-                            <p className="text-destructive text-sm">
-                                {errors.sensitive_media_behavior}
+                        {/* CW label whitelist */}
+                        <div className="space-y-2">
+                            <Label>
+                                Always show these content warning types
+                            </Label>
+                            <p className="text-muted-foreground text-xs">
+                                Posts labelled with a whitelisted type skip the
+                                content warning above entirely.
                             </p>
+                            <div className="space-y-2">
+                                {CW_LABEL_OPTIONS.map((option) => {
+                                    const checked =
+                                        data.cw_label_whitelist.includes(
+                                            option.value,
+                                        );
+
+                                    return (
+                                        <div key={option.value}>
+                                            <label className="flex items-center gap-2 text-sm">
+                                                <Checkbox
+                                                    checked={checked}
+                                                    onCheckedChange={(next) =>
+                                                        toggleCwLabelWhitelist(
+                                                            option.value,
+                                                            next === true,
+                                                        )
+                                                    }
+                                                />
+                                                {option.label}
+                                            </label>
+                                            {checked && option.warning && (
+                                                <p className="mt-1 ml-6 text-destructive text-xs">
+                                                    {option.warning}
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            {cwLabelWhitelistError && (
+                                <p className="text-destructive text-sm">
+                                    {cwLabelWhitelistError}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Always-shown authors */}
+                        {data.cw_author_whitelist.length > 0 && (
+                            <div className="space-y-2">
+                                <Label>Always-shown authors</Label>
+                                <p className="text-muted-foreground text-xs">
+                                    Revealing an author-level content warning in
+                                    the feed adds them here — their posts skip
+                                    the warning from now on.
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {data.cw_author_whitelist.map((handle) => (
+                                        <span
+                                            key={handle}
+                                            className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
+                                        >
+                                            {handle}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    removeWhitelistedAuthor(
+                                                        handle,
+                                                    )
+                                                }
+                                                className="text-muted-foreground hover:text-foreground"
+                                                aria-label={`Remove "${handle}"`}
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                                {errors.cw_author_whitelist && (
+                                    <p className="text-destructive text-sm">
+                                        {errors.cw_author_whitelist}
+                                    </p>
+                                )}
+                            </div>
                         )}
+
+                        {/* Sensitive media behavior */}
+                        <div className="space-y-2">
+                            <Label htmlFor="sensitive_media_behavior">
+                                Posts with sensitive media
+                            </Label>
+                            <Select
+                                value={data.sensitive_media_behavior}
+                                onValueChange={(v) =>
+                                    setData(
+                                        'sensitive_media_behavior',
+                                        v as ContentBehavior,
+                                    )
+                                }
+                            >
+                                <SelectTrigger
+                                    id="sensitive_media_behavior"
+                                    className="w-48"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="show">Show</SelectItem>
+                                    <SelectItem value="blur">
+                                        Blur (tap to reveal)
+                                    </SelectItem>
+                                    <SelectItem value="skip">Skip</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            {errors.sensitive_media_behavior && (
+                                <p className="text-destructive text-sm">
+                                    {errors.sensitive_media_behavior}
+                                </p>
+                            )}
+                        </div>
                     </div>
                 </section>
 
                 {/* Appearance */}
-                <section className="space-y-4">
-                    <Heading
-                        variant="small"
-                        title="Appearance"
-                        description="Control how the app looks and moves."
-                    />
+                <section className="rounded-lg border p-6">
+                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-base">
+                        <Palette className="size-4" /> Appearance
+                    </h3>
+                    <div className="space-y-4">
+                        {/* Theme */}
+                        <div className="space-y-2">
+                            <Label>Theme</Label>
+                            <AppearanceToggleTab />
+                            <p className="text-muted-foreground text-xs">
+                                Choose how Bloom looks.
+                            </p>
+                        </div>
 
-                    {/* Theme */}
-                    <div className="space-y-2">
-                        <Label>Theme</Label>
-                        <AppearanceToggleTab />
-                    </div>
-
-                    {/* Reduce motion */}
-                    <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm">
-                            <Checkbox
-                                checked={data.reduce_motion}
-                                onCheckedChange={(next) =>
-                                    setData('reduce_motion', next === true)
-                                }
-                            />
-                            Reduce motion
-                        </label>
-                        <p className="text-muted-foreground text-xs">
-                            Posts fade between each other instead of tilting,
-                            spinning, or flipping in.
-                        </p>
+                        {/* Reduce motion */}
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                    checked={data.reduce_motion}
+                                    onCheckedChange={(next) =>
+                                        setData('reduce_motion', next === true)
+                                    }
+                                />
+                                Reduce motion
+                            </label>
+                            <p className="text-muted-foreground text-xs">
+                                Posts fade between each other instead of
+                                tilting, spinning, or flipping in.
+                            </p>
+                        </div>
                     </div>
                 </section>
 

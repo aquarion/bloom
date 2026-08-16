@@ -23,6 +23,7 @@ const preferences: FeedPreferences = {
     sensitive_media_behavior: 'blur',
     cw_label_whitelist: [],
     cw_author_whitelist: [],
+    reduce_motion: false,
 };
 
 describe('FeedSettings — cw_label_whitelist error rendering', () => {

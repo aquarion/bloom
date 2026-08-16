@@ -39,6 +39,7 @@ export default function Feed(props: {
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
     cwAuthorWhitelist: string[];
+    reduceMotion: boolean;
 }) {
     return (
         <CwStateProvider initialAuthorWhitelist={props.cwAuthorWhitelist}>
@@ -53,12 +54,14 @@ function FeedView({
     debugEnabled,
     cwBehavior,
     sensitiveMediaBehavior,
+    reduceMotion,
 }: {
     accounts: { id: number }[];
     feedBufferSize: number;
     debugEnabled: boolean;
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
+    reduceMotion: boolean;
 }) {
     const {
         current,
@@ -103,7 +106,13 @@ function FeedView({
         // there's never a synchronously-available post to seed nextBackground
         // with here — it falls back to `current` via `nextBackground ?? current`
         // below until the first transition's onComplete populates it for real.
-    } = useFeedTransition({ current, queue, advance, initialPosts: [] });
+    } = useFeedTransition({
+        current,
+        queue,
+        advance,
+        initialPosts: [],
+        reduceMotion,
+    });
 
     useEffect(() => {
         if (debugEnabled) {
@@ -234,6 +243,7 @@ function FeedView({
                         cwBehavior={cwBehavior}
                         sensitiveMediaBehavior={sensitiveMediaBehavior}
                         paused={paused}
+                        reduceMotion={reduceMotion}
                     />
                 </div>
 

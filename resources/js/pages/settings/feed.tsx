@@ -47,6 +47,7 @@ export default function FeedSettings({
         sensitive_media_behavior: preferences.sensitive_media_behavior,
         cw_label_whitelist: preferences.cw_label_whitelist,
         cw_author_whitelist: preferences.cw_author_whitelist,
+        reduce_motion: preferences.reduce_motion,
     });
 
     function removeWhitelistedAuthor(handle: string) {
@@ -349,6 +350,23 @@ export default function FeedSettings({
                             {errors.sensitive_media_behavior}
                         </p>
                     )}
+                </div>
+
+                {/* Reduce motion */}
+                <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                            checked={data.reduce_motion}
+                            onCheckedChange={(next) =>
+                                setData('reduce_motion', next === true)
+                            }
+                        />
+                        Reduce motion
+                    </label>
+                    <p className="text-muted-foreground text-xs">
+                        Posts fade between each other instead of tilting,
+                        spinning, or flipping in.
+                    </p>
                 </div>
 
                 <Button type="submit" disabled={processing}>

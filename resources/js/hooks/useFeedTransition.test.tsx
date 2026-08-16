@@ -4,15 +4,21 @@ import type { Post } from '@/types/post';
 import { useFeedTransition } from './useFeedTransition';
 
 type TimelineConfig = { onComplete?: () => void };
+type Chain = {
+    to: ReturnType<typeof vi.fn>;
+    call: ReturnType<typeof vi.fn>;
+    fromTo: ReturnType<typeof vi.fn>;
+};
 
 let lastTimelineConfig: TimelineConfig | undefined;
 let lastCallFn: (() => void) | undefined;
+let lastChain: Chain | undefined;
 
 vi.mock('gsap', () => ({
     gsap: {
         timeline: vi.fn((config?: TimelineConfig) => {
             lastTimelineConfig = config;
-            const chain = {
+            const chain: Chain = {
                 to: vi.fn(() => chain),
                 call: vi.fn((fn: () => void) => {
                     lastCallFn = fn;
@@ -21,6 +27,7 @@ vi.mock('gsap', () => ({
                 }),
                 fromTo: vi.fn(() => chain),
             };
+            lastChain = chain;
 
             return chain;
         }),
@@ -68,11 +75,13 @@ function Harness({
     queue,
     advance,
     initialPosts,
+    reduceMotion,
 }: {
     current: Post | null;
     queue: Post[];
     advance: () => void;
     initialPosts: Post[];
+    reduceMotion?: boolean;
 }) {
     const {
         bgRef,
@@ -82,7 +91,13 @@ function Harness({
         handleAdvance,
         handleCarouselProgress,
         resetCarouselProgress,
-    } = useFeedTransition({ current, queue, advance, initialPosts });
+    } = useFeedTransition({
+        current,
+        queue,
+        advance,
+        initialPosts,
+        reduceMotion,
+    });
 
     return (
         <div>
@@ -261,6 +276,69 @@ describe('useFeedTransition', () => {
         act(() => lastTimelineConfig?.onComplete?.());
 
         expect(screen.getByTestId('next-background')).toHaveTextContent('a');
+    });
+
+    it('clamps scale and blur to identity values when reduceMotion is set, leaving only the opacity fade', () => {
+        const postA = makePost('a');
+        const postB = makePost('b');
+        render(
+            <Harness
+                current={postA}
+                queue={[postB]}
+                advance={vi.fn()}
+                initialPosts={[postA, postB]}
+                reduceMotion
+            />,
+        );
+
+        fireEvent.click(screen.getByText('advance'));
+
+        expect(lastChain?.to).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                scale: 1,
+                filter: 'blur(0px)',
+                opacity: 0,
+            }),
+            0,
+        );
+        expect(lastChain?.fromTo).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                scale: 1,
+                filter: 'blur(0px)',
+                opacity: 0,
+            }),
+            expect.anything(),
+            0.3,
+        );
+    });
+
+    it('uses the zoom/blur scale values when reduceMotion is not set', () => {
+        const postA = makePost('a');
+        const postB = makePost('b');
+        render(
+            <Harness
+                current={postA}
+                queue={[postB]}
+                advance={vi.fn()}
+                initialPosts={[postA, postB]}
+            />,
+        );
+
+        fireEvent.click(screen.getByText('advance'));
+
+        expect(lastChain?.to).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ scale: 1.3, filter: 'blur(8px)' }),
+            0,
+        );
+        expect(lastChain?.fromTo).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ scale: 0.7, filter: 'blur(8px)' }),
+            expect.anything(),
+            0.3,
+        );
     });
 
     it('ignores a second advance call inside the debounce window', async () => {

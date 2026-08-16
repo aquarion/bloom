@@ -23,6 +23,7 @@ it('updates user feed preferences', function () {
         'sensitive_media_behavior' => 'show',
         'cw_label_whitelist' => ['adult', 'safety', 'generic'],
         'cw_author_whitelist' => ['@alice@mastodon.social'],
+        'reduce_motion' => true,
     ]);
 
     $response->assertRedirect();
@@ -33,7 +34,40 @@ it('updates user feed preferences', function () {
         ->and($user->getPreference('cw_behavior'))->toBe('skip')
         ->and($user->getPreference('sensitive_media_behavior'))->toBe('show')
         ->and($user->getPreference('cw_label_whitelist'))->toBe(['adult', 'safety', 'generic'])
-        ->and($user->getPreference('cw_author_whitelist'))->toBe(['@alice@mastodon.social']);
+        ->and($user->getPreference('cw_author_whitelist'))->toBe(['@alice@mastodon.social'])
+        ->and($user->getPreference('reduce_motion'))->toBeTrue();
+});
+
+it('defaults reduce_motion to false when omitted', function () {
+    $user = User::factory()->withPasskey()->create([
+        'feed_preferences' => ['reduce_motion' => true],
+    ]);
+
+    $this->actingAs($user)->put(route('feed.settings.update'), [
+        'max_age_days' => 14,
+        'mute_words' => [],
+        'cw_behavior' => 'blur',
+        'sensitive_media_behavior' => 'show',
+        'cw_label_whitelist' => [],
+        'cw_author_whitelist' => [],
+    ]);
+
+    $user->refresh();
+    expect($user->getPreference('reduce_motion'))->toBeFalse();
+});
+
+it('rejects a non-boolean reduce_motion value', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $response = $this->actingAs($user)->put(route('feed.settings.update'), [
+        'max_age_days' => 14,
+        'mute_words' => [],
+        'cw_behavior' => 'blur',
+        'sensitive_media_behavior' => 'show',
+        'reduce_motion' => 'not-a-bool',
+    ]);
+
+    $response->assertSessionHasErrors('reduce_motion');
 });
 
 it('clears cw_author_whitelist when submitted as an empty array', function () {

@@ -2,6 +2,7 @@ import { gsap } from 'gsap';
 import { SplitText } from 'gsap/SplitText';
 import { arc } from './templates/arc';
 import { blockTilt } from './templates/blockTilt';
+import { fade } from './templates/fade';
 import { spiral } from './templates/spiral';
 import { stackFlip } from './templates/stackFlip';
 import type { AnimationTemplate } from './types';
@@ -24,4 +25,4 @@ export function pickTemplate(exclude?: AnimationTemplate): AnimationTemplate {
 }
 
 export type { AnimationTemplate };
-export { SplitText };
+export { fade, SplitText };

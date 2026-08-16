@@ -36,6 +36,7 @@ vi.mock('@gsap/react', () => ({
 
 vi.mock('@/lib/animations', () => ({
     pickTemplate: vi.fn(() => vi.fn()),
+    fade: vi.fn(),
     SplitText: class {
         words: unknown[] = [];
         revert() {}
@@ -177,6 +178,7 @@ describe('PostAnimator — poll rendering', () => {
                         body: 'This is the parent post',
                         created_at: new Date().toISOString(),
                         chip_mentions: [],
+                        emojis: {},
                         cw_text: null,
                         cw_is_author_level: false,
                         cw_label_source: null,

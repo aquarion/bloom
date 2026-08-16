@@ -33,6 +33,7 @@ class FeedSettingsController extends Controller
             'cw_label_whitelist.*' => [Rule::in(['adult', 'graphic', 'safety', 'generic'])],
             'cw_author_whitelist' => ['nullable', 'array'],
             'cw_author_whitelist.*' => ['string', 'max:255'],
+            'reduce_motion' => ['nullable', 'boolean'],
         ]);
 
         $user = $request->user();
@@ -41,6 +42,7 @@ class FeedSettingsController extends Controller
         $prefs['cw_behavior'] = $validated['cw_behavior'];
         $prefs['sensitive_media_behavior'] = $validated['sensitive_media_behavior'];
         $prefs['cw_label_whitelist'] = $validated['cw_label_whitelist'] ?? [];
+        $prefs['reduce_motion'] = $validated['reduce_motion'] ?? false;
         if (array_key_exists('cw_author_whitelist', $validated)) {
             $prefs['cw_author_whitelist'] = $validated['cw_author_whitelist'] ?? [];
         }

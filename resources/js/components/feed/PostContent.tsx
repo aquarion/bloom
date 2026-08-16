@@ -80,6 +80,7 @@ export function PostContent({
     cwBehavior = 'show',
     sensitiveMediaBehavior = 'show',
     paused = false,
+    reduceMotion = false,
 }: {
     post: Post;
     onReady?: () => void;
@@ -88,6 +89,7 @@ export function PostContent({
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
     paused?: boolean;
+    reduceMotion?: boolean;
 }) {
     const colors = postDisplayColors(post);
     const [mediaRevealed, setMediaRevealed] = useState(false);
@@ -136,6 +138,7 @@ export function PostContent({
                 onProgress={onProgress}
                 cwBehavior={cwBehavior}
                 sensitiveMediaBehavior={sensitiveMediaBehavior}
+                reduceMotion={reduceMotion}
             />
         );
     }
@@ -153,6 +156,7 @@ export function PostContent({
                     onRevealMedia={() => setMediaRevealed(true)}
                     paused={paused}
                     cwBehavior={cwBehavior}
+                    reduceMotion={reduceMotion}
                 />
             </div>
             {showCwOverlay && cwText !== null && (

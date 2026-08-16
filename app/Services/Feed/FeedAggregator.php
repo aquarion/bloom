@@ -517,13 +517,14 @@ class FeedAggregator
     }
 
     /**
-     * Detects self-reply chains (tweetstorms) among $normalised and attaches the continuation
-     * posts as a 'thread' key on the head post, so the frontend can play them as one sequential
-     * group (#53). Only walks a single unambiguous path — branching self-replies, or a stranger
-     * replying before the author continues, stop the chain rather than guessing which path to
-     * follow. Continuation posts are re-normalised the same way a top-level post would be (no
-     * reply_to of their own, to avoid a redundant "replying to self" panel on every entry) and
-     * removed from $normalised so they don't also surface as their own standalone feed item.
+     * Detects self-reply chains (tweetstorms, #53) and flowing back-and-forth conversations
+     * (#313) among $normalised, and attaches the continuation posts as a 'thread' key on the
+     * head post, so the frontend can play them as one sequential group. Only walks a single
+     * unambiguous path — branching replies, or a third distinct person joining the exchange,
+     * stop the chain rather than guessing which path to follow. Continuation posts are
+     * re-normalised the same way a top-level post would be (no reply_to of their own, to avoid
+     * a redundant "replying to" panel on every entry) and removed from $normalised so they
+     * don't also surface as their own standalone feed item.
      *
      * @param  array<int, array<string, mixed>>  $normalised
      * @param  array<int, array<string, mixed>>  $statuses  Same order/count as $normalised.
@@ -558,14 +559,16 @@ class FeedAggregator
 
             $chain = [];
             $currentId = $raw['id'];
+            $participants = [$authorAcct => true];
 
             while (count($chain) < self::MAX_THREAD_DEPTH) {
                 $repliesAtParent = $byParent[$currentId] ?? [];
+                $replyAcct = $repliesAtParent[0]['account']['acct'] ?? null;
 
-                // Require the parent to have exactly one reply, by the author — a stranger
-                // replying alongside (or instead of) the author's continuation makes the
-                // path ambiguous, so stop rather than guess which branch to follow.
-                if (count($repliesAtParent) !== 1 || ($repliesAtParent[0]['account']['acct'] ?? null) !== $authorAcct) {
+                // Require the parent to have exactly one reply, from one of at most two
+                // participants — a third distinct person joining (or a branching reply)
+                // makes the path ambiguous, so stop rather than guess which branch to follow.
+                if (count($repliesAtParent) !== 1 || $replyAcct === null || ! $this->admitThreadParticipant($participants, $replyAcct)) {
                     break;
                 }
 
@@ -608,9 +611,9 @@ class FeedAggregator
     }
 
     /**
-     * Bluesky counterpart to attachMastodonThreads() — same self-reply-chain detection and
-     * dedup, walking app.bsky.feed.getPostThread's nested 'replies' view instead of Mastodon's
-     * flat ancestors/descendants list.
+     * Bluesky counterpart to attachMastodonThreads() — same self-reply/flowing-conversation
+     * chain detection and dedup, walking app.bsky.feed.getPostThread's nested 'replies' view
+     * instead of Mastodon's flat ancestors/descendants list.
      *
      * @param  array<int, array<string, mixed>>  $normalised
      * @param  array<int, array<string, mixed>>  $feedPosts  Same order/count as $normalised (each a raw {post, reply?, reason?} entry).
@@ -639,16 +642,19 @@ class FeedAggregator
             }
 
             $chain = [];
+            $participants = [$authorDid => true];
 
             while (count($chain) < self::MAX_THREAD_DEPTH) {
                 $repliesAtNode = $node['replies'] ?? [];
+                $replyDid = $repliesAtNode[0]['post']['author']['did'] ?? null;
 
-                // Require exactly one reply, by the author — a stranger replying
-                // alongside (or instead of) the author's continuation makes the path
+                // Require exactly one reply, from one of at most two participants — a
+                // third distinct person joining (or a branching reply) makes the path
                 // ambiguous, so stop rather than guess which branch to follow.
                 if (count($repliesAtNode) !== 1
                     || ($repliesAtNode[0]['$type'] ?? '') !== 'app.bsky.feed.defs#threadViewPost'
-                    || ($repliesAtNode[0]['post']['author']['did'] ?? null) !== $authorDid) {
+                    || $replyDid === null
+                    || ! $this->admitThreadParticipant($participants, $replyDid)) {
                     break;
                 }
 
@@ -688,5 +694,28 @@ class FeedAggregator
             $normalised,
             fn (array $post) => ! isset($consumedUrls[$post['original_url']]),
         ));
+    }
+
+    /**
+     * Admits $author into a thread walk's participant set, capped at two distinct people —
+     * a plain self-reply chain never grows past one, and a flowing back-and-forth (#313) is
+     * allowed to alternate between exactly two, but a third distinct voice joining makes the
+     * "single conversation" framing wrong, so the walk should stop rather than keep following it.
+     *
+     * @param  array<string, true>  $participants
+     */
+    private function admitThreadParticipant(array &$participants, string $author): bool
+    {
+        if (isset($participants[$author])) {
+            return true;
+        }
+
+        if (count($participants) >= 2) {
+            return false;
+        }
+
+        $participants[$author] = true;
+
+        return true;
     }
 }

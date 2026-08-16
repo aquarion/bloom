@@ -59,7 +59,6 @@ export function PanelsOnlyPost({
                 {post.reply_to && (
                     <ContextPanel
                         icon={<Reply className="size-3.5" />}
-                        emojis={post.emojis}
                         cwBehavior={cwBehavior}
                         {...post.reply_to}
                     />
@@ -67,7 +66,6 @@ export function PanelsOnlyPost({
                 {post.quoted_post && (
                     <ContextPanel
                         icon={<Quote className="size-3.5" />}
-                        emojis={post.emojis}
                         cwBehavior={cwBehavior}
                         {...post.quoted_post}
                     />

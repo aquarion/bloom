@@ -63,7 +63,7 @@
             Bloom couldn't start. Reloading usually fixes this.
         </p>
         <a
-            href="{{ url()->current() }}"
+            href="{{ url()->full() }}"
             class="rounded-md border px-4 py-2 text-sm hover:bg-muted"
         >
             Reload page

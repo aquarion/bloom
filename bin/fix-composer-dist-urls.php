@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 /**
- * Rewrites composer.lock dist URLs from api.github.com to codeload.github.com.
+ * Rewrites composer.lock dist URLs that reference a commit SHA from
+ * api.github.com to codeload.github.com.
  *
  * Packagist publishes GitHub-hosted package archives as
  * "https://api.github.com/repos/{owner}/{repo}/zipball/{ref}", which 302s to
@@ -80,6 +81,21 @@ $encoded = json_encode(
     JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
 );
 
-file_put_contents($lockPath, $encoded."\n");
+// Write to a temp file and rename over the target rather than writing
+// $lockPath directly: rename() is atomic on POSIX filesystems, so a failed
+// or interrupted write can never leave composer.lock truncated.
+$tmpPath = $lockPath.'.tmp';
+
+if (file_put_contents($tmpPath, $encoded."\n") === false) {
+    fwrite(STDERR, "Could not write {$tmpPath}\n");
+
+    exit(1);
+}
+
+if (rename($tmpPath, $lockPath) === false) {
+    fwrite(STDERR, "Could not move {$tmpPath} to {$lockPath}\n");
+
+    exit(1);
+}
 
 echo "Rewrote {$count} dist URL(s) in composer.lock to use codeload.github.com.\n";

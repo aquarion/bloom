@@ -13,7 +13,7 @@
 		}
 	],
 	"license": "MIT",
-	"// ext-opentelemetry": "Not a platform require: the extension is only present in prod (installed via install-php-extensions in the Dockerfile). open-telemetry/opentelemetry-auto-laravel's _register.php already guards on extension_loaded('opentelemetry') and no-ops otherwise, so requiring the extension here just blocks composer install on machines without it (dev/cloud sandboxes). The vendor package still hard-requires it transitively, so config.platform.ext-opentelemetry below fakes it present for dependency resolution too. Do not re-add the require or remove the platform override.",
+	"// ext-opentelemetry": "Deliberately not a platform require, and config.platform.ext-opentelemetry below fakes it present for a transitive require - the extension is prod-only and open-telemetry/opentelemetry-auto-laravel already no-ops safely without it. Removing either would re-break composer install on machines that lack the extension (dev/cloud sandboxes).",
 	"require": {
 		"php": "^8.4",
 		"ext-redis": "*",
@@ -86,7 +86,7 @@
 			"Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
 			"@php artisan package:discover --ansi"
 		],
-		"// post-update-cmd": "The fix-composer-dist-urls step rewrites composer.lock dist URLs from api.github.com to codeload.github.com so installs don't hit GitHub's rate-limited/auth-gated REST API - see bin/fix-composer-dist-urls.php for why. composer update regenerates those URLs back to api.github.com form, so this must run after every update to keep the lock file self-healing.",
+		"// post-update-cmd": "composer update regenerates composer.lock dist URLs in api.github.com form, so fix-composer-dist-urls.php must run after every update to keep the lock file self-healing - see that file for why.",
 		"post-update-cmd": [
 			"@php artisan vendor:publish --tag=laravel-assets --ansi --force",
 			"@php bin/fix-composer-dist-urls.php"
@@ -117,6 +117,7 @@
 			"php-http/discovery": true,
 			"tbachert/spi": true
 		},
+		"// platform": "ext-opentelemetry version is arbitrary (dependents only require \"*\"), just needs to be present to satisfy resolution - no need to keep it in sync with the version actually installed in prod.",
 		"platform": {
 			"ext-opentelemetry": "1.2.1"
 		}

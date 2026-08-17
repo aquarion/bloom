@@ -9,4 +9,5 @@ export interface FeedPreferences {
     sensitive_media_behavior: ContentBehavior;
     cw_label_whitelist: CwCategory[];
     cw_author_whitelist: string[];
+    reduce_motion: boolean;
 }

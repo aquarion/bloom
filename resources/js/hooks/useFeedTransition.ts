@@ -8,11 +8,13 @@ export function useFeedTransition({
     queue,
     advance,
     initialPosts,
+    reduceMotion = false,
 }: {
     current: Post | null;
     queue: Post[];
     advance: () => void;
     initialPosts: Post[];
+    reduceMotion?: boolean;
 }) {
     const bgRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -58,6 +60,13 @@ export function useFeedTransition({
         // bottom layer if flushSync threw (GSAP swallows callback exceptions).
         let advanceSucceeded = false;
 
+        // Reduced motion collapses the zoom/blur crossfade to a plain opacity
+        // fade — scale and blur are clamped to their identity values rather
+        // than branching the timeline into a separate code path.
+        const outScale = reduceMotion ? 1 : 1.3;
+        const inScale = reduceMotion ? 1 : 0.7;
+        const blurAmount = reduceMotion ? '0px' : '8px';
+
         gsap.timeline({
             // bgRef is back at opacity 1 — safe to update the bottom layer.
             onComplete: () => {
@@ -72,8 +81,8 @@ export function useFeedTransition({
             .to(
                 content,
                 {
-                    scale: 1.3,
-                    filter: 'blur(8px)',
+                    scale: outScale,
+                    filter: `blur(${blurAmount})`,
                     opacity: 0,
                     duration: 0.3,
                     ease: 'power2.in',
@@ -113,7 +122,7 @@ export function useFeedTransition({
             )
             .fromTo(
                 content,
-                { scale: 0.7, filter: 'blur(8px)', opacity: 0 },
+                { scale: inScale, filter: `blur(${blurAmount})`, opacity: 0 },
                 {
                     scale: 1,
                     filter: 'blur(0px)',

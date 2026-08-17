@@ -32,6 +32,7 @@ export interface ReplyTo extends CwFields {
     body: string;
     created_at: string | null;
     chip_mentions: Mention[];
+    emojis: Record<string, string>;
 }
 
 export interface QuotedPost extends CwFields {
@@ -42,6 +43,7 @@ export interface QuotedPost extends CwFields {
     body: string;
     created_at: string | null;
     chip_mentions: Mention[];
+    emojis: Record<string, string>;
 }
 
 export interface PollOption {

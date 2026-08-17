@@ -167,6 +167,66 @@ it('stops a mastodon thread walk when a stranger replies before the author conti
         ->and($result['posts'][0])->not->toHaveKey('thread');
 });
 
+it('extends a mastodon thread across two alternating participants (#313)', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $head = makeMastodonStatus('1', 'alice', 'hi bob', null, 1);
+    $bobReply = makeMastodonStatus('2', 'bob', 'hey alice', '1');
+    $aliceReply = makeMastodonStatus('3', 'alice', 'how are you', '2');
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$head]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+    $mastodon->shouldReceive('getContext')
+        ->once()
+        ->withArgs(fn ($acct, $id) => $id === '1')
+        ->andReturn(['ancestors' => [], 'descendants' => [$bobReply, $aliceReply]]);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['thread'])->toHaveCount(3)
+        ->and(array_column($result['posts'][0]['thread'], 'id'))->toBe(['mastodon_1', 'mastodon_2', 'mastodon_3']);
+});
+
+it('stops a mastodon thread walk when a third distinct participant joins the conversation', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $head = makeMastodonStatus('1', 'alice', 'hi bob', null, 1);
+    $bobReply = makeMastodonStatus('2', 'bob', 'hey alice', '1');
+    $carolReply = makeMastodonStatus('3', 'carol', 'butting in', '2');
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$head]);
+    $mastodon->shouldReceive('getStatus')->andReturn(null);
+    $mastodon->shouldReceive('getContext')
+        ->once()
+        ->withArgs(fn ($acct, $id) => $id === '1')
+        ->andReturn(['ancestors' => [], 'descendants' => [$bobReply, $carolReply]]);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['thread'])->toHaveCount(2)
+        ->and(array_column($result['posts'][0]['thread'], 'id'))->toBe(['mastodon_1', 'mastodon_2']);
+});
+
 it('does not call getContext for a mastodon post with no replies', function () {
     $user = User::factory()->create();
     $account = SocialAccount::factory()->create([
@@ -245,6 +305,100 @@ it('attaches a bluesky self-reply chain as a thread and removes the continuation
                     '$type' => 'app.bsky.feed.defs#threadViewPost',
                     'post' => $replyPost,
                     'replies' => [],
+                ],
+            ],
+        ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['thread'])->toHaveCount(2)
+        ->and($result['posts'][0]['thread'][0]['original_url'])->toContain('/1')
+        ->and($result['posts'][0]['thread'][1]['original_url'])->toContain('/2');
+});
+
+it('extends a bluesky thread across two alternating participants (#313)', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@alice.bsky.social',
+    ]);
+
+    $aliceDid = 'did:plc:alice';
+    $bobDid = 'did:plc:bob';
+    $headFeedPost = makeBlueskyFeedPost('1', $aliceDid, 'alice.bsky.social', 'hi bob', 1);
+    $bobReply = makeBlueskyFeedPost('2', $bobDid, 'bob.bsky.social', 'hey alice')['post'];
+    $aliceReply = makeBlueskyFeedPost('3', $aliceDid, 'alice.bsky.social', 'how are you')['post'];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => [$headFeedPost], 'cursor' => null]);
+    $bluesky->shouldReceive('getPostThread')
+        ->once()
+        ->andReturn([
+            '$type' => 'app.bsky.feed.defs#threadViewPost',
+            'post' => $headFeedPost['post'],
+            'replies' => [
+                [
+                    '$type' => 'app.bsky.feed.defs#threadViewPost',
+                    'post' => $bobReply,
+                    'replies' => [
+                        [
+                            '$type' => 'app.bsky.feed.defs#threadViewPost',
+                            'post' => $aliceReply,
+                            'replies' => [],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+    $aggregator = new FeedAggregator(Mockery::mock(MastodonFeedService::class), $bluesky, app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'])->toHaveCount(1)
+        ->and($result['posts'][0]['thread'])->toHaveCount(3)
+        ->and($result['posts'][0]['thread'][0]['original_url'])->toContain('/1')
+        ->and($result['posts'][0]['thread'][1]['original_url'])->toContain('/2')
+        ->and($result['posts'][0]['thread'][2]['original_url'])->toContain('/3');
+});
+
+it('stops a bluesky thread walk when a third distinct participant joins the conversation', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'bluesky',
+        'access_token' => 'token',
+        'handle' => '@alice.bsky.social',
+    ]);
+
+    $aliceDid = 'did:plc:alice';
+    $bobDid = 'did:plc:bob';
+    $carolDid = 'did:plc:carol';
+    $headFeedPost = makeBlueskyFeedPost('1', $aliceDid, 'alice.bsky.social', 'hi bob', 1);
+    $bobReply = makeBlueskyFeedPost('2', $bobDid, 'bob.bsky.social', 'hey alice')['post'];
+    $carolReply = makeBlueskyFeedPost('3', $carolDid, 'carol.bsky.social', 'butting in')['post'];
+
+    $bluesky = Mockery::mock(BlueskyFeedService::class);
+    $bluesky->shouldReceive('getHomeTimeline')->andReturn(['posts' => [$headFeedPost], 'cursor' => null]);
+    $bluesky->shouldReceive('getPostThread')
+        ->once()
+        ->andReturn([
+            '$type' => 'app.bsky.feed.defs#threadViewPost',
+            'post' => $headFeedPost['post'],
+            'replies' => [
+                [
+                    '$type' => 'app.bsky.feed.defs#threadViewPost',
+                    'post' => $bobReply,
+                    'replies' => [
+                        [
+                            '$type' => 'app.bsky.feed.defs#threadViewPost',
+                            'post' => $carolReply,
+                            'replies' => [],
+                        ],
+                    ],
                 ],
             ],
         ]);

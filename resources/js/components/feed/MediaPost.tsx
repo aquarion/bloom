@@ -77,7 +77,6 @@ export function MediaPost({
                         {post.reply_to && (
                             <ContextPanel
                                 icon={<Reply className="size-3.5" />}
-                                emojis={post.emojis}
                                 cwBehavior={cwBehavior}
                                 fullWidth
                                 {...post.reply_to}
@@ -86,7 +85,6 @@ export function MediaPost({
                         {post.quoted_post && (
                             <ContextPanel
                                 icon={<Quote className="size-3.5" />}
-                                emojis={post.emojis}
                                 cwBehavior={cwBehavior}
                                 fullWidth
                                 {...post.quoted_post}

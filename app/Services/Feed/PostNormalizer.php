@@ -225,6 +225,10 @@ class PostNormalizer
             ...$this->buildNestedMastodonBody($parent['content'], $parent['mentions'] ?? [], $mentionsEnabled),
             ...$this->mastodonCwFields($parent),
             'created_at' => $parent['created_at'] ?? null,
+            'emojis' => $this->buildEmojiMap(array_merge(
+                $parent['emojis'] ?? [],
+                $parent['account']['emojis'] ?? [],
+            )),
         ];
     }
 
@@ -252,6 +256,10 @@ class PostNormalizer
             ...$this->buildNestedMastodonBody($raw['content'] ?? '', $raw['mentions'] ?? [], $mentionsEnabled),
             ...$this->mastodonCwFields($raw),
             'created_at' => $raw['created_at'] ?? null,
+            'emojis' => $this->buildEmojiMap(array_merge(
+                $raw['emojis'] ?? [],
+                $raw['account']['emojis'] ?? [],
+            )),
         ];
     }
 
@@ -331,6 +339,7 @@ class PostNormalizer
             ...$this->buildNestedBlueskyBody($parent['record']['text'], $parent['record']['facets'] ?? [], $mentionsEnabled),
             ...$this->blueskyLabels($parent),
             'created_at' => $parent['record']['createdAt'] ?? null,
+            'emojis' => [],
         ];
     }
 
@@ -369,6 +378,7 @@ class PostNormalizer
             ...$this->buildNestedBlueskyBody($text, $record['value']['facets'] ?? [], $mentionsEnabled),
             ...$this->blueskyLabels($record),
             'created_at' => $record['value']['createdAt'] ?? null,
+            'emojis' => [],
         ];
     }
 

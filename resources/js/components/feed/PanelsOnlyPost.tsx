@@ -14,10 +14,12 @@ export function PanelsOnlyPost({
     post,
     onReady,
     cwBehavior = 'show',
+    reduceMotion = false,
 }: {
     post: Post;
     onReady?: () => void;
     cwBehavior?: ContentBehavior;
+    reduceMotion?: boolean;
 }) {
     const panelsRef = useRef<HTMLDivElement>(null);
     const onReadyRef = useRef(onReady);
@@ -37,7 +39,7 @@ export function PanelsOnlyPost({
 
         const tween = gsap.fromTo(
             panelsRef.current,
-            { opacity: 0, y: -8 },
+            { opacity: 0, y: reduceMotion ? 0 : -8 },
             {
                 opacity: 1,
                 y: 0,
@@ -48,7 +50,7 @@ export function PanelsOnlyPost({
         );
 
         return () => tween.kill();
-    }, [post.id]);
+    }, [post.id, reduceMotion]);
 
     const mainCwLabel = postLevelCwLabel(post);
 
@@ -59,7 +61,6 @@ export function PanelsOnlyPost({
                 {post.reply_to && (
                     <ContextPanel
                         icon={<Reply className="size-3.5" />}
-                        emojis={post.emojis}
                         cwBehavior={cwBehavior}
                         {...post.reply_to}
                     />
@@ -67,7 +68,6 @@ export function PanelsOnlyPost({
                 {post.quoted_post && (
                     <ContextPanel
                         icon={<Quote className="size-3.5" />}
-                        emojis={post.emojis}
                         cwBehavior={cwBehavior}
                         {...post.quoted_post}
                     />

@@ -49,11 +49,17 @@ const makePost = (overrides: Partial<Post> = {}): Post => ({
     ...overrides,
 });
 
-function renderChrome(paused: boolean) {
+function renderChrome(
+    paused: boolean,
+    overrides: {
+        current?: Post;
+        carouselProgress?: { activeIndex: number; elapsed: number } | null;
+    } = {},
+) {
     return render(
         <CwStateProvider>
             <FeedChrome
-                current={makePost()}
+                current={overrides.current ?? makePost()}
                 queue={[]}
                 debugEnabled={false}
                 panelOpen={false}
@@ -68,7 +74,7 @@ function renderChrome(paused: boolean) {
                 onTogglePause={vi.fn()}
                 onAdvance={vi.fn()}
                 onSelectPost={vi.fn()}
-                carouselProgress={null}
+                carouselProgress={overrides.carouselProgress ?? null}
                 progress={1}
                 showHelp={false}
             />
@@ -102,6 +108,48 @@ describe('FeedChrome — pause indicator', () => {
         renderChrome(true);
 
         expect(screen.getByLabelText('Resume')).toBeInTheDocument();
+    });
+});
+
+describe('FeedChrome — thread attribution (#313)', () => {
+    it('attributes a non-thread post to the head post as before', () => {
+        renderChrome(false, { current: makePost({ author_name: 'Alice' }) });
+
+        expect(screen.getByText('Alice')).toBeInTheDocument();
+    });
+
+    it('attributes the chrome bar to the active thread entry, not the head post', () => {
+        const head = makePost({
+            id: 'p1',
+            author_name: 'Alice',
+            thread: [
+                makePost({ id: 'p1', author_name: 'Alice' }),
+                makePost({ id: 'p2', author_name: 'Bob' }),
+            ],
+        });
+
+        renderChrome(false, {
+            current: head,
+            carouselProgress: { activeIndex: 1, elapsed: 0 },
+        });
+
+        expect(screen.queryByText('Alice')).not.toBeInTheDocument();
+        expect(screen.getByText('Bob')).toBeInTheDocument();
+    });
+
+    it('falls back to the head post while carouselProgress has not reported an index yet', () => {
+        const head = makePost({
+            id: 'p1',
+            author_name: 'Alice',
+            thread: [
+                makePost({ id: 'p1', author_name: 'Alice' }),
+                makePost({ id: 'p2', author_name: 'Bob' }),
+            ],
+        });
+
+        renderChrome(false, { current: head, carouselProgress: null });
+
+        expect(screen.getByText('Alice')).toBeInTheDocument();
     });
 });
 

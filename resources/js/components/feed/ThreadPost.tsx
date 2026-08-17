@@ -13,6 +13,7 @@ export function ThreadPost({
     onProgress,
     cwBehavior = 'show',
     sensitiveMediaBehavior = 'show',
+    reduceMotion = false,
 }: {
     thread: Post[];
     duration: number;
@@ -21,6 +22,7 @@ export function ThreadPost({
     onProgress?: (index: number, elapsed: number) => void;
     cwBehavior?: ContentBehavior;
     sensitiveMediaBehavior?: ContentBehavior;
+    reduceMotion?: boolean;
 }) {
     const [activeIndex, setActiveIndex] = useState(0);
     // Set once the active entry's own PostContent fires onReady — an entry with
@@ -90,6 +92,7 @@ export function ThreadPost({
             paused={paused}
             cwBehavior={cwBehavior}
             sensitiveMediaBehavior={sensitiveMediaBehavior}
+            reduceMotion={reduceMotion}
         />
     );
 }

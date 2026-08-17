@@ -104,6 +104,7 @@ const defaultProps = {
     cwBehavior: 'show' as const,
     sensitiveMediaBehavior: 'show' as const,
     cwAuthorWhitelist: [] as string[],
+    reduceMotion: false,
 };
 
 beforeEach(() => {

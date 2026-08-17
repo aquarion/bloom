@@ -43,3 +43,25 @@ it('passes the persisted cw author whitelist to the feed page', function () {
         ->where('cwAuthorWhitelist', ['@alice@mastodon.social'])
     );
 });
+
+it('passes the persisted reduce_motion preference to the feed page', function () {
+    $user = User::factory()->withPasskey()->create([
+        'feed_preferences' => ['reduce_motion' => true],
+    ]);
+
+    $response = $this->actingAs($user)->withoutVite()->get(route('feed'));
+
+    $response->assertInertia(fn ($page) => $page->component('feed', false)
+        ->where('reduceMotion', true)
+    );
+});
+
+it('defaults reduceMotion to false on the feed page', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $response = $this->actingAs($user)->withoutVite()->get(route('feed'));
+
+    $response->assertInertia(fn ($page) => $page->component('feed', false)
+        ->where('reduceMotion', false)
+    );
+});

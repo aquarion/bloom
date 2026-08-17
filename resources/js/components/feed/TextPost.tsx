@@ -2,7 +2,7 @@ import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
 import { Quote, Reply } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
-import { pickTemplate, SplitText } from '@/lib/animations';
+import { fade, pickTemplate, SplitText } from '@/lib/animations';
 import type { AnimationTemplate } from '@/lib/animations/types';
 import { postLevelCwLabel } from '@/lib/cw';
 import { EmojiText } from '@/lib/emoji-text';
@@ -28,12 +28,14 @@ export function TextPost({
     colors,
     onReady,
     cwBehavior = 'show',
+    reduceMotion = false,
 }: {
     post: Post;
     body: string;
     colors: PostColors | null;
     onReady?: () => void;
     cwBehavior?: ContentBehavior;
+    reduceMotion?: boolean;
 }) {
     const textRef = useRef<HTMLDivElement>(null);
     const panelsRef = useRef<HTMLDivElement>(null);
@@ -95,8 +97,13 @@ export function TextPost({
             }
         }
 
-        const template = pickTemplate(lastTemplate.current);
-        lastTemplate.current = template;
+        const template = reduceMotion
+            ? fade
+            : pickTemplate(lastTemplate.current);
+
+        if (!reduceMotion) {
+            lastTemplate.current = template;
+        }
 
         const tl = gsap.timeline({ onComplete: () => onReadyRef.current?.() });
         template(tl, split.words as Element[], container);
@@ -104,7 +111,7 @@ export function TextPost({
         if (panelsRef.current) {
             tl.fromTo(
                 panelsRef.current,
-                { opacity: 0, y: -8 },
+                { opacity: 0, y: reduceMotion ? 0 : -8 },
                 { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' },
                 0,
             );
@@ -114,7 +121,7 @@ export function TextPost({
             tl.kill();
             split.revert();
         };
-    }, [post.id, fontSizes]);
+    }, [post.id, fontSizes, reduceMotion]);
 
     const textColor = colors?.text ?? 'white';
     const mainCwLabel = postLevelCwLabel(post);
@@ -130,7 +137,6 @@ export function TextPost({
                         {post.reply_to && (
                             <ContextPanel
                                 icon={<Reply className="size-3.5" />}
-                                emojis={post.emojis}
                                 cwBehavior={cwBehavior}
                                 {...post.reply_to}
                             />
@@ -138,7 +144,6 @@ export function TextPost({
                         {post.quoted_post && (
                             <ContextPanel
                                 icon={<Quote className="size-3.5" />}
-                                emojis={post.emojis}
                                 cwBehavior={cwBehavior}
                                 {...post.quoted_post}
                             />

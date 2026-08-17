@@ -1,15 +1,17 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { FeedPreferences } from '@/types/preferences';
 import FeedSettings from './feed';
 
 let mockErrors: Record<string, string> = {};
+const setDataMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     useForm: (initial: Record<string, unknown>) => ({
         data: initial,
-        setData: vi.fn(),
+        setData: setDataMock,
         put: vi.fn(),
         processing: false,
         errors: mockErrors,
@@ -23,6 +25,7 @@ const preferences: FeedPreferences = {
     sensitive_media_behavior: 'blur',
     cw_label_whitelist: [],
     cw_author_whitelist: [],
+    reduce_motion: false,
 };
 
 describe('FeedSettings — cw_label_whitelist error rendering', () => {
@@ -59,5 +62,20 @@ describe('FeedSettings — cw_label_whitelist error rendering', () => {
         expect(
             screen.queryByText(/cw label whitelist/i),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('FeedSettings — Reduce motion checkbox', () => {
+    it('calls setData with the toggled value when clicked', async () => {
+        setDataMock.mockClear();
+        mockErrors = {};
+        const user = userEvent.setup();
+        render(<FeedSettings preferences={preferences} />);
+
+        await user.click(
+            screen.getByRole('checkbox', { name: /reduce motion/i }),
+        );
+
+        expect(setDataMock).toHaveBeenCalledWith('reduce_motion', true);
     });
 });

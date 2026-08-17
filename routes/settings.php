@@ -31,8 +31,6 @@ Route::middleware(['auth', 'passkey.exists'])->group(function () {
 
     Route::get('settings/security', [SecurityController::class, 'edit'])->name('security.edit');
 
-    Route::inertia('settings/appearance', 'settings/appearance')->name('appearance.edit');
-
     // Connections settings page
     Route::get('settings/connections', [ConnectionsController::class, 'edit'])->name('connections.edit');
 

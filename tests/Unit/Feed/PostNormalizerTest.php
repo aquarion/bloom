@@ -349,6 +349,7 @@ it('sets quoted_post for bluesky record embeds', function () {
         'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => null,
+        'emojis' => [],
     ]);
 });
 
@@ -388,6 +389,7 @@ it('sets quoted_post for bluesky recordWithMedia embeds', function () {
         'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => null,
+        'emojis' => [],
     ]);
 });
 
@@ -1111,7 +1113,37 @@ it('includes author identity and url in mastodon reply_to', function () {
         'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => null,
+        'emojis' => [],
     ]);
+});
+
+it('includes the parent author\'s own custom emoji in mastodon reply_to, separately from the main post emoji map', function () {
+    $parent = [
+        'url' => 'https://mastodon.social/@original/456',
+        'content' => '<p>This is the parent post body</p>',
+        'account' => [
+            'display_name' => 'Original :wave:',
+            'acct' => 'original',
+            'avatar' => '',
+            'emojis' => [
+                ['shortcode' => 'wave', 'url' => 'https://mastodon.social/emoji/wave.png'],
+            ],
+        ],
+    ];
+
+    $status = [
+        'id' => '789',
+        'content' => '<p>Reply text</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/789',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => '', 'emojis' => []],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parent);
+
+    expect($post['reply_to']['emojis'])->toBe(['wave' => 'https://mastodon.social/emoji/wave.png'])
+        ->and($post['emojis'])->toBe([]);
 });
 
 it('falls back to acct when mastodon reply_to parent has no display_name', function () {
@@ -1229,6 +1261,7 @@ it('includes author identity and url in bluesky reply_to', function () {
         'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => null,
+        'emojis' => [],
     ]);
 });
 
@@ -1578,7 +1611,41 @@ it('sets quoted_post from inline mastodon quote field', function () {
         'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => '2024-01-14T09:00:00.000Z',
+        'emojis' => [],
     ]);
+});
+
+it('includes the quoted author\'s own custom emoji in mastodon quoted_post, separately from the main post emoji map', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>my comment</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => '', 'emojis' => []],
+        'media_attachments' => [],
+        'quote' => [
+            'state' => 'accepted',
+            'quoted_status' => [
+                'id' => '99',
+                'content' => '<p>the quoted post</p>',
+                'created_at' => '2024-01-14T09:00:00.000Z',
+                'url' => 'https://mastodon.social/@author/99',
+                'account' => [
+                    'display_name' => 'Quoted :tada:',
+                    'acct' => 'author',
+                    'avatar' => '',
+                    'emojis' => [
+                        ['shortcode' => 'tada', 'url' => 'https://mastodon.social/emoji/tada.png'],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example');
+
+    expect($post['quoted_post']['emojis'])->toBe(['tada' => 'https://mastodon.social/emoji/tada.png'])
+        ->and($post['emojis'])->toBe([]);
 });
 
 it('sets quoted_post from pre-fetched quote status when no inline quote field', function () {
@@ -1620,6 +1687,7 @@ it('sets quoted_post from pre-fetched quote status when no inline quote field', 
         'cw_categories' => [],
         'sensitive_media' => false,
         'created_at' => '2024-01-14T09:00:00.000Z',
+        'emojis' => [],
     ]);
 });
 

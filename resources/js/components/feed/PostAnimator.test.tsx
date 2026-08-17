@@ -28,6 +28,7 @@ vi.mock('@gsap/react', () => ({
 
 vi.mock('@/lib/animations', () => ({
     pickTemplate: vi.fn(),
+    fade: vi.fn(),
     SplitText: class {},
 }));
 
@@ -183,6 +184,7 @@ describe('PostAnimator — image branch', () => {
                         body: 'Original post',
                         created_at: null,
                         chip_mentions: [],
+                        emojis: {},
                         cw_text: null,
                         cw_is_author_level: false,
                         cw_label_source: null,
@@ -209,6 +211,7 @@ describe('PostAnimator — image branch', () => {
                         body: 'Quoted post body',
                         created_at: null,
                         chip_mentions: [],
+                        emojis: {},
                         cw_text: null,
                         cw_is_author_level: false,
                         cw_label_source: null,
@@ -340,6 +343,7 @@ describe('PostAnimator — panels-only branch CW tag (issue #285)', () => {
                         body: 'Original post',
                         created_at: null,
                         chip_mentions: [],
+                        emojis: {},
                         cw_text: null,
                         cw_is_author_level: false,
                         cw_label_source: null,

@@ -16,6 +16,7 @@ export function PostAnimator({
     onRevealMedia,
     paused = false,
     cwBehavior = 'show',
+    reduceMotion = false,
 }: {
     post: Post;
     colors: PostColors | null;
@@ -26,6 +27,7 @@ export function PostAnimator({
     onRevealMedia?: () => void;
     paused?: boolean;
     cwBehavior?: ContentBehavior;
+    reduceMotion?: boolean;
 }) {
     const onReadyRef = useRef(onReady);
 
@@ -73,6 +75,7 @@ export function PostAnimator({
                     post={post}
                     onReady={onReady}
                     cwBehavior={cwBehavior}
+                    reduceMotion={reduceMotion}
                 />
             );
         }
@@ -87,6 +90,7 @@ export function PostAnimator({
             colors={colors}
             onReady={onReady}
             cwBehavior={cwBehavior}
+            reduceMotion={reduceMotion}
         />
     );
 }

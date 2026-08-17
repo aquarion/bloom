@@ -3,7 +3,6 @@ import {
     CircleAlert,
     FolderGit2,
     LogOut,
-    Palette,
     Rss,
     ShieldCheck,
     SlidersHorizontal,
@@ -24,7 +23,6 @@ import {
 import { UserInfo } from '@/components/user-info';
 import { cleanupMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { feed, logout } from '@/routes';
-import { edit as appearanceEdit } from '@/routes/appearance';
 import { edit as connectionsEdit } from '@/routes/connections';
 import { show as docsShow } from '@/routes/docs';
 import { edit as feedSettingsEdit } from '@/routes/feed/settings';
@@ -56,11 +54,6 @@ const platformNavItems: NavItem[] = [
         href: connectionsEdit(),
         icon: Users,
     },
-    {
-        title: 'Feed Settings',
-        href: feedSettingsEdit(),
-        icon: SlidersHorizontal,
-    },
 ];
 
 const settingsNavItems: NavItem[] = [
@@ -75,9 +68,9 @@ const settingsNavItems: NavItem[] = [
         icon: ShieldCheck,
     },
     {
-        title: 'Appearance',
-        href: appearanceEdit(),
-        icon: Palette,
+        title: 'Feed Settings',
+        href: feedSettingsEdit(),
+        icon: SlidersHorizontal,
     },
 ];
 

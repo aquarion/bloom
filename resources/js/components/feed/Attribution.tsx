@@ -49,7 +49,7 @@ export function Attribution({
                         <AuthorChip
                             name={post.quoted_post.author_name}
                             avatar={post.quoted_post.author_avatar}
-                            emojis={post.emojis}
+                            emojis={post.quoted_post.emojis}
                             account={post.quoted_post.author_handle}
                             time={
                                 post.quoted_post.created_at
@@ -69,7 +69,7 @@ export function Attribution({
                         <AuthorChip
                             name={post.quoted_post.author_name}
                             avatar={post.quoted_post.author_avatar}
-                            emojis={post.emojis}
+                            emojis={post.quoted_post.emojis}
                             account={post.quoted_post.author_handle}
                             time={
                                 post.quoted_post.created_at

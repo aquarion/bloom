@@ -54,11 +54,6 @@ const platformNavItems: NavItem[] = [
         href: connectionsEdit(),
         icon: Users,
     },
-    {
-        title: 'Feed Settings',
-        href: feedSettingsEdit(),
-        icon: SlidersHorizontal,
-    },
 ];
 
 const settingsNavItems: NavItem[] = [
@@ -71,6 +66,11 @@ const settingsNavItems: NavItem[] = [
         title: 'Security',
         href: securityEdit(),
         icon: ShieldCheck,
+    },
+    {
+        title: 'Feed Settings',
+        href: feedSettingsEdit(),
+        icon: SlidersHorizontal,
     },
 ];
 

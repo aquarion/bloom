@@ -389,7 +389,7 @@ export default function FeedSettings({
                     <div className="space-y-4">
                         {/* Theme */}
                         <div className="space-y-2">
-                            <Label>Theme</Label>
+                            <Label className="sr-only">Theme</Label>
                             <AppearanceToggleTab />
                             <p className="text-muted-foreground text-xs">
                                 Choose how Bloom looks.

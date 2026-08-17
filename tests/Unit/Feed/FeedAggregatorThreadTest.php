@@ -194,7 +194,39 @@ it('extends a mastodon thread across two alternating participants (#313)', funct
 
     expect($result['posts'])->toHaveCount(1)
         ->and($result['posts'][0]['thread'])->toHaveCount(3)
-        ->and(array_column($result['posts'][0]['thread'], 'id'))->toBe(['mastodon_1', 'mastodon_2', 'mastodon_3']);
+        ->and(array_column($result['posts'][0]['thread'], 'id'))->toBe(['mastodon_1', 'mastodon_2', 'mastodon_3'])
+        ->and($result['posts'][0]['thread'][0]['reply_to'])->toBeNull()
+        ->and($result['posts'][0]['thread'][1]['reply_to']['author_handle'])->toBe('@alice@fosstodon.org')
+        ->and($result['posts'][0]['thread'][2]['reply_to']['author_handle'])->toBe('@bob@fosstodon.org');
+});
+
+it('preserves the head entry\'s real reply-to context when a mastodon thread starts mid-conversation', function () {
+    $user = User::factory()->create();
+    $account = SocialAccount::factory()->create([
+        'user_id' => $user->id,
+        'provider' => 'mastodon',
+        'instance_url' => 'https://fosstodon.org',
+        'access_token' => 'token',
+        'handle' => '@me@fosstodon.org',
+    ]);
+
+    $externalParent = makeMastodonStatus('0', 'carol', 'original post', null, 0);
+    $head = makeMastodonStatus('1', 'author', 'part one', '0', 1);
+    $reply = makeMastodonStatus('2', 'author', 'part two', '1');
+
+    $mastodon = Mockery::mock(MastodonFeedService::class);
+    $mastodon->shouldReceive('getHomeTimeline')->andReturn([$head]);
+    $mastodon->shouldReceive('getStatus')->andReturn($externalParent);
+    $mastodon->shouldReceive('getContext')
+        ->once()
+        ->andReturn(['ancestors' => [], 'descendants' => [$reply]]);
+
+    $aggregator = new FeedAggregator($mastodon, Mockery::mock(BlueskyFeedService::class), app(PostNormalizer::class));
+    $result = $aggregator->fetch($user);
+
+    expect($result['posts'][0]['thread'][0]['reply_to']['author_handle'])->toBe('@carol@fosstodon.org')
+        // Entry 2 is still a same-author continuation of entry 1, so its "replying to" panel stays suppressed.
+        ->and($result['posts'][0]['thread'][1]['reply_to'])->toBeNull();
 });
 
 it('stops a mastodon thread walk when a third distinct participant joins the conversation', function () {
@@ -362,7 +394,10 @@ it('extends a bluesky thread across two alternating participants (#313)', functi
         ->and($result['posts'][0]['thread'])->toHaveCount(3)
         ->and($result['posts'][0]['thread'][0]['original_url'])->toContain('/1')
         ->and($result['posts'][0]['thread'][1]['original_url'])->toContain('/2')
-        ->and($result['posts'][0]['thread'][2]['original_url'])->toContain('/3');
+        ->and($result['posts'][0]['thread'][2]['original_url'])->toContain('/3')
+        ->and($result['posts'][0]['thread'][0]['reply_to'])->toBeNull()
+        ->and($result['posts'][0]['thread'][1]['reply_to']['author_handle'])->toBe('@alice.bsky.social')
+        ->and($result['posts'][0]['thread'][2]['reply_to']['author_handle'])->toBe('@bob.bsky.social');
 });
 
 it('stops a bluesky thread walk when a third distinct participant joins the conversation', function () {

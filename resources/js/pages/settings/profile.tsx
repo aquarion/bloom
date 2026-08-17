@@ -1,16 +1,13 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import BetaTesterController from '@/actions/App/Http/Controllers/Settings/BetaTesterController';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePasskey } from '@/hooks/use-passkey';
 import SettingsPageLayout from '@/layouts/settings-page-layout';
-import docs from '@/routes/docs';
 import { edit } from '@/routes/profile';
 
 export default function Profile({ status }: { status?: string }) {
@@ -36,17 +33,6 @@ export default function Profile({ status }: { status?: string }) {
         }
 
         profileForm.patch(ProfileController.update.url(), {
-            preserveScroll: true,
-        });
-    }
-
-    const betaTesterForm = useForm({
-        beta_tester: auth.user.roles?.includes('beta_tester') ?? false,
-    });
-
-    function submitBetaTester(e: React.FormEvent) {
-        e.preventDefault();
-        betaTesterForm.patch(BetaTesterController.update.url(), {
             preserveScroll: true,
         });
     }
@@ -135,49 +121,6 @@ export default function Profile({ status }: { status?: string }) {
                         </Button>
                     </div>
                 </form>
-
-                <div className="border-t pt-6">
-                    <Heading
-                        variant="small"
-                        title="Beta features"
-                        description="Opt in to try experimental features before they're released"
-                    />
-
-                    <form onSubmit={submitBetaTester} className="mt-4">
-                        <div className="flex items-center gap-3">
-                            <Checkbox
-                                id="beta_tester"
-                                checked={betaTesterForm.data.beta_tester}
-                                onCheckedChange={(checked) =>
-                                    betaTesterForm.setData(
-                                        'beta_tester',
-                                        checked === true,
-                                    )
-                                }
-                                data-test="beta-tester-checkbox"
-                            />
-                            <Label htmlFor="beta_tester">
-                                Enable{' '}
-                                <Link
-                                    href={docs.show('changelog')}
-                                    className="underline"
-                                >
-                                    beta features
-                                </Link>
-                            </Label>
-                            <Button
-                                type="submit"
-                                variant="outline"
-                                size="sm"
-                                disabled={betaTesterForm.processing}
-                                className="ml-auto"
-                                data-test="save-beta-tester-button"
-                            >
-                                Save
-                            </Button>
-                        </div>
-                    </form>
-                </div>
             </div>
 
             <DeleteUser />

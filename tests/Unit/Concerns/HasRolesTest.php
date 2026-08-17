@@ -23,31 +23,31 @@ it('returns true when user has the role', function () {
 it('returns false for a role the user does not have', function () {
     $user = User::factory()->create(['roles' => ['admin']]);
 
-    expect($user->hasRole(Role::BetaTester))->toBeFalse();
+    expect($user->hasRole(Role::Subscriber))->toBeFalse();
 });
 
 it('hasAnyRole returns true when user has at least one matching role', function () {
-    $user = User::factory()->create(['roles' => ['beta_tester']]);
+    $user = User::factory()->create(['roles' => ['subscriber']]);
 
-    expect($user->hasAnyRole(Role::Admin, Role::BetaTester))->toBeTrue();
+    expect($user->hasAnyRole(Role::Admin, Role::Subscriber))->toBeTrue();
 });
 
 it('hasAnyRole returns false when user has none of the given roles', function () {
-    $user = User::factory()->create(['roles' => ['subscriber']]);
+    $user = User::factory()->create(['roles' => []]);
 
-    expect($user->hasAnyRole(Role::Admin, Role::BetaTester))->toBeFalse();
+    expect($user->hasAnyRole(Role::Admin, Role::Subscriber))->toBeFalse();
 });
 
 it('hasAllRoles returns true when user has all given roles', function () {
-    $user = User::factory()->create(['roles' => ['admin', 'beta_tester']]);
+    $user = User::factory()->create(['roles' => ['admin', 'subscriber']]);
 
-    expect($user->hasAllRoles(Role::Admin, Role::BetaTester))->toBeTrue();
+    expect($user->hasAllRoles(Role::Admin, Role::Subscriber))->toBeTrue();
 });
 
 it('hasAllRoles returns false when user is missing one of the roles', function () {
     $user = User::factory()->create(['roles' => ['admin']]);
 
-    expect($user->hasAllRoles(Role::Admin, Role::BetaTester))->toBeFalse();
+    expect($user->hasAllRoles(Role::Admin, Role::Subscriber))->toBeFalse();
 });
 
 it('addRole persists the role to the database', function () {
@@ -65,19 +65,19 @@ it('addRole is idempotent', function () {
 });
 
 it('removeRole removes the role and persists', function () {
-    $user = User::factory()->create(['roles' => ['admin', 'beta_tester']]);
+    $user = User::factory()->create(['roles' => ['admin', 'subscriber']]);
     $user->removeRole(Role::Admin);
 
     $fresh = $user->fresh();
     expect($fresh->hasRole(Role::Admin))->toBeFalse();
-    expect($fresh->hasRole(Role::BetaTester))->toBeTrue();
+    expect($fresh->hasRole(Role::Subscriber))->toBeTrue();
 });
 
 it('removeRole is idempotent when role is not present', function () {
     $user = User::factory()->create(['roles' => ['admin']]);
     $updatedAt = $user->updated_at;
 
-    $user->removeRole(Role::BetaTester);
+    $user->removeRole(Role::Subscriber);
 
     $fresh = $user->fresh();
     expect($fresh->roles)->toBe(['admin'])

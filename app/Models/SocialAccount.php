@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasJsonPreferences;
+use App\Enums\ProviderType;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +28,7 @@ class SocialAccount extends Model
     protected $appends = ['feed_name'];
 
     protected $casts = [
+        'provider' => ProviderType::class,
         'access_token' => 'encrypted',  // pragma: allowlist secret
         'token_secret' => 'encrypted',  // pragma: allowlist secret
         'auth_failed_at' => 'datetime',
@@ -82,7 +84,7 @@ class SocialAccount extends Model
     public function toArchive(): array
     {
         return [
-            'provider' => $this->provider,
+            'provider' => $this->provider->value,
             'feed_type' => $this->feed_type,
             'instance_url' => $this->instance_url,
             'handle' => $this->handle,
@@ -112,5 +114,37 @@ class SocialAccount extends Model
             'handle' => $archived['handle'],
             'auth_failed_at' => now(),
         ];
+    }
+
+    /**
+     * Whether $user already has a social account matching the given provider and
+     * (optionally) feed type, instance URL, and handle — the "already connected"
+     * check duplicated across the connect flows before this helper existed.
+     */
+    public static function existsFor(
+        User $user,
+        ProviderType $provider,
+        ?string $instanceUrl = null,
+        ?string $handle = null,
+        ?string $feedType = null,
+    ): bool {
+        return $user->socialAccounts()
+            ->where('provider', $provider)
+            ->when($feedType !== null, fn ($query) => $query->where('feed_type', $feedType))
+            ->when($instanceUrl !== null, fn ($query) => $query->where('instance_url', $instanceUrl))
+            ->when($handle !== null, fn ($query) => $query->where('handle', $handle))
+            ->exists();
+    }
+
+    /**
+     * Whether $user already has a Bluesky algorithmic feed connected for the given feed URI.
+     */
+    public static function existsWithFeedUri(User $user, string $feedUri): bool
+    {
+        return $user->socialAccounts()
+            ->where('provider', ProviderType::Bluesky)
+            ->where('feed_type', 'bluesky_feed')
+            ->whereJsonContains('feed_settings->feed_uri', $feedUri)
+            ->exists();
     }
 }

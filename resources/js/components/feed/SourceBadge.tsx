@@ -1,10 +1,5 @@
-import { SiBluesky, SiMastodon } from 'react-icons/si';
+import { PROVIDER_ICONS } from '@/lib/providers';
 import type { Post } from '@/types/post';
-
-const ICONS = {
-    mastodon: SiMastodon,
-    bluesky: SiBluesky,
-} as const;
 
 const PROVIDER_LABELS = {
     mastodon: 'Mastodon',
@@ -12,7 +7,7 @@ const PROVIDER_LABELS = {
 } as const;
 
 export function SourceBadge({ post }: { post: Post }) {
-    const Icon = ICONS[post.source];
+    const Icon = PROVIDER_ICONS[post.source];
     const isPublicFeed = post.feed_type && post.feed_type !== 'home';
     const label = isPublicFeed
         ? [PROVIDER_LABELS[post.source], post.feed_name]

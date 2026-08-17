@@ -14,13 +14,6 @@ const { patchMock, formState } = vi.hoisted(() => ({
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    Link: ({
-        href,
-        children,
-    }: {
-        href: string | { url: string };
-        children: ReactNode;
-    }) => <a href={typeof href === 'string' ? href : href.url}>{children}</a>,
     useForm: (initial: Record<string, unknown>) => {
         const [data, setData] = useState(initial);
 
@@ -48,18 +41,10 @@ vi.mock('@/actions/App/Http/Controllers/Settings/ProfileController', () => ({
     default: { update: { url: () => '/settings/profile' } },
 }));
 
-vi.mock('@/actions/App/Http/Controllers/Settings/BetaTesterController', () => ({
-    default: { update: { url: () => '/settings/profile/beta-tester' } },
-}));
-
 vi.mock('@/components/delete-user', () => ({ default: () => null }));
 
 vi.mock('@/layouts/settings-page-layout', () => ({
     default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock('@/routes/docs', () => ({
-    default: { show: () => ({ url: '/docs/changelog' }) },
 }));
 
 vi.mock('@/routes/profile', () => ({

@@ -135,6 +135,20 @@ it('rejects a non-https pds_url', function () {
     $response->assertSessionHasErrors('pds_url');
 });
 
+it('rejects a private/loopback pds_url to prevent SSRF', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    foreach (['https://127.0.0.1', 'https://192.168.1.1', 'https://10.0.0.1', 'https://169.254.169.254'] as $url) {
+        $response = $this->actingAs($user)->post('/auth/bluesky', [
+            'handle' => 'alice.bsky.social',
+            'app_password' => 'xxxx-xxxx',
+            'pds_url' => $url,
+        ]);
+
+        $response->assertSessionHasErrors('pds_url');
+    }
+});
+
 it('validates handle and app_password on store', function () {
     $user = User::factory()->withPasskey()->create();
 

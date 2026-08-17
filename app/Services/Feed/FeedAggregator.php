@@ -2,6 +2,7 @@
 
 namespace App\Services\Feed;
 
+use App\Enums\ProviderType;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Services\Bluesky\BlueskyFeedService;
@@ -99,7 +100,7 @@ class FeedAggregator
         $threadSourceHandle = null;
 
         try {
-            if ($account->feed_type === 'home' && $account->provider === 'mastodon') {
+            if ($account->feed_type === 'home' && $account->provider === ProviderType::Mastodon) {
                 $host = parse_url($account->instance_url, PHP_URL_HOST);
                 $perAccountLimit = $account->getPreference('max_posts', $defaultLimit);
                 $statuses = $this->mastodon->getHomeTimeline($account, $perAccountLimit, $cursor);
@@ -248,7 +249,7 @@ class FeedAggregator
             Log::warning('Provider request failed for account', [
                 'account_id' => $account->id,
                 'auth_account_id' => $authAccount?->id,
-                'provider' => $account->provider,
+                'provider' => $account->provider->value,
                 'feed_type' => $account->feed_type,
                 'http_status' => $e instanceof RequestException ? $e->response->status() : null,
                 'error' => $e->getMessage(),
@@ -259,7 +260,7 @@ class FeedAggregator
             Log::error('Unexpected error fetching feed for account', [
                 'account_id' => $account->id,
                 'auth_account_id' => $authAccount?->id,
-                'provider' => $account->provider,
+                'provider' => $account->provider->value,
                 'exception' => $e::class,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -281,11 +282,11 @@ class FeedAggregator
             // instance_url — attachMastodonThreads() requires a string host, so
             // check upfront rather than relying on the catch below for what's
             // an expected, mundane edge case rather than a genuine bug.
-            $threadHost = $account->provider === 'mastodon'
+            $threadHost = $account->provider === ProviderType::Mastodon
                 ? parse_url($threadAccount->instance_url, PHP_URL_HOST)
                 : null;
 
-            if ($account->provider === 'mastodon' && ! is_string($threadHost)) {
+            if ($account->provider === ProviderType::Mastodon && ! is_string($threadHost)) {
                 Log::warning('Skipping thread detection: could not parse host from instance_url', [
                     'account_id' => $account->id,
                     'thread_account_id' => $threadAccount->id,
@@ -293,7 +294,7 @@ class FeedAggregator
                 ]);
             } else {
                 try {
-                    $normalised = $account->provider === 'mastodon'
+                    $normalised = $account->provider === ProviderType::Mastodon
                         ? $this->attachMastodonThreads($normalised, $rawItems, $threadAccount, $threadHost, $threadSourceHandle, $mentionsEnabled)
                         : $this->attachBlueskyThreads($normalised, $rawItems, $threadAccount, $threadSourceHandle, $mentionsEnabled);
                 } catch (\Throwable $e) {
@@ -303,7 +304,7 @@ class FeedAggregator
                     Log::error('Thread detection failed for account; falling back to ungrouped posts', [
                         'account_id' => $account->id,
                         'thread_account_id' => $threadAccount->id,
-                        'provider' => $account->provider,
+                        'provider' => $account->provider->value,
                         'exception' => $e::class,
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString(),

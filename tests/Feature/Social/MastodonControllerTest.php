@@ -57,6 +57,17 @@ it('validates instance_url on redirect', function () {
     $response->assertSessionHasErrors('instance_url');
 });
 
+it('rejects a private/loopback instance URL to prevent SSRF', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    foreach (['https://127.0.0.1', 'https://192.168.1.1', 'https://10.0.0.1', 'https://169.254.169.254'] as $url) {
+        $response = $this->actingAs($user)
+            ->post('/auth/mastodon', ['instance_url' => $url]);
+
+        $response->assertSessionHasErrors('instance_url');
+    }
+});
+
 it('returns a validation error when the instance is unreachable', function () {
     $user = User::factory()->withPasskey()->create();
     $service = Mockery::mock(MastodonOAuthService::class);

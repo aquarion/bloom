@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Social;
 
+use App\Enums\ProviderType;
 use App\Http\Controllers\Controller;
 use App\Models\SocialAccount;
+use App\Rules\SafeInstanceUrl;
 use App\Services\Mastodon\MastodonOAuthService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -39,10 +42,8 @@ class MastodonController extends Controller
 
     public function redirectReauth(Request $request, SocialAccount $account)
     {
-        abort_if(
-            $account->user_id !== $request->user()->id || $account->provider !== 'mastodon',
-            403,
-        );
+        Gate::authorize('update', $account);
+        abort_if($account->provider !== ProviderType::Mastodon, 403);
 
         session(['mastodon_reauth_account_id' => $account->id]);
 
@@ -93,11 +94,12 @@ class MastodonController extends Controller
             }
         }
 
-        $exists = $request->user()->socialAccounts()
-            ->where('provider', 'mastodon')
-            ->where('instance_url', $instance)
-            ->where('handle', $result['handle'])
-            ->exists();
+        $exists = SocialAccount::existsFor(
+            $request->user(),
+            ProviderType::Mastodon,
+            instanceUrl: $instance,
+            handle: $result['handle'],
+        );
 
         if ($exists) {
             return redirect()->route('connections.edit')
@@ -186,17 +188,14 @@ class MastodonController extends Controller
 
     private function validateInstanceUrl(string $url): void
     {
-        $parsed = parse_url($url);
+        $message = null;
 
-        if (! $parsed || ($parsed['scheme'] ?? '') !== 'https') {
-            throw ValidationException::withMessages(['instance_url' => 'Instance URL must use HTTPS.']);
-        }
+        (new SafeInstanceUrl)->validate('instance_url', $url, function (string $translatedMessage) use (&$message) {
+            $message = $translatedMessage;
+        });
 
-        $host = $parsed['host'] ?? '';
-        $ip = gethostbyname($host);
-
-        if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-            throw ValidationException::withMessages(['instance_url' => 'Could not resolve that domain. Check the URL and try again.']);
+        if ($message !== null) {
+            throw ValidationException::withMessages(['instance_url' => $message]);
         }
     }
 }

@@ -8,14 +8,9 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { SiBluesky, SiMastodon } from 'react-icons/si';
 import { CwTag } from '@/components/feed/CwTag';
+import { PROVIDER_ICONS } from '@/lib/providers';
 import type { Post } from '@/types/post';
-
-const SOURCE_ICONS = {
-    mastodon: SiMastodon,
-    bluesky: SiBluesky,
-} as const;
 
 function timeSince(dateStr: string): string {
     const seconds = Math.floor(
@@ -52,7 +47,7 @@ function PostRow({
     debugEnabled: boolean;
     onSelect: () => void;
 }) {
-    const SourceIcon = SOURCE_ICONS[post.source];
+    const SourceIcon = PROVIDER_ICONS[post.source];
 
     const handleKeyDown = (event: KeyboardEvent) => {
         if (event.key === 'Enter' || event.key === ' ') {

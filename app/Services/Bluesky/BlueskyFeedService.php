@@ -2,6 +2,7 @@
 
 namespace App\Services\Bluesky;
 
+use App\Contracts\ProviderFeedSource;
 use App\Models\SocialAccount;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -9,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class BlueskyFeedService
+class BlueskyFeedService implements ProviderFeedSource
 {
     private const BASE = 'https://bsky.social/xrpc';
 

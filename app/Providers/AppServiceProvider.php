@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Enums\Role;
 use App\Models\Passkey;
 use App\Models\User;
+use App\Services\Feed\FeedDemoFixtures;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,12 @@ class AppServiceProvider extends ServiceProvider
             \URL::forceScheme('https');
         }
 
+        // Opt-in, local-only fixture feed for previewing the feed UI without a real
+        // connected account — see App\Services\Feed\FeedDemoFixtures.
+        if ($this->app->environment('local') && config('feed.demo_mode')) {
+            $this->app->make(FeedDemoFixtures::class)->register();
+        }
+
         $this->configureDefaults();
         $this->configureGates();
     }
@@ -50,7 +57,6 @@ class AppServiceProvider extends ServiceProvider
     protected function configureGates(): void
     {
         Gate::define('admin', fn (User $user) => $user->hasRole(Role::Admin));
-        Gate::define('beta_tester', fn (User $user) => $user->hasRole(Role::BetaTester));
         Gate::define('subscriber', fn (User $user) => $user->hasRole(Role::Subscriber));
     }
 

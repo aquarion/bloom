@@ -1,3 +1,5 @@
+import type { Provider } from '@/lib/providers';
+
 export interface MediaAttachment {
     type: 'image' | 'video';
     url: string;
@@ -71,7 +73,7 @@ export interface Poll {
 
 export interface Post extends CwFields {
     id: string;
-    source: 'mastodon' | 'bluesky';
+    source: Provider;
     source_handle: string | null;
     source_instance: string | null;
     /** Absent on older cached payloads; treat as 'home' when missing. */

@@ -30,4 +30,9 @@ return [
 
     // Mastodon instance used to fetch posts for the public welcome page
     'welcome_instance' => env('FEED_WELCOME_INSTANCE', 'fosstodon.org'),
+
+    // When enabled, intercepts Mastodon/Bluesky API calls with fixture data (see
+    // App\Services\Feed\FeedDemoFixtures) so the feed can be previewed locally without a
+    // real connected account. Opt-in and local-dev only — never enable outside APP_ENV=local.
+    'demo_mode' => env('FEED_DEMO_MODE', false),
 ];

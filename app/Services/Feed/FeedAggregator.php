@@ -522,9 +522,11 @@ class FeedAggregator
      * head post, so the frontend can play them as one sequential group. Only walks a single
      * unambiguous path — branching replies, or a third distinct person joining the exchange,
      * stop the chain rather than guessing which path to follow. Continuation posts are
-     * re-normalised the same way a top-level post would be (no reply_to of their own, to avoid
-     * a redundant "replying to" panel on every entry) and removed from $normalised so they
-     * don't also surface as their own standalone feed item.
+     * re-normalised the same way a top-level post would be, keeping a "replying to" panel only
+     * where it's a genuine cross-author reply (a flowing #313 conversation needs it to stay
+     * legible) and suppressing it for a same-author continuation (redundant "replying to self"
+     * in a tweetstorm) — and removed from $normalised so they don't also surface as their own
+     * standalone feed item.
      *
      * @param  array<int, array<string, mixed>>  $normalised
      * @param  array<int, array<string, mixed>>  $statuses  Same order/count as $normalised.
@@ -580,10 +582,28 @@ class FeedAggregator
                 continue;
             }
 
-            $post['thread'] = array_map(
-                fn (array $status) => $this->normalizer->fromMastodon($status, $host, null, $sourceHandle, null, $mentionsEnabled),
-                [$raw, ...$chain],
-            );
+            $chainStatuses = [$raw, ...$chain];
+            $post['thread'] = [];
+
+            foreach ($chainStatuses as $idx => $status) {
+                $parentStatus = null;
+
+                if ($idx > 0) {
+                    $prevStatus = $chainStatuses[$idx - 1];
+                    $childAcct = $status['account']['acct'] ?? null;
+                    $prevAcct = $prevStatus['account']['acct'] ?? null;
+
+                    if ($childAcct !== null && $prevAcct !== null && $childAcct !== $prevAcct) {
+                        $parentStatus = $prevStatus;
+                    }
+                }
+
+                $post['thread'][] = $this->normalizer->fromMastodon($status, $host, $parentStatus, $sourceHandle, null, $mentionsEnabled);
+            }
+
+            // The head keeps whatever it was genuinely replying to before this batch (e.g. the
+            // thread starts mid-conversation), already computed by the outer normalisation pass.
+            $post['thread'][0]['reply_to'] = $post['reply_to'];
 
             // Thread entries are re-normalised from raw data above, bypassing the
             // batch-level resolveMentionProfiles() call already made for $normalised —
@@ -666,10 +686,28 @@ class FeedAggregator
                 continue;
             }
 
-            $post['thread'] = array_map(
-                fn (array $chainPost) => $this->normalizer->fromBluesky(['post' => $chainPost], $sourceHandle, $mentionsEnabled),
-                [$raw, ...$chain],
-            );
+            $chainPosts = [$raw, ...$chain];
+            $post['thread'] = [];
+
+            foreach ($chainPosts as $idx => $chainPost) {
+                $feedPost = ['post' => $chainPost];
+
+                if ($idx > 0) {
+                    $prevPost = $chainPosts[$idx - 1];
+                    $childDid = $chainPost['author']['did'] ?? null;
+                    $prevDid = $prevPost['author']['did'] ?? null;
+
+                    if ($childDid !== null && $prevDid !== null && $childDid !== $prevDid) {
+                        $feedPost['reply'] = ['parent' => $prevPost];
+                    }
+                }
+
+                $post['thread'][] = $this->normalizer->fromBluesky($feedPost, $sourceHandle, $mentionsEnabled);
+            }
+
+            // The head keeps whatever it was genuinely replying to before this batch (e.g. the
+            // thread starts mid-conversation), already computed by the outer normalisation pass.
+            $post['thread'][0]['reply_to'] = $post['reply_to'];
 
             // Thread entries are re-normalised from raw data above, bypassing the
             // batch-level resolveMentionProfiles() call already made for $normalised —

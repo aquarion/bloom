@@ -210,8 +210,10 @@ it('preserves the head entry\'s real reply-to context when a mastodon thread sta
         'handle' => '@me@fosstodon.org',
     ]);
 
-    $externalParent = makeMastodonStatus('0', 'carol', 'original post', null, 0);
-    $head = makeMastodonStatus('1', 'author', 'part one', '0', 1);
+    // Deliberately not id '0' — fetchMastodonStatuses() filters candidate ids through
+    // PHP's default array_filter callback, which drops the *string* "0" as falsy.
+    $externalParent = makeMastodonStatus('99', 'carol', 'original post', null, 0);
+    $head = makeMastodonStatus('1', 'author', 'part one', '99', 1);
     $reply = makeMastodonStatus('2', 'author', 'part two', '1');
 
     $mastodon = Mockery::mock(MastodonFeedService::class);

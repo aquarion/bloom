@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\Feed\FeedDemoFixtures;
+use Illuminate\Http\Client\StrayRequestException;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -67,5 +68,49 @@ it('does not fake a bluesky timeline request using a different access token', fu
 
     expect(fn () => Http::withToken('some-other-real-token')
         ->get(FeedDemoFixtures::BLUESKY_PDS.'/xrpc/app.bsky.feed.getTimeline', ['limit' => 20]))
-        ->toThrow(Illuminate\Http\Client\StrayRequestException::class);
+        ->toThrow(StrayRequestException::class);
+});
+
+it('throws with a clear message when a fixture file is missing', function () {
+    $dir = sys_get_temp_dir().'/feed-demo-fixtures-'.uniqid();
+    mkdir($dir);
+
+    try {
+        expect(fn () => (new FeedDemoFixtures($dir))->register())
+            ->toThrow(RuntimeException::class, 'does not exist');
+    } finally {
+        rmdir($dir);
+    }
+});
+
+it('throws with a clear message when a fixture file is not valid JSON', function () {
+    $dir = sys_get_temp_dir().'/feed-demo-fixtures-'.uniqid();
+    mkdir($dir);
+    file_put_contents("{$dir}/mastodon-posts.json", '{not valid json');
+    file_put_contents("{$dir}/bluesky-posts.json", '{"timeline": []}');
+
+    try {
+        expect(fn () => (new FeedDemoFixtures($dir))->register())
+            ->toThrow(RuntimeException::class, 'not valid JSON');
+    } finally {
+        unlink("{$dir}/mastodon-posts.json");
+        unlink("{$dir}/bluesky-posts.json");
+        rmdir($dir);
+    }
+});
+
+it('throws with a clear message when a fixture is missing its timeline key', function () {
+    $dir = sys_get_temp_dir().'/feed-demo-fixtures-'.uniqid();
+    mkdir($dir);
+    file_put_contents("{$dir}/mastodon-posts.json", '{"reply_parents": {}}');
+    file_put_contents("{$dir}/bluesky-posts.json", '{"timeline": []}');
+
+    try {
+        expect(fn () => (new FeedDemoFixtures($dir))->register())
+            ->toThrow(RuntimeException::class, "missing a 'timeline' array");
+    } finally {
+        unlink("{$dir}/mastodon-posts.json");
+        unlink("{$dir}/bluesky-posts.json");
+        rmdir($dir);
+    }
 });

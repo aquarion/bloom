@@ -113,6 +113,7 @@ class BlueskyController extends Controller
         Validator::make(
             ['pds_url' => $url],
             ['pds_url' => [new SafeInstanceUrl]],
+            attributes: ['pds_url' => 'PDS URL'],
         )->validate();
     }
 }

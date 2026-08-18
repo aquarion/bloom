@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePasskey } from '@/hooks/use-passkey';
-import type { Provider } from '@/lib/providers';
 import bluesky from '@/routes/bluesky';
 import { destroy as disconnectAccount } from '@/routes/connections';
 import mastodon from '@/routes/mastodon';
@@ -31,14 +30,14 @@ interface BaseConnection {
 }
 
 export interface MastodonConnection extends BaseConnection {
-    provider: Extract<Provider, 'mastodon'>;
+    provider: 'mastodon';
     feed_type: 'home' | 'public_mastodon';
     instance_url: string | null;
 }
 
 export interface BlueskyConnection
     extends Omit<BaseConnection, 'feed_settings'> {
-    provider: Extract<Provider, 'bluesky'>;
+    provider: 'bluesky';
     feed_type: 'home' | 'bluesky_feed';
     instance_url: null;
     feed_settings: {

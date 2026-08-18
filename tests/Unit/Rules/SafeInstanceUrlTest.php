@@ -1,13 +1,19 @@
 <?php
 
+use App\Contracts\HostResolver;
 use App\Rules\SafeInstanceUrl;
+use Tests\Support\FakeHostResolver;
 use Tests\TestCase;
 
 uses(TestCase::class);
 
-afterEach(function () {
-    SafeInstanceUrl::$resolver = null;
-});
+/**
+ * @param  array<int, string>  $addresses
+ */
+function fakeResolverReturning(array $addresses): void
+{
+    test()->app->instance(HostResolver::class, new FakeHostResolver($addresses));
+}
 
 function safeInstanceUrlFailures(string $url): array
 {
@@ -20,7 +26,7 @@ function safeInstanceUrlFailures(string $url): array
 }
 
 it('passes a plain https URL that resolves to a public IP', function () {
-    SafeInstanceUrl::$resolver = fn (string $host) => '203.0.113.10';
+    fakeResolverReturning(['203.0.113.10']);
 
     expect(safeInstanceUrlFailures('https://mastodon.social'))->toBe([]);
 });
@@ -44,20 +50,33 @@ it('rejects a malformed URL', function () {
 });
 
 it('rejects a hostname that resolves to a private IP', function () {
-    SafeInstanceUrl::$resolver = fn (string $host) => '10.0.0.5';
+    fakeResolverReturning(['10.0.0.5']);
 
     expect(safeInstanceUrlFailures('https://internal.example'))->not->toBeEmpty();
 });
 
 it('rejects a hostname that resolves to the cloud metadata IP', function () {
-    SafeInstanceUrl::$resolver = fn (string $host) => '169.254.169.254';
+    fakeResolverReturning(['169.254.169.254']);
 
     expect(safeInstanceUrlFailures('https://attacker.example'))->not->toBeEmpty();
 });
 
 it('rejects a hostname that fails to resolve', function () {
-    // gethostbyname() returns the input host unchanged when resolution fails.
-    SafeInstanceUrl::$resolver = fn (string $host) => $host;
+    fakeResolverReturning([]);
 
     expect(safeInstanceUrlFailures('https://does-not-exist.invalid'))->not->toBeEmpty();
+});
+
+it('rejects a hostname where only one of several resolved addresses is private', function () {
+    // A dual-stack (or multi-A-record) host only needs one unvalidated address for an
+    // HTTP client to prefer it — every returned address must be checked, not just the first.
+    fakeResolverReturning(['203.0.113.10', '169.254.169.254']);
+
+    expect(safeInstanceUrlFailures('https://dual-stack.example'))->not->toBeEmpty();
+});
+
+it('allows a hostname where every resolved address is public', function () {
+    fakeResolverReturning(['203.0.113.10', '2001:db8::1']);
+
+    expect(safeInstanceUrlFailures('https://dual-stack.example'))->toBe([]);
 });

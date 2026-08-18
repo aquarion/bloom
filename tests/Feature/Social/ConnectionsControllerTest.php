@@ -1,10 +1,12 @@
 <?php
 
+use App\Contracts\HostResolver;
 use App\Models\SocialAccount;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\FakeHostResolver;
 
 uses(RefreshDatabase::class);
 
@@ -134,6 +136,21 @@ it('rejects private/loopback instance URLs to prevent SSRF', function () {
         $response->assertSessionHasErrors('instance_url');
     }
 
+    $this->assertDatabaseCount('social_accounts', 0);
+});
+
+it('rejects an instance URL hostname resolving to a private IP to prevent SSRF', function () {
+    // The suite-wide default resolver (tests/Pest.php) always returns a public IP, so this
+    // flow's own SafeInstanceUrl rule would stay unexercised on the resolved-hostname branch
+    // without a test that overrides it — the bare-IP cases above never reach that branch.
+    $this->app->instance(HostResolver::class, new FakeHostResolver(['169.254.169.254']));
+    $user = User::factory()->withPasskey()->create();
+
+    $response = $this->actingAs($user)->post('/auth/connections/public-mastodon', [
+        'instance_url' => 'https://attacker-controlled.example',
+    ]);
+
+    $response->assertSessionHasErrors('instance_url');
     $this->assertDatabaseCount('social_accounts', 0);
 });
 

@@ -57,7 +57,7 @@ class ConnectionsController extends Controller
     {
         $request->validate([
             'instance_url' => ['required', 'url', 'starts_with:https://', new SafeInstanceUrl],
-        ]);
+        ], attributes: ['instance_url' => 'instance URL']);
 
         $instanceUrl = rtrim($request->input('instance_url'), '/');
 

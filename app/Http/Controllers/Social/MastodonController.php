@@ -192,6 +192,7 @@ class MastodonController extends Controller
         Validator::make(
             ['instance_url' => $url],
             ['instance_url' => [new SafeInstanceUrl]],
+            attributes: ['instance_url' => 'instance URL'],
         )->validate();
     }
 }

@@ -27,10 +27,20 @@ class FeedDemoFixtures
 
     public const BLUESKY_ACCESS_TOKEN = 'demo-bluesky-fixture-token'; // pragma: allowlist secret
 
+    private string $fixturesPath;
+
+    public function __construct(string $fixturesPath = '')
+    {
+        $this->fixturesPath = $fixturesPath !== '' ? $fixturesPath : storage_path('fixtures');
+    }
+
     public function register(): void
     {
         $mastodon = $this->readFixture('mastodon-posts.json');
         $bluesky = $this->readFixture('bluesky-posts.json');
+
+        $this->requireArrayKey($mastodon, 'timeline', 'mastodon-posts.json');
+        $this->requireArrayKey($bluesky, 'timeline', 'bluesky-posts.json');
 
         Http::fake([
             // Most specific first — Http::fake() uses the first matching pattern.
@@ -64,7 +74,12 @@ class FeedDemoFixtures
      */
     private function readFixture(string $filename): array
     {
-        $path = storage_path("fixtures/{$filename}");
+        $path = "{$this->fixturesPath}/{$filename}";
+
+        if (! is_file($path)) {
+            throw new \RuntimeException("Demo feed fixture does not exist: {$path}");
+        }
+
         $contents = file_get_contents($path);
 
         if ($contents === false) {
@@ -78,5 +93,15 @@ class FeedDemoFixtures
         }
 
         return $decoded;
+    }
+
+    /**
+     * @param  array<string, mixed>  $fixture
+     */
+    private function requireArrayKey(array $fixture, string $key, string $filename): void
+    {
+        if (! isset($fixture[$key]) || ! is_array($fixture[$key])) {
+            throw new \RuntimeException("Demo feed fixture {$filename} is missing a '{$key}' array");
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Rules;
 
+use App\Contracts\HostResolver;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Log;
@@ -12,19 +13,16 @@ use Illuminate\Support\Facades\Log;
  * connect flows against SSRF to internal services. Consolidates what used to be three
  * near-identical, drifted implementations across BlueskyController, MastodonController,
  * and ConnectionsController.
+ *
+ * DNS resolution is delegated to the container-bound HostResolver rather than calling
+ * gethostbyname() directly, both so a single malicious/multi-homed answer can't slip a
+ * private address past validation (every A/AAAA record is checked, not just the first
+ * IPv4 one) and so tests can swap in a fake resolver instead of a mutable static — a
+ * static would violate this app's Octane rule against request-specific state living in
+ * process-lifetime storage (see CLAUDE.md).
  */
 class SafeInstanceUrl implements ValidationRule
 {
-    /**
-     * Test seam: when set, used instead of gethostbyname() to resolve a hostname to an IP.
-     * Real DNS resolution isn't available in the test sandbox, so tests set this to exercise
-     * the resolved-private-IP rejection branch without a live network. Callers must reset it
-     * (typically in a test's afterEach) so it doesn't leak into unrelated tests.
-     *
-     * @var (Closure(string): string)|null
-     */
-    public static ?Closure $resolver = null;
-
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         $parsed = parse_url((string) $value);
@@ -46,19 +44,21 @@ class SafeInstanceUrl implements ValidationRule
             return;
         }
 
-        $resolve = self::$resolver ?? gethostbyname(...);
-        $ip = $resolve($host);
+        $addresses = app(HostResolver::class)->resolve($host);
 
-        // gethostbyname() returns the input unchanged when resolution fails.
-        if ($ip === $host) {
+        if ($addresses === []) {
             $fail('Could not resolve that domain. Check the URL and try again.');
 
             return;
         }
 
-        if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-            Log::warning('Blocked instance URL resolving to private/reserved IP', ['host' => $host, 'ip' => $ip]);
-            $fail('The :attribute is not allowed.');
+        foreach ($addresses as $ip) {
+            if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                Log::warning('Blocked instance URL resolving to private/reserved IP', ['host' => $host, 'ip' => $ip]);
+                $fail('The :attribute is not allowed.');
+
+                return;
+            }
         }
     }
 }

@@ -29,6 +29,7 @@ class SafeInstanceUrl implements ValidationRule
 
         if (filter_var($host, FILTER_VALIDATE_IP)) {
             if (! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                Log::warning('Blocked instance URL with a bare private/reserved IP host', ['host' => $host]);
                 $fail('The :attribute is not allowed.');
             }
 

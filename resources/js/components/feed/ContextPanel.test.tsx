@@ -150,9 +150,7 @@ describe('ContextPanel — reply/quote media thumbnail', () => {
     it('shows no thumbnail when there is no media', () => {
         renderWithCw(<ContextPanel {...baseProps} />);
 
-        expect(
-            screen.queryByTestId('reply-thumbnail'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
     });
 
     it('shows no thumbnail when the media is marked sensitive', () => {
@@ -160,9 +158,7 @@ describe('ContextPanel — reply/quote media thumbnail', () => {
             <ContextPanel {...baseProps} media={media} sensitive_media />,
         );
 
-        expect(
-            screen.queryByTestId('reply-thumbnail'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
         expect(screen.getByText('the quoted body text')).toBeInTheDocument();
     });
 
@@ -177,9 +173,7 @@ describe('ContextPanel — reply/quote media thumbnail', () => {
             />,
         );
 
-        expect(
-            screen.queryByTestId('reply-thumbnail'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
     });
 
     it('does not fall back to the raw video url when a video has no preview_url', () => {
@@ -197,9 +191,7 @@ describe('ContextPanel — reply/quote media thumbnail', () => {
             />,
         );
 
-        expect(
-            screen.queryByTestId('reply-thumbnail'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
     });
 
     it('shows a video thumbnail from its preview_url, never its raw video url', () => {

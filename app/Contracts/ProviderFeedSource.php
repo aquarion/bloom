@@ -7,7 +7,10 @@ use App\Models\SocialAccount;
 interface ProviderFeedSource
 {
     /**
-     * @return array<int, array<string, mixed>>
+     * Return shape is implementation-specific, not a shared contract: MastodonFeedService
+     * returns a plain list of raw Mastodon statuses (array<int, array<string, mixed>>);
+     * BlueskyFeedService returns array{posts: array<int, array<string, mixed>>, cursor: ?string}.
+     * Callers (FeedAggregator) already branch per-provider and consume each shape directly.
      */
     public function getHomeTimeline(SocialAccount $account, int $limit = 20, ?string $cursor = null): array;
 

@@ -12,6 +12,7 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class BlueskyController extends Controller
@@ -109,14 +110,9 @@ class BlueskyController extends Controller
 
     private function validatePdsUrl(string $url): void
     {
-        $message = null;
-
-        (new SafeInstanceUrl)->validate('pds_url', $url, function (string $translatedMessage) use (&$message) {
-            $message = $translatedMessage;
-        });
-
-        if ($message !== null) {
-            throw ValidationException::withMessages(['pds_url' => $message]);
-        }
+        Validator::make(
+            ['pds_url' => $url],
+            ['pds_url' => [new SafeInstanceUrl]],
+        )->validate();
     }
 }

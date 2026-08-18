@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -188,14 +189,9 @@ class MastodonController extends Controller
 
     private function validateInstanceUrl(string $url): void
     {
-        $message = null;
-
-        (new SafeInstanceUrl)->validate('instance_url', $url, function (string $translatedMessage) use (&$message) {
-            $message = $translatedMessage;
-        });
-
-        if ($message !== null) {
-            throw ValidationException::withMessages(['instance_url' => $message]);
-        }
+        Validator::make(
+            ['instance_url' => $url],
+            ['instance_url' => [new SafeInstanceUrl]],
+        )->validate();
     }
 }

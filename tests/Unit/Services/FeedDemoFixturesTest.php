@@ -55,3 +55,17 @@ it('fakes the bluesky home timeline with fixture posts', function () {
     expect($response->json('feed'))->toBeArray()->not->toBeEmpty();
     expect($response->json('feed.0.post'))->toHaveKeys(['uri', 'author', 'record']);
 });
+
+it('does not fake a bluesky timeline request using a different access token', function () {
+    // Bluesky's endpoint is the same real host for every account, demo or not, so the fake
+    // must key off the bearer token rather than the URL alone — otherwise a developer's real
+    // connected Bluesky account would get demo data too. preventStrayRequests() proves the
+    // real network is never actually reached for a mismatched token, without depending on
+    // outbound connectivity in the test environment.
+    app(FeedDemoFixtures::class)->register();
+    Http::preventStrayRequests();
+
+    expect(fn () => Http::withToken('some-other-real-token')
+        ->get(FeedDemoFixtures::BLUESKY_PDS.'/xrpc/app.bsky.feed.getTimeline', ['limit' => 20]))
+        ->toThrow(Illuminate\Http\Client\StrayRequestException::class);
+});

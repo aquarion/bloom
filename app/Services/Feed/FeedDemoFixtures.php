@@ -44,10 +44,18 @@ class FeedDemoFixtures
             },
             self::MASTODON_INSTANCE.'/api/v1/timelines/home*' => Http::response($mastodon['timeline']),
             self::MASTODON_INSTANCE.'/api/v1/accounts/lookup*' => Http::response(['error' => 'Record not found'], 404),
-            self::BLUESKY_PDS.'/xrpc/app.bsky.feed.getTimeline*' => Http::response([
-                'feed' => $bluesky['timeline'],
-                'cursor' => null,
-            ]),
+            // Bluesky's endpoint is the same real host for every account, demo or not — unlike the
+            // Mastodon fakes above (scoped by the fake demo.mastodon.local host), this one must also
+            // check the bearer token so a developer's real connected Bluesky account isn't faked too.
+            // Returning null here means "not handled by this stub", so Http falls through to the
+            // real network for any request that isn't the demo account's.
+            self::BLUESKY_PDS.'/xrpc/app.bsky.feed.getTimeline*' => function ($request) use ($bluesky) {
+                if (! in_array('Bearer '.self::BLUESKY_ACCESS_TOKEN, $request->header('Authorization'), true)) {
+                    return null;
+                }
+
+                return Http::response(['feed' => $bluesky['timeline'], 'cursor' => null]);
+            },
         ]);
     }
 
@@ -56,6 +64,19 @@ class FeedDemoFixtures
      */
     private function readFixture(string $filename): array
     {
-        return json_decode(file_get_contents(storage_path("fixtures/{$filename}")), true);
+        $path = storage_path("fixtures/{$filename}");
+        $contents = file_get_contents($path);
+
+        if ($contents === false) {
+            throw new \RuntimeException("Could not read demo feed fixture: {$path}");
+        }
+
+        $decoded = json_decode($contents, true);
+
+        if (! is_array($decoded)) {
+            throw new \RuntimeException("Demo feed fixture is not valid JSON: {$path}");
+        }
+
+        return $decoded;
     }
 }

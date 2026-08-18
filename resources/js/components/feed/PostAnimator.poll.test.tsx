@@ -184,6 +184,7 @@ describe('PostAnimator — poll rendering', () => {
                         cw_label_source: null,
                         cw_category: null,
                         sensitive_media: false,
+                        media: [],
                     },
                 }}
                 colors={null}

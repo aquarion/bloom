@@ -33,6 +33,7 @@ export interface ReplyTo extends CwFields {
     created_at: string | null;
     chip_mentions: Mention[];
     emojis: Record<string, string>;
+    media: MediaAttachment[];
 }
 
 export interface QuotedPost extends CwFields {

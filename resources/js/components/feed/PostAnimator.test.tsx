@@ -190,6 +190,7 @@ describe('PostAnimator — image branch', () => {
                         cw_label_source: null,
                         cw_category: null,
                         sensitive_media: false,
+                        media: [],
                     },
                 })}
                 colors={null}
@@ -349,6 +350,7 @@ describe('PostAnimator — panels-only branch CW tag (issue #285)', () => {
                         cw_label_source: null,
                         cw_category: null,
                         sensitive_media: false,
+                        media: [],
                     },
                 })}
                 colors={null}

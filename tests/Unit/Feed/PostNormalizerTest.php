@@ -1114,7 +1114,45 @@ it('includes author identity and url in mastodon reply_to', function () {
         'sensitive_media' => false,
         'created_at' => null,
         'emojis' => [],
+        'media' => [],
     ]);
+});
+
+it('includes the parent post\'s media in mastodon reply_to', function () {
+    $parent = [
+        'url' => 'https://mastodon.social/@original/456',
+        'content' => '<p>look at this</p>',
+        'account' => [
+            'display_name' => 'Original User',
+            'acct' => 'original',
+            'avatar' => '',
+        ],
+        'media_attachments' => [
+            [
+                'type' => 'image',
+                'url' => 'https://mastodon.social/media/img.jpg',
+                'preview_url' => 'https://mastodon.social/media/img_small.jpg',
+                'description' => 'A photo',
+            ],
+        ],
+    ];
+
+    $status = [
+        'id' => '789',
+        'content' => '<p>Reply text</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/789',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parent);
+
+    expect($post['reply_to']['media'])->toHaveCount(1)
+        ->and($post['reply_to']['media'][0]['type'])->toBe('image')
+        ->and($post['reply_to']['media'][0]['url'])->toBe('https://mastodon.social/media/img.jpg')
+        ->and($post['reply_to']['media'][0]['preview_url'])->toBe('https://mastodon.social/media/img_small.jpg')
+        ->and($post['reply_to']['media'][0]['alt_text'])->toBe('A photo');
 });
 
 it('includes the parent author\'s own custom emoji in mastodon reply_to, separately from the main post emoji map', function () {
@@ -1262,7 +1300,48 @@ it('includes author identity and url in bluesky reply_to', function () {
         'sensitive_media' => false,
         'created_at' => null,
         'emojis' => [],
+        'media' => [],
     ]);
+});
+
+it('includes the parent post\'s media in bluesky reply_to', function () {
+    $feedPost = [
+        'post' => [
+            'uri' => 'at://did:plc:abc/app.bsky.feed.post/reply123',
+            'record' => ['text' => 'reply text', 'createdAt' => '2024-01-15T11:00:00.000Z'],
+            'author' => ['displayName' => 'Alice', 'handle' => 'alice.bsky.social', 'avatar' => ''],
+            'embed' => null,
+        ],
+        'reply' => [
+            'parent' => [
+                'uri' => 'at://did:plc:xyz/app.bsky.feed.post/parent456',
+                'record' => ['text' => 'look at this'],
+                'author' => [
+                    'displayName' => 'Bob',
+                    'handle' => 'bob.bsky.social',
+                    'avatar' => '',
+                ],
+                'embed' => [
+                    '$type' => 'app.bsky.embed.images#view',
+                    'images' => [
+                        [
+                            'fullsize' => 'https://cdn.bsky.app/img/feed_fullsize/plain/parent.jpg',
+                            'thumb' => 'https://cdn.bsky.app/img/feed_thumbnail/plain/parent.jpg',
+                            'alt' => 'A photo',
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromBluesky($feedPost);
+
+    expect($post['reply_to']['media'])->toHaveCount(1)
+        ->and($post['reply_to']['media'][0]['type'])->toBe('image')
+        ->and($post['reply_to']['media'][0]['url'])->toBe('https://cdn.bsky.app/img/feed_fullsize/plain/parent.jpg')
+        ->and($post['reply_to']['media'][0]['preview_url'])->toBe('https://cdn.bsky.app/img/feed_thumbnail/plain/parent.jpg')
+        ->and($post['reply_to']['media'][0]['alt_text'])->toBe('A photo');
 });
 
 it('falls back to handle when bluesky reply_to parent has no displayName', function () {

@@ -229,6 +229,7 @@ class PostNormalizer
                 $parent['emojis'] ?? [],
                 $parent['account']['emojis'] ?? [],
             )),
+            'media' => $this->normaliseMastodonMedia($parent['media_attachments'] ?? []),
         ];
     }
 
@@ -340,6 +341,7 @@ class PostNormalizer
             ...$this->blueskyLabels($parent),
             'created_at' => $parent['record']['createdAt'] ?? null,
             'emojis' => [],
+            'media' => $this->normaliseBlueskyMedia($parent['embed'] ?? null),
         ];
     }
 

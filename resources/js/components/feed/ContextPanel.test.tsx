@@ -116,6 +116,106 @@ describe('ContextPanel — CW gating for nested posts', () => {
     });
 });
 
+describe('ContextPanel — reply/quote media thumbnail', () => {
+    const media = [
+        {
+            type: 'image' as const,
+            url: 'https://example.com/full.jpg',
+            preview_url: 'https://example.com/thumb.jpg',
+            alt_text: 'A photo',
+        },
+    ];
+
+    it('shows a thumbnail for the first media item', () => {
+        renderWithCw(<ContextPanel {...baseProps} media={media} />);
+
+        const img = screen.getByAltText('A photo');
+        expect(img).toHaveAttribute('src', 'https://example.com/thumb.jpg');
+    });
+
+    it('falls back to the full-size url when there is no preview_url', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                media={[{ ...media[0], preview_url: null }]}
+            />,
+        );
+
+        expect(screen.getByAltText('A photo')).toHaveAttribute(
+            'src',
+            'https://example.com/full.jpg',
+        );
+    });
+
+    it('shows no thumbnail when there is no media', () => {
+        renderWithCw(<ContextPanel {...baseProps} />);
+
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
+    });
+
+    it('shows no thumbnail when the media is marked sensitive', () => {
+        renderWithCw(
+            <ContextPanel {...baseProps} media={media} sensitive_media />,
+        );
+
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
+        expect(screen.getByText('the quoted body text')).toBeInTheDocument();
+    });
+
+    it('hides the thumbnail along with the rest of the content behind a CW gate', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                media={media}
+                cw_text="Graphic media"
+                cw_label_source="self"
+                cwBehavior="blur"
+            />,
+        );
+
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
+    });
+
+    it('does not fall back to the raw video url when a video has no preview_url', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                media={[
+                    {
+                        type: 'video',
+                        url: 'https://example.com/video.mp4',
+                        preview_url: null,
+                        alt_text: null,
+                    },
+                ]}
+            />,
+        );
+
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
+    });
+
+    it('shows a video thumbnail from its preview_url, never its raw video url', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                media={[
+                    {
+                        type: 'video',
+                        url: 'https://example.com/video.mp4',
+                        preview_url: 'https://example.com/video-thumb.jpg',
+                        alt_text: null,
+                    },
+                ]}
+            />,
+        );
+
+        expect(screen.getByTestId('reply-thumbnail')).toHaveAttribute(
+            'src',
+            'https://example.com/video-thumb.jpg',
+        );
+    });
+});
+
 describe('ContextPanel — post-level CW corner badge (issue #285)', () => {
     it('shows a corner badge instead of decorating the chip for a visible post-level CW', () => {
         renderWithCw(

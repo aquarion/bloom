@@ -2,7 +2,7 @@ import { AtSign } from 'lucide-react';
 import type React from 'react';
 import { useCwState } from '@/hooks/useCwState';
 import { nestedCwLike, postLevelCwLabel, shouldShowCwOverlay } from '@/lib/cw';
-import type { Mention } from '@/types/post';
+import type { MediaAttachment, Mention } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 import { AuthorChip } from './AuthorChip';
 import { CwTag } from './CwTag';
@@ -18,6 +18,7 @@ export function ContextPanel({
     body,
     original_url,
     chip_mentions,
+    media = [],
     fullWidth = false,
     cw_text = null,
     cw_is_author_level = false,
@@ -33,6 +34,7 @@ export function ContextPanel({
     body: string;
     original_url: string;
     chip_mentions: Mention[];
+    media?: MediaAttachment[];
     fullWidth?: boolean;
     cw_text?: string | null;
     cw_is_author_level?: boolean;
@@ -68,6 +70,18 @@ export function ContextPanel({
         />
     );
     const cwTagLabel = postLevelCwLabel({ cw_text, cw_is_author_level });
+    // Sensitive media has no reveal mechanism here (unlike the top-level post, which
+    // blurs and lets the viewer tap through) — simplest safe behaviour is to just not
+    // show a thumbnail for it, rather than leaking it unblurred.
+    const thumbnail = sensitive_media ? null : (media[0] ?? null);
+    // A video's `url` is the raw video file, not an image — only its preview_url (a
+    // static frame) is ever safe to put in an <img>, unlike an image's url/preview_url
+    // which are both actual images. Mirrors ImageCarousel's same type-based split.
+    const thumbnailSrc = thumbnail
+        ? thumbnail.type === 'video'
+            ? thumbnail.preview_url || null
+            : thumbnail.preview_url || thumbnail.url || null
+        : null;
     // Inside the gate, the "Marked as X" / "Labelled as X" copy below already states
     // the label — showing it a second time on the chip badge would be redundant.
     const gatedChip = (
@@ -112,13 +126,27 @@ export function ContextPanel({
                 <span className="text-white/40">{icon}</span>
                 {chip}
             </div>
-            <p className="whitespace-pre-wrap">{body}</p>
-            {chip_mentions.length > 0 && (
-                <div className="mt-2 flex items-center gap-2">
-                    <AtSign className="size-4 shrink-0 text-white/30" />
-                    <MentionChips mentions={chip_mentions} />
+            <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                    <p className="whitespace-pre-wrap">{body}</p>
+                    {chip_mentions.length > 0 && (
+                        <div className="mt-2 flex items-center gap-2">
+                            <AtSign className="size-4 shrink-0 text-white/30" />
+                            <MentionChips mentions={chip_mentions} />
+                        </div>
+                    )}
                 </div>
-            )}
+                {thumbnailSrc && (
+                    <img
+                        src={thumbnailSrc}
+                        alt={thumbnail?.alt_text ?? ''}
+                        data-testid="reply-thumbnail"
+                        loading="lazy"
+                        decoding="async"
+                        className="size-14 shrink-0 rounded-lg object-cover"
+                    />
+                )}
+            </div>
             {cwTagLabel && (
                 <CwTag
                     label={cwTagLabel}

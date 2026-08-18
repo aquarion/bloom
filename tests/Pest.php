@@ -1,7 +1,9 @@
 <?php
 
+use App\Contracts\HostResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\DuskTestCase;
+use Tests\Support\FakeHostResolver;
 use Tests\TestCase;
 
 pest()->extend(DuskTestCase::class)
@@ -20,6 +22,13 @@ pest()->extend(DuskTestCase::class)
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function () {
+        // Feature tests submit real-looking hostnames (fosstodon.org, bsky.social, etc.) through
+        // SafeInstanceUrl. Resolving those via live DNS would make the suite depend on network
+        // access it shouldn't need, so default every hostname to a public IP here; tests that
+        // specifically exercise the private/reserved-IP rejection branch override this binding.
+        $this->app->instance(HostResolver::class, new FakeHostResolver(['203.0.113.10']));
+    })
     ->in('Feature');
 
 /*

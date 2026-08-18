@@ -2,13 +2,17 @@
 
 namespace App\Providers;
 
+use App\Contracts\HostResolver;
 use App\Enums\Role;
 use App\Models\Passkey;
 use App\Models\User;
+use App\Services\Dns\DnsHostResolver;
+use App\Services\Feed\FeedDemoFixtures;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -21,7 +25,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(HostResolver::class, DnsHostResolver::class);
     }
 
     /**
@@ -40,6 +44,19 @@ class AppServiceProvider extends ServiceProvider
             \URL::forceScheme('https');
         }
 
+        // Nothing this app calls out to legitimately needs redirect-following, and
+        // several calls (Mastodon/Bluesky connect + every feed fetch) hit a host the
+        // user supplied. SafeInstanceUrl validates that host up front, but a 3xx
+        // response from it would otherwise let Guzzle silently follow the request
+        // somewhere that was never checked.
+        Http::globalOptions(['allow_redirects' => false]);
+
+        // Opt-in, local-only fixture feed for previewing the feed UI without a real
+        // connected account — see App\Services\Feed\FeedDemoFixtures.
+        if ($this->app->environment('local') && config('feed.demo_mode')) {
+            $this->app->make(FeedDemoFixtures::class)->register();
+        }
+
         $this->configureDefaults();
         $this->configureGates();
     }
@@ -50,7 +67,6 @@ class AppServiceProvider extends ServiceProvider
     protected function configureGates(): void
     {
         Gate::define('admin', fn (User $user) => $user->hasRole(Role::Admin));
-        Gate::define('beta_tester', fn (User $user) => $user->hasRole(Role::BetaTester));
         Gate::define('subscriber', fn (User $user) => $user->hasRole(Role::Subscriber));
     }
 

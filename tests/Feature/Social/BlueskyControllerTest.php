@@ -1,5 +1,6 @@
 <?php
 
+use App\Contracts\HostResolver;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Services\Bluesky\BlueskyAuthService;
@@ -7,6 +8,7 @@ use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Tests\Support\FakeHostResolver;
 
 uses(RefreshDatabase::class);
 
@@ -130,6 +132,36 @@ it('rejects a non-https pds_url', function () {
         'handle' => 'alice.bsky.social',
         'app_password' => 'xxxx-xxxx',
         'pds_url' => 'http://evil.example.com',
+    ]);
+
+    $response->assertSessionHasErrors('pds_url');
+});
+
+it('rejects a private/loopback pds_url to prevent SSRF', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    foreach (['https://127.0.0.1', 'https://192.168.1.1', 'https://10.0.0.1', 'https://169.254.169.254'] as $url) {
+        $response = $this->actingAs($user)->post('/auth/bluesky', [
+            'handle' => 'alice.bsky.social',
+            'app_password' => 'xxxx-xxxx',
+            'pds_url' => $url,
+        ]);
+
+        $response->assertSessionHasErrors('pds_url');
+    }
+});
+
+it('rejects a pds_url hostname resolving to a private IP to prevent SSRF', function () {
+    // The suite-wide default resolver (tests/Pest.php) always returns a public IP, so this
+    // flow's own SafeInstanceUrl rule would stay unexercised on the resolved-hostname branch
+    // without a test that overrides it — the bare-IP cases above never reach that branch.
+    $this->app->instance(HostResolver::class, new FakeHostResolver(['169.254.169.254']));
+    $user = User::factory()->withPasskey()->create();
+
+    $response = $this->actingAs($user)->post('/auth/bluesky', [
+        'handle' => 'alice.bsky.social',
+        'app_password' => 'xxxx-xxxx',
+        'pds_url' => 'https://attacker-controlled.example',
     ]);
 
     $response->assertSessionHasErrors('pds_url');

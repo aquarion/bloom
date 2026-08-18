@@ -66,7 +66,7 @@ test('email is stored lowercase on registration', function () {
 });
 
 test('profile page includes roles in inertia props', function () {
-    $user = User::factory()->withPasskey()->create(['roles' => ['beta_tester']]);
+    $user = User::factory()->withPasskey()->create(['roles' => ['subscriber']]);
 
     $this->actingAs($user)
         ->get(route('profile.edit'))

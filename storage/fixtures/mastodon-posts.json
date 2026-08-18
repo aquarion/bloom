@@ -1,0 +1,403 @@
+{
+    "reply_parents": {
+        "9000000000": {
+            "id": "9000000000",
+            "created_at": "2026-08-16T09:12:00.000Z",
+            "url": "https://demo.mastodon.local/@gardener/9000000000",
+            "content": "<p>Does anyone else's basil bolt the second it gets warm, or is it just me?</p>",
+            "sensitive": false,
+            "spoiler_text": "",
+            "mentions": [],
+            "emojis": [],
+            "account": {
+                "id": "9100000000",
+                "username": "gardener",
+                "acct": "gardener",
+                "display_name": "Perpetual Gardener",
+                "avatar": "https://picsum.photos/seed/demo-gardener/200/200",
+                "header": "https://picsum.photos/seed/demo-gardener-header/600/200",
+                "emojis": []
+            }
+        }
+    },
+    "timeline": [
+        {
+            "id": "9000000001",
+            "created_at": "2026-08-17T08:05:00.000Z",
+            "url": "https://demo.mastodon.local/@bloomdemo/9000000001",
+            "content": "<p>Morning coffee, quiet garden, no notifications. This is the whole plan for today.</p>",
+            "sensitive": false,
+            "spoiler_text": "",
+            "visibility": "public",
+            "replies_count": 0,
+            "in_reply_to_id": null,
+            "quote_id": null,
+            "mentions": [],
+            "media_attachments": [],
+            "tags": [],
+            "emojis": [],
+            "card": null,
+            "poll": null,
+            "reblog": null,
+            "account": {
+                "id": "9100000001",
+                "username": "bloomdemo",
+                "acct": "bloomdemo",
+                "display_name": "Bloom Demo",
+                "avatar": "https://picsum.photos/seed/demo-bloom/200/200",
+                "header": "https://picsum.photos/seed/demo-bloom-header/600/200",
+                "emojis": []
+            }
+        },
+        {
+            "id": "9000000002",
+            "created_at": "2026-08-17T09:30:00.000Z",
+            "url": "https://demo.mastodon.local/@lighthouse/9000000002",
+            "content": "<p>Sunset over the harbour tonight was doing entirely too much. Two photos, no filter.</p>",
+            "sensitive": false,
+            "spoiler_text": "",
+            "visibility": "public",
+            "replies_count": 0,
+            "in_reply_to_id": null,
+            "quote_id": null,
+            "mentions": [],
+            "media_attachments": [
+                {
+                    "type": "image",
+                    "url": "https://picsum.photos/seed/demo-harbour-1/900/600",
+                    "preview_url": "https://picsum.photos/seed/demo-harbour-1/300/200",
+                    "description": "A pink and orange sunset over a harbour, boats silhouetted on the water."
+                },
+                {
+                    "type": "image",
+                    "url": "https://picsum.photos/seed/demo-harbour-2/900/600",
+                    "preview_url": "https://picsum.photos/seed/demo-harbour-2/300/200",
+                    "description": "The same harbour a few minutes later, deeper purple sky."
+                }
+            ],
+            "tags": [],
+            "emojis": [],
+            "card": null,
+            "poll": null,
+            "reblog": null,
+            "account": {
+                "id": "9100000002",
+                "username": "lighthouse",
+                "acct": "lighthouse",
+                "display_name": "Lighthouse Keeper",
+                "avatar": "https://picsum.photos/seed/demo-lighthouse/200/200",
+                "header": "https://picsum.photos/seed/demo-lighthouse-header/600/200",
+                "emojis": []
+            }
+        },
+        {
+            "id": "9000000003",
+            "created_at": "2026-08-17T10:02:00.000Z",
+            "url": "https://demo.mastodon.local/@workshop/9000000003",
+            "content": "<p>Timelapse of today's build. Forty-five minutes down to forty-five seconds.</p>",
+            "sensitive": false,
+            "spoiler_text": "",
+            "visibility": "public",
+            "replies_count": 0,
+            "in_reply_to_id": null,
+            "quote_id": null,
+            "mentions": [],
+            "media_attachments": [
+                {
+                    "type": "video",
+                    "url": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                    "preview_url": "https://picsum.photos/seed/demo-workshop/900/600",
+                    "description": "Timelapse of a wooden chair being assembled on a workbench."
+                }
+            ],
+            "tags": [],
+            "emojis": [],
+            "card": null,
+            "poll": null,
+            "reblog": null,
+            "account": {
+                "id": "9100000003",
+                "username": "workshop",
+                "acct": "workshop",
+                "display_name": "Weekend Workshop",
+                "avatar": "https://picsum.photos/seed/demo-workshop-avatar/200/200",
+                "header": "https://picsum.photos/seed/demo-workshop-header/600/200",
+                "emojis": []
+            }
+        },
+        {
+            "id": "9000000004",
+            "created_at": "2026-08-17T10:45:00.000Z",
+            "url": "https://demo.mastodon.local/@finale/9000000004",
+            "content": "<p>Finished the season finale. No spoilers in the alt text, I promise, but the CW is not lying.</p>",
+            "sensitive": true,
+            "spoiler_text": "Spoilers for last night's finale",
+            "visibility": "public",
+            "replies_count": 0,
+            "in_reply_to_id": null,
+            "quote_id": null,
+            "mentions": [],
+            "media_attachments": [],
+            "tags": [],
+            "emojis": [],
+            "card": null,
+            "poll": null,
+            "reblog": null,
+            "account": {
+                "id": "9100000004",
+                "username": "finale",
+                "acct": "finale",
+                "display_name": "Finale Watcher",
+                "avatar": "https://picsum.photos/seed/demo-finale/200/200",
+                "header": "https://picsum.photos/seed/demo-finale-header/600/200",
+                "emojis": []
+            }
+        },
+        {
+            "id": "9000000005",
+            "created_at": "2026-08-17T11:10:00.000Z",
+            "url": "https://demo.mastodon.local/@boostbot/9000000005",
+            "content": "",
+            "sensitive": false,
+            "spoiler_text": "",
+            "visibility": "public",
+            "replies_count": 0,
+            "in_reply_to_id": null,
+            "quote_id": null,
+            "mentions": [],
+            "media_attachments": [],
+            "tags": [],
+            "emojis": [],
+            "card": null,
+            "poll": null,
+            "account": {
+                "id": "9100000005",
+                "username": "boostbot",
+                "acct": "boostbot",
+                "display_name": "Boost Bot",
+                "avatar": "https://picsum.photos/seed/demo-boostbot/200/200",
+                "header": "https://picsum.photos/seed/demo-boostbot-header/600/200",
+                "emojis": []
+            },
+            "reblog": {
+                "id": "9000000105",
+                "created_at": "2026-08-17T07:50:00.000Z",
+                "url": "https://demo.mastodon.local/@baker/9000000105",
+                "content": "<p>First loaf out of the new oven. Crumb shot in the next post.</p>",
+                "sensitive": false,
+                "spoiler_text": "",
+                "mentions": [],
+                "media_attachments": [],
+                "tags": [],
+                "emojis": [],
+                "card": null,
+                "poll": null,
+                "account": {
+                    "id": "9100000105",
+                    "username": "baker",
+                    "acct": "baker",
+                    "display_name": "Neighbourhood Baker",
+                    "avatar": "https://picsum.photos/seed/demo-baker/200/200",
+                    "header": "https://picsum.photos/seed/demo-baker-header/600/200",
+                    "emojis": []
+                }
+            }
+        },
+        {
+            "id": "9000000006",
+            "created_at": "2026-08-17T11:40:00.000Z",
+            "url": "https://demo.mastodon.local/@gardener/9000000006",
+            "content": "<p>Ha, same. I've started keeping mine in the shadiest corner of the balcony out of spite.</p>",
+            "sensitive": false,
+            "spoiler_text": "",
+            "visibility": "public",
+            "replies_count": 0,
+            "in_reply_to_id": "9000000000",
+            "quote_id": null,
+            "mentions": [],
+            "media_attachments": [],
+            "tags": [],
+            "emojis": [],
+            "card": null,
+            "poll": null,
+            "reblog": null,
+            "account": {
+                "id": "9100000000",
+                "username": "gardener",
+                "acct": "gardener",
+                "display_name": "Perpetual Gardener",
+                "avatar": "https://picsum.photos/seed/demo-gardener/200/200",
+                "header": "https://picsum.photos/seed/demo-gardener-header/600/200",
+                "emojis": []
+            }
+        },
+        {
+            "id": "9000000007",
+            "created_at": "2026-08-17T12:05:00.000Z",
+            "url": "https://demo.mastodon.local/@commentary/9000000007",
+            "content": "<p>This is the most relatable thing I've read all week.</p>",
+            "sensitive": false,
+            "spoiler_text": "",
+            "visibility": "public",
+            "replies_count": 0,
+            "in_reply_to_id": null,
+            "quote_id": null,
+            "mentions": [],
+            "media_attachments": [],
+            "tags": [],
+            "emojis": [],
+            "card": null,
+            "poll": null,
+            "reblog": null,
+            "quote": {
+                "state": "accepted",
+                "quoted_status": {
+                    "account": {
+                        "acct": "bloomdemo",
+                        "display_name": "Bloom Demo",
+                        "avatar": "https://picsum.photos/seed/demo-bloom/200/200"
+                    },
+                    "url": "https://demo.mastodon.local/@bloomdemo/9000000001",
+                    "content": "<p>Morning coffee, quiet garden, no notifications. This is the whole plan for today.</p>",
+                    "mentions": [],
+                    "emojis": [],
+                    "created_at": "2026-08-17T08:05:00.000Z",
+                    "sensitive": false,
+                    "spoiler_text": ""
+                }
+            },
+            "account": {
+                "id": "9100000007",
+                "username": "commentary",
+                "acct": "commentary",
+                "display_name": "Running Commentary",
+                "avatar": "https://picsum.photos/seed/demo-commentary/200/200",
+                "header": "https://picsum.photos/seed/demo-commentary-header/600/200",
+                "emojis": []
+            }
+        },
+        {
+            "id": "9000000008",
+            "created_at": "2026-08-17T12:30:00.000Z",
+            "url": "https://demo.mastodon.local/@planner/9000000008",
+            "content": "<p>Quick poll: what should the next fixture-data example be?</p>",
+            "sensitive": false,
+            "spoiler_text": "",
+            "visibility": "public",
+            "replies_count": 0,
+            "in_reply_to_id": null,
+            "quote_id": null,
+            "mentions": [],
+            "media_attachments": [],
+            "tags": [],
+            "emojis": [],
+            "card": null,
+            "reblog": null,
+            "poll": {
+                "id": "9200000008",
+                "expires_at": "2099-12-31T23:59:59.000Z",
+                "expired": false,
+                "multiple": false,
+                "votes_count": 41,
+                "voted": false,
+                "own_votes": [],
+                "options": [
+                    { "title": "A reply thread", "votes_count": 12 },
+                    { "title": "A boosted post", "votes_count": 9 },
+                    { "title": "Another poll", "votes_count": 20 }
+                ]
+            },
+            "account": {
+                "id": "9100000008",
+                "username": "planner",
+                "acct": "planner",
+                "display_name": "Content Planner",
+                "avatar": "https://picsum.photos/seed/demo-planner/200/200",
+                "header": "https://picsum.photos/seed/demo-planner-header/600/200",
+                "emojis": []
+            }
+        },
+        {
+            "id": "9000000009",
+            "created_at": "2026-08-16T18:00:00.000Z",
+            "url": "https://demo.mastodon.local/@archivist/9000000009",
+            "content": "<p>Final results are in from last week's straw poll.</p>",
+            "sensitive": false,
+            "spoiler_text": "",
+            "visibility": "public",
+            "replies_count": 0,
+            "in_reply_to_id": null,
+            "quote_id": null,
+            "mentions": [],
+            "media_attachments": [],
+            "tags": [],
+            "emojis": [],
+            "card": null,
+            "reblog": null,
+            "poll": {
+                "id": "9200000009",
+                "expires_at": "2026-08-16T18:00:00.000Z",
+                "expired": true,
+                "multiple": false,
+                "votes_count": 88,
+                "voted": true,
+                "own_votes": [1],
+                "options": [
+                    { "title": "Ship it Friday", "votes_count": 30 },
+                    { "title": "Ship it Monday", "votes_count": 58 }
+                ]
+            },
+            "account": {
+                "id": "9100000009",
+                "username": "archivist",
+                "acct": "archivist",
+                "display_name": "The Archivist",
+                "avatar": "https://picsum.photos/seed/demo-archivist/200/200",
+                "header": "https://picsum.photos/seed/demo-archivist-header/600/200",
+                "emojis": []
+            }
+        },
+        {
+            "id": "9000000010",
+            "created_at": "2026-08-17T13:15:00.000Z",
+            "url": "https://demo.mastodon.local/@potluck/9000000010",
+            "content": "<p>What are you bringing to the potluck? Pick every option that applies.</p>",
+            "sensitive": false,
+            "spoiler_text": "",
+            "visibility": "public",
+            "replies_count": 0,
+            "in_reply_to_id": null,
+            "quote_id": null,
+            "mentions": [],
+            "media_attachments": [],
+            "tags": [],
+            "emojis": [],
+            "card": null,
+            "reblog": null,
+            "poll": {
+                "id": "9200000010",
+                "expires_at": "2099-12-31T23:59:59.000Z",
+                "expired": false,
+                "multiple": true,
+                "votes_count": 19,
+                "voted": false,
+                "own_votes": [],
+                "options": [
+                    { "title": "A main dish", "votes_count": 6 },
+                    { "title": "A side", "votes_count": 8 },
+                    { "title": "Dessert", "votes_count": 11 },
+                    { "title": "Just myself, tragically", "votes_count": 2 }
+                ]
+            },
+            "account": {
+                "id": "9100000010",
+                "username": "potluck",
+                "acct": "potluck",
+                "display_name": "Potluck Organiser",
+                "avatar": "https://picsum.photos/seed/demo-potluck/200/200",
+                "header": "https://picsum.photos/seed/demo-potluck-header/600/200",
+                "emojis": []
+            }
+        }
+    ]
+}

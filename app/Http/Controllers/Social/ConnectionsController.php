@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Social;
 
+use App\Enums\ProviderType;
 use App\Http\Controllers\Controller;
 use App\Models\SocialAccount;
+use App\Rules\SafeInstanceUrl;
 use App\Services\Bluesky\BlueskyFeedService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -54,18 +56,17 @@ class ConnectionsController extends Controller
     public function storePublicMastodon(Request $request)
     {
         $request->validate([
-            'instance_url' => 'required|url|starts_with:https://',
-        ]);
+            'instance_url' => ['required', 'url', 'starts_with:https://', new SafeInstanceUrl],
+        ], attributes: ['instance_url' => 'instance URL']);
 
         $instanceUrl = rtrim($request->input('instance_url'), '/');
 
-        $this->validateInstanceUrl($instanceUrl);
-
-        $exists = $request->user()->socialAccounts()
-            ->where('provider', 'mastodon')
-            ->where('feed_type', 'public_mastodon')
-            ->where('instance_url', $instanceUrl)
-            ->exists();
+        $exists = SocialAccount::existsFor(
+            $request->user(),
+            ProviderType::Mastodon,
+            instanceUrl: $instanceUrl,
+            feedType: 'public_mastodon',
+        );
 
         if ($exists) {
             return redirect()->route('connections.edit')
@@ -102,11 +103,7 @@ class ConnectionsController extends Controller
 
         $feedUri = $this->blueskyFeedUrlToAtUri($request->input('feed_url'));
 
-        $exists = $request->user()->socialAccounts()
-            ->where('provider', 'bluesky')
-            ->where('feed_type', 'bluesky_feed')
-            ->whereJsonContains('feed_settings->feed_uri', $feedUri)
-            ->exists();
+        $exists = SocialAccount::existsWithFeedUri($request->user(), $feedUri);
 
         if ($exists) {
             return redirect()->route('connections.edit')
@@ -134,49 +131,14 @@ class ConnectionsController extends Controller
 
     public function destroy(Request $request, SocialAccount $account)
     {
-        abort_unless($account->user_id === $request->user()->id, 403);
+        Gate::authorize('delete', $account);
 
-        $provider = $account->provider;
+        $provider = $account->provider->value;
 
         $account->delete();
 
         return redirect()->route('connections.edit')
             ->with('status', $provider.'-disconnected');
-    }
-
-    private function validateInstanceUrl(string $url): void
-    {
-        $parsed = parse_url($url);
-
-        if (! $parsed || ($parsed['scheme'] ?? '') !== 'https') {
-            throw ValidationException::withMessages(['instance_url' => 'Instance URL must use HTTPS.']);
-        }
-
-        $host = $parsed['host'] ?? '';
-
-        // If the host is a bare IP address, reject private/reserved ranges immediately.
-        if (filter_var($host, FILTER_VALIDATE_IP)) {
-            if (! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                throw ValidationException::withMessages(['instance_url' => 'Instance URL is not allowed.']);
-            }
-
-            return;
-        }
-
-        // For hostnames, resolve and check the resulting IP (skip in unit tests where DNS is unavailable).
-        if (! app()->runningUnitTests()) {
-            $ip = gethostbyname($host);
-
-            // gethostbyname returns the input unchanged when resolution fails.
-            if ($ip === $host) {
-                throw ValidationException::withMessages(['instance_url' => 'Could not resolve that domain. Check the URL and try again.']);
-            }
-
-            if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                Log::warning('Blocked instance URL resolving to private/reserved IP', ['host' => $host, 'ip' => $ip]);
-                throw ValidationException::withMessages(['instance_url' => 'Instance URL is not allowed.']);
-            }
-        }
     }
 
     private function blueskyFeedUrlToAtUri(string $input): string

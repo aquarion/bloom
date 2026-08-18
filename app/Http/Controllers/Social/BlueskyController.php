@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers\Social;
 
+use App\Enums\ProviderType;
 use App\Http\Controllers\Controller;
 use App\Models\SocialAccount;
+use App\Rules\SafeInstanceUrl;
 use App\Services\Bluesky\BlueskyAuthService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class BlueskyController extends Controller
@@ -35,11 +39,12 @@ class BlueskyController extends Controller
             $pdsUrl,
         );
 
-        $exists = $request->user()->socialAccounts()
-            ->where('provider', 'bluesky')
-            ->where('instance_url', $pdsUrl)
-            ->where('handle', $result['handle'])
-            ->exists();
+        $exists = SocialAccount::existsFor(
+            $request->user(),
+            ProviderType::Bluesky,
+            instanceUrl: $pdsUrl,
+            handle: $result['handle'],
+        );
 
         if ($exists) {
             return redirect()->route('connections.edit')
@@ -60,7 +65,8 @@ class BlueskyController extends Controller
 
     public function update(Request $request, SocialAccount $account)
     {
-        abort_if($account->user_id !== $request->user()->id || $account->provider !== 'bluesky', 403);
+        Gate::authorize('update', $account);
+        abort_if($account->provider !== ProviderType::Bluesky, 403);
 
         $request->validate(['app_password' => 'required|string']); // pragma: allowlist secret
 
@@ -104,17 +110,10 @@ class BlueskyController extends Controller
 
     private function validatePdsUrl(string $url): void
     {
-        $parsed = parse_url($url);
-
-        if (! $parsed || ($parsed['scheme'] ?? '') !== 'https') {
-            throw ValidationException::withMessages(['pds_url' => 'PDS URL must use HTTPS.']);
-        }
-
-        $host = $parsed['host'] ?? '';
-        $ip = gethostbyname($host);
-
-        if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-            throw ValidationException::withMessages(['pds_url' => 'PDS URL is not allowed.']);
-        }
+        Validator::make(
+            ['pds_url' => $url],
+            ['pds_url' => [new SafeInstanceUrl]],
+            attributes: ['pds_url' => 'PDS URL'],
+        )->validate();
     }
 }

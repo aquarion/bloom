@@ -2,13 +2,14 @@
 
 namespace App\Services\Mastodon;
 
+use App\Contracts\ProviderFeedSource;
 use App\Models\SocialAccount;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class MastodonFeedService
+class MastodonFeedService implements ProviderFeedSource
 {
     // How long before the head timeline is considered stale and needs a delta fetch.
     private const TIMELINE_TTL = 120;

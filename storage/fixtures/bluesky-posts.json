@@ -1,0 +1,230 @@
+{
+    "timeline": [
+        {
+            "post": {
+                "uri": "at://did:plc:demobloom/app.bsky.feed.post/9a0001",
+                "cid": "bafydemo0001",
+                "author": {
+                    "did": "did:plc:demobloom",
+                    "handle": "bloomdemo.bsky.social",
+                    "displayName": "Bloom Demo",
+                    "avatar": "https://picsum.photos/seed/demo-bsky-bloom/200/200",
+                    "banner": "",
+                    "labels": []
+                },
+                "record": {
+                    "text": "Testing the new feed preview from the couch instead of a phone for once.",
+                    "createdAt": "2026-08-17T08:20:00.000Z",
+                    "facets": []
+                },
+                "embed": null,
+                "labels": [],
+                "replyCount": 0
+            }
+        },
+        {
+            "post": {
+                "uri": "at://did:plc:demotrail/app.bsky.feed.post/9a0002",
+                "cid": "bafydemo0002",
+                "author": {
+                    "did": "did:plc:demotrail",
+                    "handle": "trailmix.bsky.social",
+                    "displayName": "Trail Mix",
+                    "avatar": "https://picsum.photos/seed/demo-bsky-trail/200/200",
+                    "banner": "",
+                    "labels": []
+                },
+                "record": {
+                    "text": "Ridge walk this morning came with a view that photos never quite do justice to. Tried anyway.",
+                    "createdAt": "2026-08-17T09:05:00.000Z",
+                    "facets": []
+                },
+                "embed": {
+                    "$type": "app.bsky.embed.images#view",
+                    "images": [
+                        {
+                            "fullsize": "https://picsum.photos/seed/demo-bsky-ridge-1/900/600",
+                            "thumb": "https://picsum.photos/seed/demo-bsky-ridge-1/300/200",
+                            "alt": "A mountain ridge trail with low cloud in the valley below."
+                        },
+                        {
+                            "fullsize": "https://picsum.photos/seed/demo-bsky-ridge-2/900/600",
+                            "thumb": "https://picsum.photos/seed/demo-bsky-ridge-2/300/200",
+                            "alt": "The same ridge, looking back the way we came."
+                        }
+                    ]
+                },
+                "labels": [],
+                "replyCount": 0
+            }
+        },
+        {
+            "post": {
+                "uri": "at://did:plc:demostudio/app.bsky.feed.post/9a0003",
+                "cid": "bafydemo0003",
+                "author": {
+                    "did": "did:plc:demostudio",
+                    "handle": "clayandkiln.bsky.social",
+                    "displayName": "Clay & Kiln",
+                    "avatar": "https://picsum.photos/seed/demo-bsky-studio/200/200",
+                    "banner": "",
+                    "labels": []
+                },
+                "record": {
+                    "text": "Trimming a bowl on the wheel, sped up so it's watchable.",
+                    "createdAt": "2026-08-17T09:40:00.000Z",
+                    "facets": []
+                },
+                "embed": {
+                    "$type": "app.bsky.embed.video#view",
+                    "playlist": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+                    "thumbnail": "https://picsum.photos/seed/demo-bsky-studio-video/900/600",
+                    "alt": "Timelapse of a ceramic bowl being trimmed on a pottery wheel."
+                },
+                "labels": [],
+                "replyCount": 0
+            }
+        },
+        {
+            "post": {
+                "uri": "at://did:plc:demospoilers/app.bsky.feed.post/9a0004",
+                "cid": "bafydemo0004",
+                "author": {
+                    "did": "did:plc:demospoilers",
+                    "handle": "finalewatch.bsky.social",
+                    "displayName": "Finale Watch",
+                    "avatar": "https://picsum.photos/seed/demo-bsky-finale/200/200",
+                    "banner": "",
+                    "labels": []
+                },
+                "record": {
+                    "text": "That was NOT the ending I was expecting. Screaming a little.",
+                    "createdAt": "2026-08-17T10:10:00.000Z",
+                    "facets": []
+                },
+                "embed": null,
+                "labels": [
+                    { "val": "graphic-media", "src": "did:plc:demospoilers" }
+                ],
+                "replyCount": 0
+            }
+        },
+        {
+            "post": {
+                "uri": "at://did:plc:demobaker/app.bsky.feed.post/9a0005",
+                "cid": "bafydemo0005",
+                "author": {
+                    "did": "did:plc:demobaker",
+                    "handle": "sourdoughsunday.bsky.social",
+                    "displayName": "Sourdough Sunday",
+                    "avatar": "https://picsum.photos/seed/demo-bsky-baker/200/200",
+                    "banner": "",
+                    "labels": []
+                },
+                "record": {
+                    "text": "Crumb shot as promised. Worth the four days of feeding a starter for this.",
+                    "createdAt": "2026-08-17T07:55:00.000Z",
+                    "facets": []
+                },
+                "embed": {
+                    "$type": "app.bsky.embed.images#view",
+                    "images": [
+                        {
+                            "fullsize": "https://picsum.photos/seed/demo-bsky-bread/900/600",
+                            "thumb": "https://picsum.photos/seed/demo-bsky-bread/300/200",
+                            "alt": "A sliced loaf of sourdough bread showing an open, airy crumb."
+                        }
+                    ]
+                },
+                "labels": [],
+                "replyCount": 0
+            },
+            "reason": {
+                "$type": "app.bsky.feed.defs#reasonRepost",
+                "by": {
+                    "did": "did:plc:demoboost",
+                    "handle": "boostbot.bsky.social",
+                    "displayName": "Boost Bot",
+                    "avatar": "https://picsum.photos/seed/demo-bsky-boostbot/200/200"
+                },
+                "indexedAt": "2026-08-17T11:15:00.000Z"
+            }
+        },
+        {
+            "post": {
+                "uri": "at://did:plc:demogardener/app.bsky.feed.post/9a0006",
+                "cid": "bafydemo0006",
+                "author": {
+                    "did": "did:plc:demogardener",
+                    "handle": "perpetualgarden.bsky.social",
+                    "displayName": "Perpetual Gardener",
+                    "avatar": "https://picsum.photos/seed/demo-bsky-gardener/200/200",
+                    "banner": "",
+                    "labels": []
+                },
+                "record": {
+                    "text": "Ha, same. Mine bolted the second the heatwave hit.",
+                    "createdAt": "2026-08-17T11:35:00.000Z",
+                    "facets": []
+                },
+                "embed": null,
+                "labels": [],
+                "replyCount": 0
+            },
+            "reply": {
+                "parent": {
+                    "uri": "at://did:plc:demobloom/app.bsky.feed.post/9a0000",
+                    "author": {
+                        "did": "did:plc:demobloom",
+                        "handle": "bloomdemo.bsky.social",
+                        "displayName": "Bloom Demo",
+                        "avatar": "https://picsum.photos/seed/demo-bsky-bloom/200/200"
+                    },
+                    "record": {
+                        "text": "Does anyone else's basil bolt the second it gets warm, or is it just me?",
+                        "createdAt": "2026-08-17T09:12:00.000Z"
+                    },
+                    "labels": []
+                }
+            }
+        },
+        {
+            "post": {
+                "uri": "at://did:plc:democommentary/app.bsky.feed.post/9a0007",
+                "cid": "bafydemo0007",
+                "author": {
+                    "did": "did:plc:democommentary",
+                    "handle": "runningcommentary.bsky.social",
+                    "displayName": "Running Commentary",
+                    "avatar": "https://picsum.photos/seed/demo-bsky-commentary/200/200",
+                    "banner": "",
+                    "labels": []
+                },
+                "record": {
+                    "text": "This is the most relatable thing I've read all week.",
+                    "createdAt": "2026-08-17T12:00:00.000Z",
+                    "facets": []
+                },
+                "embed": {
+                    "$type": "app.bsky.embed.record#view",
+                    "record": {
+                        "$type": "app.bsky.embed.record#viewRecord",
+                        "uri": "at://did:plc:demobloom/app.bsky.feed.post/9a0001",
+                        "author": {
+                            "handle": "bloomdemo.bsky.social",
+                            "displayName": "Bloom Demo",
+                            "avatar": "https://picsum.photos/seed/demo-bsky-bloom/200/200"
+                        },
+                        "value": {
+                            "text": "Testing the new feed preview from the couch instead of a phone for once.",
+                            "createdAt": "2026-08-17T08:20:00.000Z",
+                            "facets": []
+                        }
+                    }
+                },
+                "labels": [],
+                "replyCount": 0
+            }
+        }
+    ]
+}

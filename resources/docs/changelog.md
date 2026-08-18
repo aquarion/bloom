@@ -1,9 +1,20 @@
 ---
 title: Changelog
-last_updated: "2026-08-02"
+last_updated: "2026-08-18"
 ---
 
 Notable changes to the Bloom application, newest first.
+
+## 2026-08-18 — Milestone 1.15
+
+- **Faster feed startup** — the feed page now shows a loading spinner immediately and streams in posts from each connected account as they arrive, instead of waiting for every account (or the slowest one) before showing anything.
+- **Reduce Motion preference** — a new toggle in Feed settings swaps the tilt/spiral/arc word-reveal animations and zoom/blur crossfade between posts for simple fades, for anyone sensitive to motion.
+- **Flowing threads** — a back-and-forth conversation between two people, not just a single author's self-reply chain, now plays as one connected thread instead of each reply appearing as a separate, out-of-order post.
+- **Independent per-paragraph highlights** — multi-paragraph posts now highlight a standout word in each paragraph as it's revealed, instead of picking one highlight for the whole post upfront.
+- **Image thumbnail in reply previews** — the box previewing what you're replying to now shows a thumbnail if the parent post had an image attached, instead of looking identical to a reply to a plain text post.
+- **Fixed** — a temporary network hiccup on one connected account could silently and permanently drop it from your feed for the rest of the session. Failed fetches now retry automatically, with a brief "retrying…" notice if an account is having trouble.
+- **Fixed** — custom `:emoji:` in a quoted or replied-to author's display name showed as literal text instead of the emoji image.
+- **Fixed** — a rare crash before the app finished loading showed a blank white page instead of an error message.
 
 ## 2026-08-02 — Milestone 1.12
 

@@ -12,7 +12,7 @@ uses(TestCase::class);
  */
 function fakeResolverReturning(array $addresses): void
 {
-    test()->app->instance(HostResolver::class, new FakeHostResolver($addresses));
+    app()->instance(HostResolver::class, new FakeHostResolver($addresses));
 }
 
 function safeInstanceUrlFailures(string $url): array

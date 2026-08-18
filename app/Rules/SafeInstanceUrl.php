@@ -15,6 +15,16 @@ use Illuminate\Support\Facades\Log;
  */
 class SafeInstanceUrl implements ValidationRule
 {
+    /**
+     * Test seam: when set, used instead of gethostbyname() to resolve a hostname to an IP.
+     * Real DNS resolution isn't available in the test sandbox, so tests set this to exercise
+     * the resolved-private-IP rejection branch without a live network. Callers must reset it
+     * (typically in a test's afterEach) so it doesn't leak into unrelated tests.
+     *
+     * @var (Closure(string): string)|null
+     */
+    public static ?Closure $resolver = null;
+
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         $parsed = parse_url((string) $value);
@@ -36,12 +46,8 @@ class SafeInstanceUrl implements ValidationRule
             return;
         }
 
-        // DNS resolution is unavailable in unit tests — skip the resolved-IP check there.
-        if (app()->runningUnitTests()) {
-            return;
-        }
-
-        $ip = gethostbyname($host);
+        $resolve = self::$resolver ?? gethostbyname(...);
+        $ip = $resolve($host);
 
         // gethostbyname() returns the input unchanged when resolution fails.
         if ($ip === $host) {

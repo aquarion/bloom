@@ -1,5 +1,6 @@
 <?php
 
+use App\Rules\SafeInstanceUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\DuskTestCase;
 use Tests\TestCase;
@@ -20,6 +21,16 @@ pest()->extend(DuskTestCase::class)
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(function () {
+        // Feature tests submit real-looking hostnames (fosstodon.org, bsky.social, etc.) through
+        // SafeInstanceUrl. Resolving those via live DNS would make the suite depend on network
+        // access it shouldn't need, so default every hostname to a public IP here; tests that
+        // specifically exercise the private/reserved-IP rejection branch override this.
+        SafeInstanceUrl::$resolver = fn (string $host) => '203.0.113.10';
+    })
+    ->afterEach(function () {
+        SafeInstanceUrl::$resolver = null;
+    })
     ->in('Feature');
 
 /*

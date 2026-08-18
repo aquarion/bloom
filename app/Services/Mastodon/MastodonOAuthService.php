@@ -8,9 +8,19 @@ class MastodonOAuthService
 {
     private const SCOPES = 'read:statuses read:accounts read:follows';
 
+    /**
+     * Redirects are disabled on every call in this service: SafeInstanceUrl validates the
+     * instance host before we ever get here, but Guzzle follows redirects by default, which
+     * would let a malicious instance point us at an internal host post-validation. This does
+     * not close the narrower DNS-rebinding gap (the validated host resolving to a different,
+     * private IP by the time this request actually connects) — that would require pinning
+     * the resolved IP at the transport layer, which is a larger change left as a follow-up.
+     */
+    private const NO_REDIRECTS = ['allow_redirects' => false];
+
     public function getAuthorizeUrl(string $instance, string $redirectUri): string
     {
-        $response = Http::timeout(15)->post("{$instance}/api/v1/apps", [
+        $response = Http::timeout(15)->withOptions(self::NO_REDIRECTS)->post("{$instance}/api/v1/apps", [
             'client_name' => 'Bloom',
             'redirect_uris' => $redirectUri,
             'scopes' => self::SCOPES,
@@ -54,7 +64,7 @@ class MastodonOAuthService
         string $clientSecret,
         string $redirectUri,
     ): array {
-        $tokenResponse = Http::timeout(15)->post("{$instance}/oauth/token", [
+        $tokenResponse = Http::timeout(15)->withOptions(self::NO_REDIRECTS)->post("{$instance}/oauth/token", [
             'client_id' => $clientId,
             'client_secret' => $clientSecret,
             'redirect_uri' => $redirectUri,
@@ -64,6 +74,7 @@ class MastodonOAuthService
         ])->throw()->json();
 
         $accountResponse = Http::timeout(15)->withToken($tokenResponse['access_token'])
+            ->withOptions(self::NO_REDIRECTS)
             ->get("{$instance}/api/v1/accounts/verify_credentials")
             ->throw()->json();
 

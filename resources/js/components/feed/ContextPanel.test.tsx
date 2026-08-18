@@ -150,8 +150,9 @@ describe('ContextPanel — reply/quote media thumbnail', () => {
     it('shows no thumbnail when there is no media', () => {
         renderWithCw(<ContextPanel {...baseProps} />);
 
-        // AuthorChip's own avatar <img> is expected — only assert no thumbnail is added.
-        expect(screen.queryAllByRole('img')).toHaveLength(1);
+        expect(
+            screen.queryByTestId('reply-thumbnail'),
+        ).not.toBeInTheDocument();
     });
 
     it('shows no thumbnail when the media is marked sensitive', () => {
@@ -159,7 +160,9 @@ describe('ContextPanel — reply/quote media thumbnail', () => {
             <ContextPanel {...baseProps} media={media} sensitive_media />,
         );
 
-        expect(screen.queryByAltText('A photo')).not.toBeInTheDocument();
+        expect(
+            screen.queryByTestId('reply-thumbnail'),
+        ).not.toBeInTheDocument();
         expect(screen.getByText('the quoted body text')).toBeInTheDocument();
     });
 
@@ -174,7 +177,50 @@ describe('ContextPanel — reply/quote media thumbnail', () => {
             />,
         );
 
-        expect(screen.queryByAltText('A photo')).not.toBeInTheDocument();
+        expect(
+            screen.queryByTestId('reply-thumbnail'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('does not fall back to the raw video url when a video has no preview_url', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                media={[
+                    {
+                        type: 'video',
+                        url: 'https://example.com/video.mp4',
+                        preview_url: null,
+                        alt_text: null,
+                    },
+                ]}
+            />,
+        );
+
+        expect(
+            screen.queryByTestId('reply-thumbnail'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows a video thumbnail from its preview_url, never its raw video url', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                media={[
+                    {
+                        type: 'video',
+                        url: 'https://example.com/video.mp4',
+                        preview_url: 'https://example.com/video-thumb.jpg',
+                        alt_text: null,
+                    },
+                ]}
+            />,
+        );
+
+        expect(screen.getByTestId('reply-thumbnail')).toHaveAttribute(
+            'src',
+            'https://example.com/video-thumb.jpg',
+        );
     });
 });
 

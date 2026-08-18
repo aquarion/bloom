@@ -74,8 +74,13 @@ export function ContextPanel({
     // blurs and lets the viewer tap through) — simplest safe behaviour is to just not
     // show a thumbnail for it, rather than leaking it unblurred.
     const thumbnail = sensitive_media ? null : (media[0] ?? null);
+    // A video's `url` is the raw video file, not an image — only its preview_url (a
+    // static frame) is ever safe to put in an <img>, unlike an image's url/preview_url
+    // which are both actual images. Mirrors ImageCarousel's same type-based split.
     const thumbnailSrc = thumbnail
-        ? thumbnail.preview_url || thumbnail.url || null
+        ? thumbnail.type === 'video'
+            ? thumbnail.preview_url || null
+            : thumbnail.preview_url || thumbnail.url || null
         : null;
     // Inside the gate, the "Marked as X" / "Labelled as X" copy below already states
     // the label — showing it a second time on the chip badge would be redundant.
@@ -135,6 +140,9 @@ export function ContextPanel({
                     <img
                         src={thumbnailSrc}
                         alt={thumbnail?.alt_text ?? ''}
+                        data-testid="reply-thumbnail"
+                        loading="lazy"
+                        decoding="async"
                         className="size-14 shrink-0 rounded-lg object-cover"
                     />
                 )}

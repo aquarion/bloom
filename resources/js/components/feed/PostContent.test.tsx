@@ -485,7 +485,9 @@ describe('PostContent + ContextPanel — parent/nested reveal isolation', () => 
         expect(
             screen.queryByText('The author marked this post as graphic media'),
         ).not.toBeInTheDocument();
-        expect(screen.queryByText('Marked as graphic media')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Marked as graphic media'),
+        ).not.toBeInTheDocument();
         expect(screen.getByText('the quoted body text')).toBeInTheDocument();
     });
 });

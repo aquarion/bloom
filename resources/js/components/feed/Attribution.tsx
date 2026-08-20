@@ -1,7 +1,7 @@
 import { Quote, Repeat2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useCwState } from '@/hooks/useCwState';
-import { isCwLabelVisible, nestedCwLike } from '@/lib/cw';
+import { isCwLabelVisible, nestedCwLike, postCwLike } from '@/lib/cw';
 import { absoluteTime, timeSince } from '@/lib/time-since';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
@@ -27,7 +27,7 @@ export function Attribution({
     // next to the post's hashtags (or a corner badge on a reply/quote box) instead.
     const mainCwLabel =
         post.cw_is_author_level &&
-        isCwLabelVisible(post, cwBehavior, isRevealed)
+        isCwLabelVisible(postCwLike(post), cwBehavior, isRevealed)
             ? post.cw_text
             : null;
     const quotedCwLabel =

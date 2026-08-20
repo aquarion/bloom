@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import FeedSettingsController from '@/actions/App/Http/Controllers/Settings/FeedSettingsController';
 import { useCwState } from '@/hooks/useCwState';
 import { useOneTimeTip } from '@/hooks/useOneTimeTip';
-import { shouldShowCwOverlay } from '@/lib/cw';
+import { postCwLike, shouldShowCwOverlay } from '@/lib/cw';
 import { postDisplayColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
@@ -103,7 +103,7 @@ export function PostContent({
     const cwText = post.cw_text;
     const isAuthorLevel = post.cw_is_author_level;
     const showCwOverlay = shouldShowCwOverlay(
-        post,
+        postCwLike(post),
         cwBehavior,
         sensitiveMediaBehavior,
         isRevealed,
@@ -124,7 +124,7 @@ export function PostContent({
     };
 
     const revealCw = () => {
-        reveal(post);
+        reveal(postCwLike(post));
         triggerCwSettingsTip();
     };
 

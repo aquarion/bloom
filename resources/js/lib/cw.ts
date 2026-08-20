@@ -19,20 +19,60 @@ interface NestedCwSource {
 }
 
 /**
- * ReplyTo/QuotedPost have no id of their own. original_url is normally unique per
- * post, but PostNormalizer's safeUrl() can collapse an unsafe/malformed source URL
- * to '' — falling back to author_handle + cw_text keeps reveal state from being
- * shared between two unrelated nested posts that both hit that edge case.
+ * original_url is normally unique per post, but PostNormalizer's safeUrl() can
+ * collapse an unsafe/malformed source URL to '' — falling back to author_handle +
+ * cw_text keeps reveal state from being shared between two unrelated posts that
+ * both hit that edge case.
+ */
+function originUrlCwId(
+    original_url: string,
+    author_handle: string,
+    cw_text: string | null,
+): string {
+    return original_url || `${author_handle}:${cw_text ?? ''}`;
+}
+
+/**
+ * ReplyTo/QuotedPost have no id of their own.
  */
 export function nestedCwLike(nested: NestedCwSource): CwLike {
     return {
-        id:
-            nested.original_url ||
-            `${nested.author_handle}:${nested.cw_text ?? ''}`,
+        id: originUrlCwId(
+            nested.original_url,
+            nested.author_handle,
+            nested.cw_text,
+        ),
         author_handle: nested.author_handle,
         cw_text: nested.cw_text,
         cw_is_author_level: nested.cw_is_author_level,
         sensitive_media: nested.sensitive_media,
+    };
+}
+
+/**
+ * A top-level Post, keyed the same way nestedCwLike() keys a ReplyTo/QuotedPost —
+ * by original_url rather than the post's own `id`. A flowing thread (#338) can show
+ * the same physical post twice: once as its own entry, and again as the "replying
+ * to" context panel on the entry right after it. Those two views come from
+ * different normalisation passes (top-level vs nested reply_to/quoted_post), so
+ * their `id`/`original_url` don't line up unless both are reduced to this same key
+ * — without it, revealing one leaves the other still gated.
+ */
+export function postCwLike(post: {
+    original_url: string;
+    author_handle: string;
+    cw_text: string | null;
+    cw_is_author_level: boolean;
+    sensitive_media: boolean;
+    source?: 'mastodon' | 'bluesky';
+}): CwLike {
+    return {
+        id: originUrlCwId(post.original_url, post.author_handle, post.cw_text),
+        author_handle: post.author_handle,
+        cw_text: post.cw_text,
+        cw_is_author_level: post.cw_is_author_level,
+        sensitive_media: post.sensitive_media,
+        source: post.source,
     };
 }
 

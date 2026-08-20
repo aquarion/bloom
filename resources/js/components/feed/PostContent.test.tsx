@@ -205,6 +205,7 @@ describe('PostContent — revealing a CW', () => {
         const user = userEvent.setup();
         const postA = makePost({
             id: 'p1',
+            original_url: 'https://bsky.app/test/a',
             author_handle: '@alice.bsky.social',
             cw_text: 'Graphic media',
             cw_is_author_level: false,
@@ -212,6 +213,7 @@ describe('PostContent — revealing a CW', () => {
         });
         const postB = makePost({
             id: 'p2',
+            original_url: 'https://bsky.app/test/b',
             author_handle: '@alice.bsky.social',
             cw_text: 'Adult content',
             cw_is_author_level: false,
@@ -447,6 +449,45 @@ describe('PostContent + ContextPanel — parent/nested reveal isolation', () => 
 
         await user.click(screen.getByRole('button', { name: 'Show author' }));
 
+        expect(screen.getByText('the quoted body text')).toBeInTheDocument();
+    });
+
+    it('revealing a post also reveals it when it reappears as another entry\'s "replying to" context (a flowing thread)', async () => {
+        const user = userEvent.setup();
+        const sharedUrl = 'https://bsky.app/profile/alice.bsky.social/post/1';
+        renderWithCw(
+            <>
+                <PostContent
+                    post={makePost({
+                        original_url: sharedUrl,
+                        cw_text: 'Graphic media',
+                        cw_is_author_level: false,
+                        cw_label_source: 'self',
+                    })}
+                    cwBehavior="blur"
+                />
+                <ContextPanel
+                    {...nestedPanelProps}
+                    original_url={sharedUrl}
+                    author_handle="@alice.bsky.social"
+                    cw_text="Graphic media"
+                    cw_label_source="self"
+                    cwBehavior="blur"
+                />
+            </>,
+        );
+
+        const [revealMain] = screen.getAllByRole('button', {
+            name: 'Show anyway',
+        });
+        await user.click(revealMain);
+
+        expect(
+            screen.queryByText('The author marked this post as graphic media'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Marked as graphic media'),
+        ).not.toBeInTheDocument();
         expect(screen.getByText('the quoted body text')).toBeInTheDocument();
     });
 });

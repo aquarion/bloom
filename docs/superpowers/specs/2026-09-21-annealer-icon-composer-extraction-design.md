@@ -2,17 +2,19 @@
 
 ## Context
 
-Sprouter generates its Apple touch icon (`resources/icons/apple-touch-icon.png`)
-from an Apple Icon Composer bundle (`resources/branding/bloom.icon/icon.json`)
-using a set of Node scripts under `bin/icons/`. This is not a wrapper around
+This project (repo directory `sprouter`, product name **Bloom**) generates
+its Apple touch icon (`resources/icons/apple-touch-icon.png`) from an Apple
+Icon Composer bundle (`resources/branding/bloom.icon/icon.json`) using a set
+of Node scripts under `bin/icons/`. This is not a wrapper around
 Xcode/`actool` — it's a from-scratch Node reimplementation (using `sharp`) of
 Icon Composer's rendering: squircle masking, gradient compensation, P3 color
 handling, and iOS 26 "liquid glass" specular effects, all reverse-engineered
 empirically against Icon Composer's actual output (see `docs/branding.md`).
+The rest of this document refers to this project as "Bloom".
 
 Because it has no macOS/Xcode dependency, this logic is portable and worth
 extracting so it can be reused across other projects, instead of living only
-inside Sprouter's `bin/icons/`.
+inside Bloom's `bin/icons/`.
 
 **Important scope constraint discovered during investigation:** the renderer
 is not a general Icon Composer engine. It only handles the specific shape of
@@ -35,13 +37,13 @@ welcome later but are not part of this project.
 
 ## Goals
 
-- Move the icon-generation logic out of Sprouter into a standalone,
+- Move the icon-generation logic out of Bloom into a standalone,
   publicly-usable project ("Annealer") so it can be reused in other projects
   without duplicating code.
 - Provide both an npm package (for direct/local/CLI use) and a thin GitHub
   Action wrapper around it (for CI use), so consumers aren't forced into
   either mode.
-- Migrate Sprouter to depend on the extracted package rather than keeping a
+- Migrate Bloom to depend on the extracted package rather than keeping a
   local copy, so there is a single source of truth.
 - Preserve current rendering output exactly — this is an extraction, not a
   rewrite. No visual/behavioral changes to the generated icons.
@@ -49,18 +51,22 @@ welcome later but are not part of this project.
 ## Non-goals
 
 - Generalizing the renderer to support other Icon Composer fill types,
-  multiple layer groups, `glass: false`, or multi-path glyphs.
+  multiple layer groups, `glass: false`, or multi-path glyphs, **as part of
+  this extraction project**. These gaps are filed as tracked issues in the
+  new repo once it's created (see Scope statement below), so the work isn't
+  lost — they're just not blocking or in-scope for the extraction itself.
 - Running on `macos-latest` or shelling out to Xcode/`actool` — the whole
   point is that this doesn't need to.
-- Changing Sprouter's build pipeline or `vite-plugin.js` integration pattern
+- Changing Bloom's build pipeline or `vite-plugin.js` integration pattern
   beyond what's needed to consume the new package.
 
 ## Architecture
 
 ### New repo: Annealer
 
-A new public GitHub repo, structured as an ESM npm package with a CLI entry
-point and a composite GitHub Action wrapper.
+A new public GitHub repo under the `istic` org (`github.com/istic/annealer`),
+structured as an ESM npm package with a CLI entry point and a composite
+GitHub Action wrapper.
 
 ```
 annealer/
@@ -99,15 +105,23 @@ annealer/
 The README leads with the supported-shape constraint verbatim (single
 `automatic-gradient` fill, one glass-enabled layer group, single-path
 glyph), states that other shapes are out of scope for now, and points to
-opening an issue/PR for extending support. No runtime validation is added
-to detect unsupported shapes (per discussion) — unsupported input may
+the tracked issues below for extending support. No runtime validation is
+added to detect unsupported shapes (per discussion) — unsupported input may
 silently produce incorrect output, same as today.
 
-### Sprouter migration
+Once the repo exists, file one GitHub issue per known gap so the work is
+tracked rather than just documented as a limitation:
+- Support `flat-color` (and other non-`automatic-gradient`) fills.
+- Support `glass: false` layers (no specular/blur treatment).
+- Support multiple layer groups.
+- Support multi-path/multi-group glyph SVGs (current regex only matches a
+  single `<path d="...">`).
+
+### Bloom migration
 
 - Delete `bin/icons/generate-apple-touch-icon.js`, `generate-web-icons.js`,
   `pack-ico.js`, `colors.js`, `squircle.js`, and their `*.test.js` files.
-  Keep `bin/icons/vite-plugin.js` in Sprouter — it's app-specific Vite glue,
+  Keep `bin/icons/vite-plugin.js` in Bloom — it's app-specific Vite glue,
   not generic rendering logic — but update its imports to pull
   `generateAppleTouchIcon` / `generateWebIcons` / `packIco` from the new
   package instead of local relative paths.
@@ -124,15 +138,13 @@ silently produce incorrect output, same as today.
   generator logic in isolation.
 - Extraction correctness is verified by regenerating
   `resources/icons/apple-touch-icon.png` (and the web icons/ico) from
-  Sprouter via the new package and diffing against the currently committed
+  Bloom via the new package and diffing against the currently committed
   output — expected to be pixel-identical, since no logic changes.
-- The Action itself is exercised by having Sprouter's CI/build call it
+- The Action itself is exercised by having Bloom's CI/build call it
   (dogfooding) once the migration lands, rather than requiring a second
   consumer project before shipping.
 
 ## Open items for implementation planning
 
-- Exact npm package name / GitHub org for the new repo (no existing
-  npm scope is configured in Sprouter's `package.json`; this is a naming
-  decision to make during implementation, not a design blocker).
+- Exact npm package name (repo/org is settled: `istic/annealer`).
 - License for the public repo (not yet decided).

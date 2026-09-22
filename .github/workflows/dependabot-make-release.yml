@@ -102,6 +102,9 @@ jobs:
     if: |
       !failure() && !cancelled() &&
       (github.event_name == 'workflow_dispatch' || needs.check-for-updates.outputs.has_updates == 'true')
+    concurrency:
+      group: release-tag
+      cancel-in-progress: false
     permissions:
       contents: write
       packages: write

@@ -2,7 +2,10 @@ name: "[Auto] Merge Dependabot Updates"
 
 on:
   pull_request:
-    branches: [dependabot-updates]
+    # dependabot.yml targets version updates at dependabot-updates, but
+    # GitHub's automatic security updates ignore target-branch and always
+    # open against the default branch - so main needs the same handling.
+    branches: [dependabot-updates, main]
 
 permissions: {}
 

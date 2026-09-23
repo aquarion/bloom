@@ -1,7 +1,6 @@
 /* global process */
 import fs from 'node:fs/promises';
-import { generateAppleTouchIcon } from './generate-apple-touch-icon.js';
-import { generateWebIcons } from './generate-web-icons.js';
+import { generateAppleTouchIcon, generateWebIcons } from '@istic-co/annealer';
 
 const CONFIG_PATH = 'resources/branding/icon-config.json';
 

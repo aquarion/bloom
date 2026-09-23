@@ -1,5 +1,6 @@
 {
     "glyph": "resources/branding/noun-bloom-5179258-FFFFFF.svg",
+    "iconPath": "resources/branding/bloom.icon",
     "backgroundColor": "#6A2AAC",
     "backgroundColors": {
         "local": "#CC0000",

@@ -1,7 +1,14 @@
 name: "[Auto] Merge Dependabot Updates"
 
 on:
-  pull_request:
+  # pull_request_target, not pull_request: GitHub withholds custom repo
+  # secrets (and gives a read-only GITHUB_TOKEN) from workflow runs
+  # triggered by a PR that Dependabot itself opened/updated, even same-repo
+  # ones - so MERGE_TOKEN below would silently resolve empty under plain
+  # pull_request. This job never checks out or runs code from the PR head
+  # (it only calls the GitHub API against the PR by number), so running it
+  # in the base repo's context is safe.
+  pull_request_target:
     # dependabot.yml targets version updates at dependabot-updates, but
     # GitHub's automatic security updates ignore target-branch and always
     # open against the default branch - so main needs the same handling.

@@ -16,3 +16,9 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
+    secrets:
+      # A real-identity token, not the default GITHUB_TOKEN: pushes made with
+      # GITHUB_TOKEN don't trigger other workflow runs, so without this the
+      # merge commit landing on dependabot-updates never re-triggers CI on
+      # the aggregate PR into main, and its checks stay stuck at zero forever.
+      MERGE_TOKEN: ${{ secrets.REBASE_TOKEN }}

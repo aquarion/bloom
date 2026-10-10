@@ -23,6 +23,8 @@ interface CwFields {
     /** Who applied the content warning. 'self' = author labelled their own content; 'external' = third-party labeller (Bluesky only); null = no CW (cw_text is also null). */
     cw_label_source: 'self' | 'external' | null;
     cw_category: CwCategory | null;
+    /** Every whitelistable category the CW touches; absent on older cached payloads. */
+    cw_categories?: CwCategory[];
     sensitive_media: boolean;
 }
 

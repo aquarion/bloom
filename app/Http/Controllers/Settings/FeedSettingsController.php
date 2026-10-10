@@ -80,6 +80,29 @@ class FeedSettingsController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * Persists an "Always" reveal from the feed: the content warning categories of the
+     * revealed post join cw_label_whitelist, so future posts carrying only those
+     * categories skip the overlay. Called via a plain fetch from useCwState.
+     */
+    public function whitelistCwCategories(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'categories' => ['required', 'array', 'min:1'],
+            'categories.*' => [Rule::in(['adult', 'graphic', 'safety', 'generic'])],
+        ]);
+
+        $user = $request->user();
+        $whitelist = $user->getPreference('cw_label_whitelist', []);
+        $merged = array_values(array_unique([...$whitelist, ...$validated['categories']]));
+
+        if ($merged !== $whitelist) {
+            $user->setPreference('cw_label_whitelist', $merged);
+        }
+
+        return response()->json(null, 204);
+    }
+
     public function updateAccount(Request $request, SocialAccount $account): RedirectResponse
     {
         Gate::authorize('update', $account);

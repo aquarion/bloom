@@ -42,7 +42,7 @@ export function ContextPanel({
     sensitive_media?: boolean;
     cwBehavior?: ContentBehavior;
 }) {
-    const { isRevealed, reveal } = useCwState();
+    const { isRevealed, reveal, revealAlways } = useCwState();
 
     const cwPost = nestedCwLike({
         original_url,
@@ -108,17 +108,32 @@ export function ContextPanel({
                     ? `Labelled as ${(cw_text ?? '').toLowerCase()}`
                     : `Marked as ${(cw_text ?? '').toLowerCase()}`}
             </p>
-            <button
-                type="button"
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    reveal(cwPost);
-                }}
-                className="mt-2 rounded-full bg-white/20 px-3 py-1 text-xs hover:bg-white/30"
-            >
-                {cw_is_author_level ? 'Show author' : 'Show anyway'}
-            </button>
+            <div className="mt-2 flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        reveal(cwPost);
+                    }}
+                    className="rounded-full bg-white/20 px-3 py-1 text-xs hover:bg-white/30"
+                >
+                    {cw_is_author_level ? 'Show author' : 'Show anyway'}
+                </button>
+                {!cw_is_author_level && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            revealAlways(cwPost);
+                        }}
+                        className="rounded-full bg-white/10 px-3 py-1 text-xs hover:bg-white/30"
+                    >
+                        Always
+                    </button>
+                )}
+            </div>
         </>
     ) : (
         <>

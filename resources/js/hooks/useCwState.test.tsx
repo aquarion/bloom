@@ -123,4 +123,59 @@ describe('CwStateProvider', () => {
 
         expect(result.current.isRevealed(post)).toBe(true);
     });
+
+    it('revealAlways persists the post categories to the whitelist-cw-categories endpoint', () => {
+        const { result } = renderHook(() => useCwState(), {
+            wrapper: wrapperWithWhitelist(),
+        });
+
+        act(() => {
+            result.current.revealAlways(
+                makeCwLike({ cw_categories: ['adult', 'safety'] }),
+            );
+        });
+
+        expect(fetch).toHaveBeenCalledTimes(1);
+        const [url, init] = vi.mocked(fetch).mock.calls[0];
+        expect(url).toBe('/settings/feed/whitelisted-cw-categories');
+        expect(JSON.parse(init?.body as string)).toEqual({
+            categories: ['adult', 'safety'],
+        });
+    });
+
+    it('revealAlways reveals other posts whose categories are all whitelisted', () => {
+        const { result } = renderHook(() => useCwState(), {
+            wrapper: wrapperWithWhitelist(),
+        });
+        const other = makeCwLike({ id: 'post-9', cw_categories: ['adult'] });
+        const mixed = makeCwLike({
+            id: 'post-10',
+            cw_categories: ['adult', 'safety'],
+        });
+
+        act(() => {
+            result.current.revealAlways(
+                makeCwLike({ cw_categories: ['adult'] }),
+            );
+        });
+
+        expect(result.current.isRevealed(other)).toBe(true);
+        expect(result.current.isRevealed(mixed)).toBe(false);
+    });
+
+    it('treats categories from initialLabelWhitelist as already revealed', () => {
+        const { result } = renderHook(() => useCwState(), {
+            wrapper: ({ children }: { children: ReactNode }) => (
+                <CwStateProvider initialLabelWhitelist={['generic']}>
+                    {children}
+                </CwStateProvider>
+            ),
+        });
+
+        expect(
+            result.current.isRevealed(
+                makeCwLike({ cw_categories: ['generic'] }),
+            ),
+        ).toBe(true);
+    });
 });

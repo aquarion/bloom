@@ -7,6 +7,7 @@ use App\Models\SocialAccount;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -92,13 +93,17 @@ class FeedSettingsController extends Controller
             'categories.*' => [Rule::in(['adult', 'graphic', 'safety', 'generic'])],
         ]);
 
-        $user = $request->user();
-        $whitelist = $user->getPreference('cw_label_whitelist', []);
-        $merged = array_values(array_unique([...$whitelist, ...$validated['categories']]));
+        // Re-read under a row lock so two near-simultaneous "Always" clicks merge
+        // into the whitelist instead of the last write dropping the other's categories.
+        DB::transaction(function () use ($request, $validated): void {
+            $user = $request->user()->newQuery()->lockForUpdate()->findOrFail($request->user()->getKey());
+            $whitelist = $user->getPreference('cw_label_whitelist', []);
+            $merged = array_values(array_unique([...$whitelist, ...$validated['categories']]));
 
-        if ($merged !== $whitelist) {
-            $user->setPreference('cw_label_whitelist', $merged);
-        }
+            if ($merged !== $whitelist) {
+                $user->setPreference('cw_label_whitelist', $merged);
+            }
+        });
 
         return response()->json(null, 204);
     }

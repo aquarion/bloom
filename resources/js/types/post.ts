@@ -29,6 +29,9 @@ interface CwFields {
 }
 
 export interface ReplyTo extends CwFields {
+    link_url?: string | null;
+    link_title?: string | null;
+    link_image?: string | null;
     author_name: string;
     author_handle: string;
     author_avatar: string;
@@ -41,6 +44,9 @@ export interface ReplyTo extends CwFields {
 }
 
 export interface QuotedPost extends CwFields {
+    link_url?: string | null;
+    link_title?: string | null;
+    link_image?: string | null;
     author_name: string;
     author_handle: string;
     author_avatar: string;

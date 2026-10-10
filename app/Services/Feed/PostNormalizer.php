@@ -207,6 +207,26 @@ class PostNormalizer
         ];
     }
 
+    /**
+     * Link-card fields for a nested (reply/quote) status. Its body has URLs stripped, so a
+     * link-only post would otherwise render as an empty panel.
+     *
+     * @param  array<string, mixed>  $status
+     * @return array{link_url: ?string, link_title: ?string, link_image: ?string}
+     */
+    private function nestedMastodonLink(array $status): array
+    {
+        $card = $status['card'] ?? null;
+        $linkUrl = ($card ? ($this->safeUrl($card['url'] ?? '') ?: null) : null)
+            ?? $this->extractFirstLinkFromHtml($status['content'] ?? '');
+
+        return [
+            'link_url' => $linkUrl,
+            'link_title' => $card ? (($card['title'] ?? '') ?: null) : null,
+            'link_image' => $card ? ($this->safeUrl($card['image'] ?? '') ?: null) : null,
+        ];
+    }
+
     private function mastodonReplyTo(?array $parent, string $fallbackHost, bool $mentionsEnabled): ?array
     {
         if ($parent === null) {
@@ -223,6 +243,7 @@ class PostNormalizer
             'author_avatar' => $this->safeUrl($parent['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($parent['url'] ?? ''),
             ...$this->buildNestedMastodonBody($parent['content'], $parent['mentions'] ?? [], $mentionsEnabled),
+            ...$this->nestedMastodonLink($parent),
             ...$this->mastodonCwFields($parent),
             'created_at' => $parent['created_at'] ?? null,
             'emojis' => $this->buildEmojiMap(array_merge(
@@ -255,6 +276,7 @@ class PostNormalizer
             'author_avatar' => $this->safeUrl($raw['account']['avatar'] ?? ''),
             'original_url' => $this->safeUrl($raw['url'] ?? ''),
             ...$this->buildNestedMastodonBody($raw['content'] ?? '', $raw['mentions'] ?? [], $mentionsEnabled),
+            ...$this->nestedMastodonLink($raw),
             ...$this->mastodonCwFields($raw),
             'created_at' => $raw['created_at'] ?? null,
             'emojis' => $this->buildEmojiMap(array_merge(

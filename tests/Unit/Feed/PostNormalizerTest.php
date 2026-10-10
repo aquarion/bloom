@@ -3660,3 +3660,59 @@ it('exposes the link card of a link-only mastodon parent in reply_to', function 
         ->and($post['reply_to']['link_title'])->toBe('An Article')
         ->and($post['reply_to']['link_image'])->toBe('https://example.com/a.jpg');
 });
+
+it('exposes the link card of a link-only mastodon quoted post', function () {
+    $status = [
+        'id' => '1',
+        'content' => '<p>my comment</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/1',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+        'quote_id' => '99',
+    ];
+
+    $quoteStatus = [
+        'id' => '99',
+        'content' => '<p><a href="https://example.com/story">example.com/story</a></p>',
+        'created_at' => '2024-01-14T09:00:00.000Z',
+        'url' => 'https://mastodon.social/@author/99',
+        'account' => ['display_name' => 'Quoted Author', 'acct' => 'author', 'avatar' => ''],
+        'card' => [
+            'url' => 'https://example.com/story',
+            'title' => 'A Story',
+            'image' => 'https://example.com/s.jpg',
+        ],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', quoteStatus: $quoteStatus);
+
+    expect($post['quoted_post']['link_url'])->toBe('https://example.com/story')
+        ->and($post['quoted_post']['link_title'])->toBe('A Story')
+        ->and($post['quoted_post']['link_image'])->toBe('https://example.com/s.jpg');
+});
+
+it('falls back to the first non-mention html link for a nested post without a card', function () {
+    $parent = [
+        'url' => 'https://mastodon.social/@original/456',
+        'content' => '<p><a href="https://mastodon.social/@someone" class="u-url mention">@someone</a> '
+            .'<a href="https://example.com/page" rel="nofollow">example.com/page</a></p>',
+        'account' => ['display_name' => 'Original User', 'acct' => 'original', 'avatar' => ''],
+        'card' => null,
+    ];
+
+    $status = [
+        'id' => '789',
+        'content' => '<p>reply</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/789',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parent);
+
+    expect($post['reply_to']['link_url'])->toBe('https://example.com/page')
+        ->and($post['reply_to']['link_title'])->toBeNull()
+        ->and($post['reply_to']['link_image'])->toBeNull();
+});

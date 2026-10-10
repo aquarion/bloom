@@ -15,7 +15,7 @@ That assumption doesn't always hold in practice. It produced a real, reproducibl
 
 In a sandboxed/remote session, `composer install` reliably fails partway through: Composer's dist (zipball) downloads hit `api.github.com`, which is rate-limited without a token, and it falls back to `git clone` from source for each package — which then itself fails with `Could not authenticate against github.com` once it reaches a package composer can't clone anonymously (varies by run, but `pestphp/pest` itself is a common last straw). `npm install` is unaffected; this is PHP/Composer-specific.
 
-**Workaround:** `composer install --no-dev --no-interaction` succeeds reliably (it skips Pest, Pint, Larastan/PHPStan, Dusk, Sail, Boost — the packages most likely to trip the GitHub fallback) and is enough to:
+**Workaround:** `composer install --no-dev --no-interaction` succeeds reliably (it skips Pest, Pint, Larastan/PHPStan, Sail, Boost — the packages most likely to trip the GitHub fallback) and is enough to:
 - Boot the app (`php artisan key:generate`, `route:list`, etc.).
 - Run `php artisan wayfinder:generate --with-form`, which is required before `vitest`/`tsc` will work at all — `vite.config.ts`'s wayfinder plugin shells out to `php artisan` on startup, so without a working `vendor/autoload.php` even the frontend test suite refuses to boot.
 

@@ -88,7 +88,7 @@ export function ContextPanel({
             ? thumbnail.preview_url || null
             : thumbnail.preview_url || thumbnail.url || null
         : null;
-    const previewSrc = thumbnailSrc ?? link_image;
+    const previewSrc = sensitive_media ? null : (thumbnailSrc ?? link_image);
     let linkLabel = link_title || link_url;
 
     if (link_url && !link_title) {

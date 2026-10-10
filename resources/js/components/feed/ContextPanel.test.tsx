@@ -162,6 +162,19 @@ describe('ContextPanel — reply/quote media thumbnail', () => {
         expect(screen.getByText('the quoted body text')).toBeInTheDocument();
     });
 
+    it('shows no link card image when the post is marked sensitive', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                link_url="https://example.com/article"
+                link_image="https://example.com/a.jpg"
+                sensitive_media
+            />,
+        );
+
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
+    });
+
     it('hides the thumbnail along with the rest of the content behind a CW gate', () => {
         renderWithCw(
             <ContextPanel

@@ -180,6 +180,46 @@ describe('PostContent — author-level CW overlay', () => {
 });
 
 describe('PostContent — revealing a CW', () => {
+    it('offers an Always button on a post-level CW that also reveals the post', async () => {
+        const user = userEvent.setup();
+        renderWithCw(
+            <PostContent
+                post={makePost({
+                    id: 'p1',
+                    cw_text: 'Graphic media',
+                    cw_is_author_level: false,
+                    cw_label_source: 'self',
+                    cw_categories: ['graphic'],
+                })}
+                cwBehavior="blur"
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Always' }));
+
+        expect(
+            screen.queryByText('The author marked this post as graphic media'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('does not offer Always on an author-level CW', () => {
+        renderWithCw(
+            <PostContent
+                post={makePost({
+                    id: 'p1',
+                    cw_text: 'Adult content',
+                    cw_is_author_level: true,
+                    cw_label_source: 'self',
+                })}
+                cwBehavior="blur"
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Always' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('hides the overlay for this post after clicking reveal', async () => {
         const user = userEvent.setup();
         renderWithCw(

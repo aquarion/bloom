@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CwStateProvider } from '@/hooks/useCwState';
 import { ContextPanel } from './ContextPanel';
 
@@ -56,6 +56,31 @@ describe('ContextPanel — CW gating for nested posts', () => {
         );
 
         expect(screen.getByText('the quoted body text')).toBeInTheDocument();
+    });
+
+    it('persists the nested post categories when clicking "Always"', async () => {
+        const user = userEvent.setup();
+        document.cookie = 'XSRF-TOKEN=test-token';
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true } as Response);
+        vi.stubGlobal('fetch', fetchMock);
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                cw_text="Graphic media"
+                cw_label_source="self"
+                cw_category="graphic"
+                cw_categories={['graphic']}
+                cwBehavior="blur"
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Always' }));
+
+        expect(screen.getByText('the quoted body text')).toBeInTheDocument();
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+            categories: ['graphic'],
+        });
+        vi.unstubAllGlobals();
     });
 
     it('reveals the body after clicking "Show anyway"', async () => {

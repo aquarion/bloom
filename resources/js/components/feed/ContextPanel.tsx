@@ -2,7 +2,7 @@ import { AtSign, Link as LinkIcon } from 'lucide-react';
 import type React from 'react';
 import { useCwState } from '@/hooks/useCwState';
 import { nestedCwLike, postLevelCwLabel, shouldShowCwOverlay } from '@/lib/cw';
-import type { MediaAttachment, Mention } from '@/types/post';
+import type { CwCategory, MediaAttachment, Mention } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 import { AuthorChip } from './AuthorChip';
 import { CwTag } from './CwTag';
@@ -26,6 +26,8 @@ export function ContextPanel({
     cw_text = null,
     cw_is_author_level = false,
     cw_label_source = null,
+    cw_category = null,
+    cw_categories,
     sensitive_media = false,
     cwBehavior = 'show',
 }: {
@@ -45,10 +47,12 @@ export function ContextPanel({
     cw_text?: string | null;
     cw_is_author_level?: boolean;
     cw_label_source?: 'self' | 'external' | null;
+    cw_category?: CwCategory | null;
+    cw_categories?: CwCategory[];
     sensitive_media?: boolean;
     cwBehavior?: ContentBehavior;
 }) {
-    const { isRevealed, reveal } = useCwState();
+    const { isRevealed, reveal, revealAlways } = useCwState();
 
     const cwPost = nestedCwLike({
         original_url,
@@ -56,6 +60,8 @@ export function ContextPanel({
         cw_text,
         cw_is_author_level,
         sensitive_media,
+        cw_category,
+        cw_categories,
     });
     const showCwGate = shouldShowCwOverlay(
         cwPost,
@@ -124,17 +130,32 @@ export function ContextPanel({
                     ? `Labelled as ${(cw_text ?? '').toLowerCase()}`
                     : `Marked as ${(cw_text ?? '').toLowerCase()}`}
             </p>
-            <button
-                type="button"
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    reveal(cwPost);
-                }}
-                className="mt-2 rounded-full bg-white/20 px-3 py-1 text-xs hover:bg-white/30"
-            >
-                {cw_is_author_level ? 'Show author' : 'Show anyway'}
-            </button>
+            <div className="mt-2 flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        reveal(cwPost);
+                    }}
+                    className="rounded-full bg-white/20 px-3 py-1 text-xs hover:bg-white/30"
+                >
+                    {cw_is_author_level ? 'Show author' : 'Show anyway'}
+                </button>
+                {!cw_is_author_level && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            revealAlways(cwPost);
+                        }}
+                        className="rounded-full bg-white/10 px-3 py-1 text-xs hover:bg-white/30"
+                    >
+                        Always
+                    </button>
+                )}
+            </div>
         </>
     ) : (
         <>

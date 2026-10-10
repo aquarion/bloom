@@ -23,6 +23,7 @@ class FeedController extends Controller
             'cwBehavior' => $user->getPreference('cw_behavior', 'blur'),
             'sensitiveMediaBehavior' => $user->getPreference('sensitive_media_behavior', 'blur'),
             'cwAuthorWhitelist' => $user->getPreference('cw_author_whitelist', []),
+            'cwLabelWhitelist' => $user->getPreference('cw_label_whitelist', []),
             'reduceMotion' => $user->getPreference('reduce_motion', false),
         ]);
     }

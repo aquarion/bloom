@@ -2,7 +2,7 @@ import { AtSign } from 'lucide-react';
 import type React from 'react';
 import { useCwState } from '@/hooks/useCwState';
 import { nestedCwLike, postLevelCwLabel, shouldShowCwOverlay } from '@/lib/cw';
-import type { MediaAttachment, Mention } from '@/types/post';
+import type { CwCategory, MediaAttachment, Mention } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 import { AuthorChip } from './AuthorChip';
 import { CwTag } from './CwTag';
@@ -23,6 +23,8 @@ export function ContextPanel({
     cw_text = null,
     cw_is_author_level = false,
     cw_label_source = null,
+    cw_category = null,
+    cw_categories,
     sensitive_media = false,
     cwBehavior = 'show',
 }: {
@@ -39,6 +41,8 @@ export function ContextPanel({
     cw_text?: string | null;
     cw_is_author_level?: boolean;
     cw_label_source?: 'self' | 'external' | null;
+    cw_category?: CwCategory | null;
+    cw_categories?: CwCategory[];
     sensitive_media?: boolean;
     cwBehavior?: ContentBehavior;
 }) {
@@ -50,6 +54,8 @@ export function ContextPanel({
         cw_text,
         cw_is_author_level,
         sensitive_media,
+        cw_category,
+        cw_categories,
     });
     const showCwGate = shouldShowCwOverlay(
         cwPost,

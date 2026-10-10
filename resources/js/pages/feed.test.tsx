@@ -8,7 +8,7 @@ import {
 import axios from 'axios';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Post } from '@/types/post';
+import type { CwCategory, Post } from '@/types/post';
 import Feed from './feed';
 
 vi.mock('axios');
@@ -104,6 +104,7 @@ const defaultProps = {
     cwBehavior: 'show' as const,
     sensitiveMediaBehavior: 'show' as const,
     cwAuthorWhitelist: [] as string[],
+    cwLabelWhitelist: [] as CwCategory[],
     reduceMotion: false,
 };
 

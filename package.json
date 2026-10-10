@@ -34,7 +34,7 @@
 		"jsdom": "^30.0.1",
 		"playwright": "^1.64.0",
 		"react-doctor": "^0.9.11",
-		"sharp": "^0.35.4",
+		"sharp": "^0.35.5",
 		"typescript-eslint": "^8.65.0",
 		"vitest": "^4.1.11"
 	},

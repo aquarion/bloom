@@ -1,8 +1,8 @@
-import { AtSign } from 'lucide-react';
+import { AtSign, Link as LinkIcon } from 'lucide-react';
 import type React from 'react';
 import { useCwState } from '@/hooks/useCwState';
 import { nestedCwLike, postLevelCwLabel, shouldShowCwOverlay } from '@/lib/cw';
-import type { MediaAttachment, Mention } from '@/types/post';
+import type { CwCategory, MediaAttachment, Mention } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 import { AuthorChip } from './AuthorChip';
 import { CwTag } from './CwTag';
@@ -19,10 +19,15 @@ export function ContextPanel({
     original_url,
     chip_mentions,
     media = [],
+    link_url = null,
+    link_title = null,
+    link_image = null,
     fullWidth = false,
     cw_text = null,
     cw_is_author_level = false,
     cw_label_source = null,
+    cw_category = null,
+    cw_categories,
     sensitive_media = false,
     cwBehavior = 'show',
 }: {
@@ -35,14 +40,19 @@ export function ContextPanel({
     original_url: string;
     chip_mentions: Mention[];
     media?: MediaAttachment[];
+    link_url?: string | null;
+    link_title?: string | null;
+    link_image?: string | null;
     fullWidth?: boolean;
     cw_text?: string | null;
     cw_is_author_level?: boolean;
     cw_label_source?: 'self' | 'external' | null;
+    cw_category?: CwCategory | null;
+    cw_categories?: CwCategory[];
     sensitive_media?: boolean;
     cwBehavior?: ContentBehavior;
 }) {
-    const { isRevealed, reveal } = useCwState();
+    const { isRevealed, reveal, revealAlways } = useCwState();
 
     const cwPost = nestedCwLike({
         original_url,
@@ -50,6 +60,8 @@ export function ContextPanel({
         cw_text,
         cw_is_author_level,
         sensitive_media,
+        cw_category,
+        cw_categories,
     });
     const showCwGate = shouldShowCwOverlay(
         cwPost,
@@ -82,6 +94,16 @@ export function ContextPanel({
             ? thumbnail.preview_url || null
             : thumbnail.preview_url || thumbnail.url || null
         : null;
+    const previewSrc = sensitive_media ? null : (thumbnailSrc ?? link_image);
+    let linkLabel = link_title || link_url;
+
+    if (link_url && !link_title) {
+        try {
+            linkLabel = new URL(link_url).hostname;
+        } catch {
+            /* keep raw */
+        }
+    }
     // Inside the gate, the "Marked as X" / "Labelled as X" copy below already states
     // the label — showing it a second time on the chip badge would be redundant.
     const gatedChip = (
@@ -108,17 +130,32 @@ export function ContextPanel({
                     ? `Labelled as ${(cw_text ?? '').toLowerCase()}`
                     : `Marked as ${(cw_text ?? '').toLowerCase()}`}
             </p>
-            <button
-                type="button"
-                onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    reveal(cwPost);
-                }}
-                className="mt-2 rounded-full bg-white/20 px-3 py-1 text-xs hover:bg-white/30"
-            >
-                {cw_is_author_level ? 'Show author' : 'Show anyway'}
-            </button>
+            <div className="mt-2 flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        reveal(cwPost);
+                    }}
+                    className="rounded-full bg-white/20 px-3 py-1 text-xs hover:bg-white/30"
+                >
+                    {cw_is_author_level ? 'Show author' : 'Show anyway'}
+                </button>
+                {!cw_is_author_level && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            revealAlways(cwPost);
+                        }}
+                        className="rounded-full bg-white/10 px-3 py-1 text-xs hover:bg-white/30"
+                    >
+                        Always
+                    </button>
+                )}
+            </div>
         </>
     ) : (
         <>
@@ -128,7 +165,16 @@ export function ContextPanel({
             </div>
             <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
-                    <p className="whitespace-pre-wrap">{body}</p>
+                    {body && <p className="whitespace-pre-wrap">{body}</p>}
+                    {link_url && (
+                        <p
+                            data-testid="context-link"
+                            className="mt-1 flex items-center gap-1.5 text-sm text-white/70"
+                        >
+                            <LinkIcon className="size-3.5 shrink-0" />
+                            <span className="line-clamp-2">{linkLabel}</span>
+                        </p>
+                    )}
                     {chip_mentions.length > 0 && (
                         <div className="mt-2 flex items-center gap-2">
                             <AtSign className="size-4 shrink-0 text-white/30" />
@@ -136,9 +182,9 @@ export function ContextPanel({
                         </div>
                     )}
                 </div>
-                {thumbnailSrc && (
+                {previewSrc && (
                     <img
-                        src={thumbnailSrc}
+                        src={previewSrc}
                         alt={thumbnail?.alt_text ?? ''}
                         data-testid="reply-thumbnail"
                         loading="lazy"

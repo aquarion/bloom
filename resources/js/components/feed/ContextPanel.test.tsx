@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CwStateProvider } from '@/hooks/useCwState';
 import { ContextPanel } from './ContextPanel';
 
@@ -56,6 +56,31 @@ describe('ContextPanel — CW gating for nested posts', () => {
         );
 
         expect(screen.getByText('the quoted body text')).toBeInTheDocument();
+    });
+
+    it('persists the nested post categories when clicking "Always"', async () => {
+        const user = userEvent.setup();
+        document.cookie = 'XSRF-TOKEN=test-token';
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true } as Response);
+        vi.stubGlobal('fetch', fetchMock);
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                cw_text="Graphic media"
+                cw_label_source="self"
+                cw_category="graphic"
+                cw_categories={['graphic']}
+                cwBehavior="blur"
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Always' }));
+
+        expect(screen.getByText('the quoted body text')).toBeInTheDocument();
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+            categories: ['graphic'],
+        });
+        vi.unstubAllGlobals();
     });
 
     it('reveals the body after clicking "Show anyway"', async () => {
@@ -160,6 +185,19 @@ describe('ContextPanel — reply/quote media thumbnail', () => {
 
         expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
         expect(screen.getByText('the quoted body text')).toBeInTheDocument();
+    });
+
+    it('shows no link card image when the post is marked sensitive', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                link_url="https://example.com/article"
+                link_image="https://example.com/a.jpg"
+                sensitive_media
+            />,
+        );
+
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
     });
 
     it('hides the thumbnail along with the rest of the content behind a CW gate', () => {
@@ -275,6 +313,42 @@ describe('ContextPanel — post-level CW corner badge (issue #285)', () => {
 
         expect(screen.getByTestId('post-cw-tag')).toHaveTextContent(
             'CW: Graphic media',
+        );
+    });
+});
+
+describe('ContextPanel — link-only posts', () => {
+    it('shows the link title and card image when the body is empty', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                body=""
+                link_url="https://example.com/article"
+                link_title="An Article"
+                link_image="https://example.com/a.jpg"
+            />,
+        );
+
+        expect(screen.getByTestId('context-link')).toHaveTextContent(
+            'An Article',
+        );
+        expect(screen.getByTestId('reply-thumbnail')).toHaveAttribute(
+            'src',
+            'https://example.com/a.jpg',
+        );
+    });
+
+    it('falls back to the hostname when there is no title', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                body=""
+                link_url="https://example.com/article"
+            />,
+        );
+
+        expect(screen.getByTestId('context-link')).toHaveTextContent(
+            'example.com',
         );
     });
 });

@@ -23,10 +23,15 @@ interface CwFields {
     /** Who applied the content warning. 'self' = author labelled their own content; 'external' = third-party labeller (Bluesky only); null = no CW (cw_text is also null). */
     cw_label_source: 'self' | 'external' | null;
     cw_category: CwCategory | null;
+    /** Every whitelistable category the CW touches; absent on older cached payloads. */
+    cw_categories?: CwCategory[];
     sensitive_media: boolean;
 }
 
 export interface ReplyTo extends CwFields {
+    link_url?: string | null;
+    link_title?: string | null;
+    link_image?: string | null;
     author_name: string;
     author_handle: string;
     author_avatar: string;
@@ -39,6 +44,9 @@ export interface ReplyTo extends CwFields {
 }
 
 export interface QuotedPost extends CwFields {
+    link_url?: string | null;
+    link_title?: string | null;
+    link_image?: string | null;
     author_name: string;
     author_handle: string;
     author_avatar: string;

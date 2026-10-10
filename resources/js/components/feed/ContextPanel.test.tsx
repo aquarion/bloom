@@ -162,6 +162,19 @@ describe('ContextPanel — reply/quote media thumbnail', () => {
         expect(screen.getByText('the quoted body text')).toBeInTheDocument();
     });
 
+    it('shows no link card image when the post is marked sensitive', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                link_url="https://example.com/article"
+                link_image="https://example.com/a.jpg"
+                sensitive_media
+            />,
+        );
+
+        expect(screen.queryByTestId('reply-thumbnail')).not.toBeInTheDocument();
+    });
+
     it('hides the thumbnail along with the rest of the content behind a CW gate', () => {
         renderWithCw(
             <ContextPanel
@@ -275,6 +288,42 @@ describe('ContextPanel — post-level CW corner badge (issue #285)', () => {
 
         expect(screen.getByTestId('post-cw-tag')).toHaveTextContent(
             'CW: Graphic media',
+        );
+    });
+});
+
+describe('ContextPanel — link-only posts', () => {
+    it('shows the link title and card image when the body is empty', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                body=""
+                link_url="https://example.com/article"
+                link_title="An Article"
+                link_image="https://example.com/a.jpg"
+            />,
+        );
+
+        expect(screen.getByTestId('context-link')).toHaveTextContent(
+            'An Article',
+        );
+        expect(screen.getByTestId('reply-thumbnail')).toHaveAttribute(
+            'src',
+            'https://example.com/a.jpg',
+        );
+    });
+
+    it('falls back to the hostname when there is no title', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                body=""
+                link_url="https://example.com/article"
+            />,
+        );
+
+        expect(screen.getByTestId('context-link')).toHaveTextContent(
+            'example.com',
         );
     });
 });

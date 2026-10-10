@@ -278,3 +278,39 @@ describe('ContextPanel — post-level CW corner badge (issue #285)', () => {
         );
     });
 });
+
+describe('ContextPanel — link-only posts', () => {
+    it('shows the link title and card image when the body is empty', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                body=""
+                link_url="https://example.com/article"
+                link_title="An Article"
+                link_image="https://example.com/a.jpg"
+            />,
+        );
+
+        expect(screen.getByTestId('context-link')).toHaveTextContent(
+            'An Article',
+        );
+        expect(screen.getByTestId('reply-thumbnail')).toHaveAttribute(
+            'src',
+            'https://example.com/a.jpg',
+        );
+    });
+
+    it('falls back to the hostname when there is no title', () => {
+        renderWithCw(
+            <ContextPanel
+                {...baseProps}
+                body=""
+                link_url="https://example.com/article"
+            />,
+        );
+
+        expect(screen.getByTestId('context-link')).toHaveTextContent(
+            'example.com',
+        );
+    });
+});

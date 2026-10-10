@@ -1106,6 +1106,9 @@ it('includes author identity and url in mastodon reply_to', function () {
         'original_url' => 'https://mastodon.social/@original/456',
         'body' => 'This is the parent post body',
         'chip_mentions' => [],
+        'link_url' => null,
+        'link_title' => null,
+        'link_image' => null,
         'cw_text' => null,
         'cw_is_author_level' => false,
         'cw_label_source' => null,
@@ -3621,4 +3624,33 @@ it('extracts cw_text from a mastodon quoted_post with its own spoiler_text', fun
     expect($post['quoted_post']['cw_text'])->toBe('CW: quoted spoiler')
         ->and($post['quoted_post']['cw_category'])->toBe('generic')
         ->and($post['quoted_post']['cw_label_source'])->toBe('self');
+});
+
+it('exposes the link card of a link-only mastodon parent in reply_to', function () {
+    $parent = [
+        'url' => 'https://mastodon.social/@original/456',
+        'content' => '<p><a href="https://example.com/article" rel="nofollow">example.com/article</a></p>',
+        'account' => ['display_name' => 'Original User', 'acct' => 'original', 'avatar' => ''],
+        'card' => [
+            'url' => 'https://example.com/article',
+            'title' => 'An Article',
+            'image' => 'https://example.com/a.jpg',
+        ],
+    ];
+
+    $status = [
+        'id' => '789',
+        'content' => '<p>believe it when I see it</p>',
+        'created_at' => '2024-01-15T10:00:00.000Z',
+        'url' => 'https://mastodon.example/@user/789',
+        'account' => ['display_name' => 'User', 'acct' => 'user', 'avatar' => ''],
+        'media_attachments' => [],
+    ];
+
+    $post = (new PostNormalizer)->fromMastodon($status, 'mastodon.example', $parent);
+
+    expect($post['reply_to']['body'])->toBe('')
+        ->and($post['reply_to']['link_url'])->toBe('https://example.com/article')
+        ->and($post['reply_to']['link_title'])->toBe('An Article')
+        ->and($post['reply_to']['link_image'])->toBe('https://example.com/a.jpg');
 });

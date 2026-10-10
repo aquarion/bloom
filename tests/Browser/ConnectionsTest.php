@@ -2,182 +2,126 @@
 
 use App\Models\SocialAccount;
 use App\Models\User;
-use Laravel\Dusk\Browser;
 
 test('connections page loads with provider sections', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->withPasskey()->create();
 
-    $this->browse(function (Browser $browser) use ($user) {
-        $browser->loginAs($user)
-            ->visit('/settings/connections')
-            ->assertPathIs('/settings/connections')
-            ->assertSee('Mastodon')
-            ->assertSee('Bluesky');
-    });
+    $this->actingAs($user);
+
+    visit('/settings/connections')
+        ->assertPathIs('/settings/connections')
+        ->assertSee('Mastodon')
+        ->assertSee('Bluesky')
+        ->assertNoJavaScriptErrors();
 });
 
-test('connected mastodon account is displayed with disconnect button', function () {
-    $user = User::factory()->create();
-    SocialAccount::factory()->create([
+test('connected account is displayed with disconnect button', function (string $provider, string $instanceUrl, string $handle) {
+    $user = User::factory()->withPasskey()->create();
+    $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
-        'provider' => 'mastodon',
-        'instance_url' => 'https://fosstodon.org',
-        'handle' => '@alice@fosstodon.org',
+        'provider' => $provider,
+        'instance_url' => $instanceUrl,
+        'handle' => $handle,
         'auth_failed_at' => null,
     ]);
 
-    $this->browse(function (Browser $browser) use ($user) {
-        $browser->loginAs($user)
-            ->visit('/settings/connections')
-            ->assertSee('@alice@fosstodon.org')
-            ->assertSee('Disconnect');
-    });
-});
+    $this->actingAs($user);
 
-test('connected bluesky account is displayed with disconnect button', function () {
-    $user = User::factory()->create();
-    SocialAccount::factory()->create([
+    visit('/settings/connections')
+        ->assertSeeIn("@account-{$account->id}", $handle)
+        ->assertSeeIn("@account-{$account->id}", 'Disconnect')
+        ->assertNoJavaScriptErrors();
+})->with([
+    'mastodon' => ['mastodon', 'https://fosstodon.org', '@alice@fosstodon.org'],
+    'bluesky' => ['bluesky', 'https://bsky.social', '@alice.bsky.social'],
+]);
+
+test('multiple accounts for a provider all appear', function (string $provider, array $accounts) {
+    $user = User::factory()->withPasskey()->create();
+
+    foreach ($accounts as [$instanceUrl, $handle]) {
+        SocialAccount::factory()->create([
+            'user_id' => $user->id,
+            'provider' => $provider,
+            'instance_url' => $instanceUrl,
+            'handle' => $handle,
+            'auth_failed_at' => null,
+        ]);
+    }
+
+    $this->actingAs($user);
+
+    $page = visit('/settings/connections');
+
+    foreach ($accounts as [, $handle]) {
+        $page->assertSee($handle);
+    }
+
+    $page->assertNoJavaScriptErrors();
+})->with([
+    'mastodon' => ['mastodon', [
+        ['https://fosstodon.org', '@alice@fosstodon.org'],
+        ['https://mastodon.social', '@alice@mastodon.social'],
+    ]],
+    'bluesky' => ['bluesky', [
+        ['https://bsky.social', '@alice.bsky.social'],
+        ['https://bsky.social', '@work.bsky.social'],
+    ]],
+]);
+
+test('disconnecting an account removes it and leaves others', function (string $provider, string $instanceUrl, string $keepHandle, string $removeHandle) {
+    $user = User::factory()->withPasskey()->create();
+    $keep = SocialAccount::factory()->create([
         'user_id' => $user->id,
-        'provider' => 'bluesky',
-        'instance_url' => 'https://bsky.social',
-        'handle' => '@alice.bsky.social',
-        'auth_failed_at' => null,
-    ]);
-
-    $this->browse(function (Browser $browser) use ($user) {
-        $browser->loginAs($user)
-            ->visit('/settings/connections')
-            ->assertSee('@alice.bsky.social')
-            ->assertSee('Disconnect');
-    });
-});
-
-test('multiple mastodon accounts all appear', function () {
-    $user = User::factory()->create();
-    SocialAccount::factory()->create([
-        'user_id' => $user->id,
-        'provider' => 'mastodon',
-        'instance_url' => 'https://fosstodon.org',
-        'handle' => '@alice@fosstodon.org',
-        'auth_failed_at' => null,
-    ]);
-    SocialAccount::factory()->create([
-        'user_id' => $user->id,
-        'provider' => 'mastodon',
-        'instance_url' => 'https://mastodon.social',
-        'handle' => '@alice@mastodon.social',
-        'auth_failed_at' => null,
-    ]);
-
-    $this->browse(function (Browser $browser) use ($user) {
-        $browser->loginAs($user)
-            ->visit('/settings/connections')
-            ->assertSee('@alice@fosstodon.org')
-            ->assertSee('@alice@mastodon.social');
-    });
-});
-
-test('multiple bluesky accounts all appear', function () {
-    $user = User::factory()->create();
-    SocialAccount::factory()->create([
-        'user_id' => $user->id,
-        'provider' => 'bluesky',
-        'instance_url' => 'https://bsky.social',
-        'handle' => '@alice.bsky.social',
-        'auth_failed_at' => null,
-    ]);
-    SocialAccount::factory()->create([
-        'user_id' => $user->id,
-        'provider' => 'bluesky',
-        'instance_url' => 'https://bsky.social',
-        'handle' => '@work.bsky.social',
-        'auth_failed_at' => null,
-    ]);
-
-    $this->browse(function (Browser $browser) use ($user) {
-        $browser->loginAs($user)
-            ->visit('/settings/connections')
-            ->assertSee('@alice.bsky.social')
-            ->assertSee('@work.bsky.social');
-    });
-});
-
-test('disconnecting a mastodon account removes it and leaves others', function () {
-    $user = User::factory()->create();
-    SocialAccount::factory()->create([
-        'user_id' => $user->id,
-        'provider' => 'mastodon',
-        'instance_url' => 'https://fosstodon.org',
-        'handle' => '@keep@fosstodon.org',
+        'provider' => $provider,
+        'instance_url' => $instanceUrl,
+        'handle' => $keepHandle,
         'auth_failed_at' => null,
     ]);
     $remove = SocialAccount::factory()->create([
         'user_id' => $user->id,
-        'provider' => 'mastodon',
-        'instance_url' => 'https://mastodon.social',
-        'handle' => '@remove@mastodon.social',
+        'provider' => $provider,
+        'instance_url' => $instanceUrl,
+        'handle' => $removeHandle,
         'auth_failed_at' => null,
     ]);
 
-    $this->browse(function (Browser $browser) use ($user, $remove) {
-        $browser->loginAs($user)
-            ->visit('/settings/connections')
-            ->waitForText('@remove@mastodon.social');
+    // Disconnecting is a passkey step-up action; a recent confirmation lets the
+    // client skip the WebAuthn ceremony, which a headless browser can't complete.
+    $this->actingAs($user)->withSession(['passkey_confirmed_at' => time()]);
 
-        $browser->within('@account-'.$remove->id, function (Browser $li) {
-            $li->press('Disconnect');
-        });
+    visit('/settings/connections')
+        ->assertSee($removeHandle)
+        ->click("[data-testid=\"account-{$remove->id}\"] button:has-text(\"Disconnect\")")
+        ->assertDontSee($removeHandle)
+        ->assertSee($keepHandle)
+        ->assertNoJavaScriptErrors();
 
-        $browser->waitUntilMissingText('@remove@mastodon.social')
-            ->assertSee('@keep@fosstodon.org');
-    });
-});
+    expect(SocialAccount::find($remove->id))->toBeNull()
+        ->and(SocialAccount::find($keep->id))->not->toBeNull();
+})->with([
+    'mastodon' => ['mastodon', 'https://fosstodon.org', '@keep@fosstodon.org', '@remove@fosstodon.org'],
+    'bluesky' => ['bluesky', 'https://bsky.social', '@keep.bsky.social', '@remove.bsky.social'],
+]);
 
-test('disconnecting a bluesky account removes it and leaves others', function () {
-    $user = User::factory()->create();
-    SocialAccount::factory()->create([
+test('account with auth_failed_at shows a reconnect warning', function (string $provider, string $instanceUrl, string $handle) {
+    $user = User::factory()->withPasskey()->create();
+    $account = SocialAccount::factory()->create([
         'user_id' => $user->id,
-        'provider' => 'bluesky',
-        'instance_url' => 'https://bsky.social',
-        'handle' => '@keep.bsky.social',
-        'auth_failed_at' => null,
-    ]);
-    $remove = SocialAccount::factory()->create([
-        'user_id' => $user->id,
-        'provider' => 'bluesky',
-        'instance_url' => 'https://bsky.social',
-        'handle' => '@remove.bsky.social',
-        'auth_failed_at' => null,
-    ]);
-
-    $this->browse(function (Browser $browser) use ($user, $remove) {
-        $browser->loginAs($user)
-            ->visit('/settings/connections')
-            ->assertSee('@remove.bsky.social');
-
-        $browser->within('@account-'.$remove->id, function (Browser $li) {
-            $li->press('Disconnect');
-        });
-
-        $browser->waitUntilMissingText('@remove.bsky.social')
-            ->assertSee('@keep.bsky.social');
-    });
-});
-
-test('account with auth_failed_at shows reconnect warning', function () {
-    $user = User::factory()->create();
-    SocialAccount::factory()->create([
-        'user_id' => $user->id,
-        'provider' => 'bluesky',
-        'instance_url' => 'https://bsky.social',
-        'handle' => '@stale.bsky.social',
+        'provider' => $provider,
+        'instance_url' => $instanceUrl,
+        'handle' => $handle,
         'auth_failed_at' => now()->subDay(),
     ]);
 
-    $this->browse(function (Browser $browser) use ($user) {
-        $browser->loginAs($user)
-            ->visit('/settings/connections')
-            ->assertSee('@stale.bsky.social')
-            ->assertSee('needs reconnecting');
-    });
-});
+    $this->actingAs($user);
+
+    visit('/settings/connections')
+        ->assertSeeIn("@account-{$account->id}", $handle)
+        ->assertSeeIn("@account-{$account->id}", 'credentials expired')
+        ->assertSeeIn("@account-{$account->id}", 'Reconnect')
+        ->assertNoJavaScriptErrors();
+})->with([
+    'mastodon' => ['mastodon', 'https://fosstodon.org', '@stale@fosstodon.org'],
+    'bluesky' => ['bluesky', 'https://bsky.social', '@stale.bsky.social'],
+]);

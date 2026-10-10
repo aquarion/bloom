@@ -1,4 +1,5 @@
 /.phpunit.cache
+/tests/Browser/Screenshots
 /bootstrap/ssr
 /node_modules
 /public/build
@@ -14,7 +15,6 @@
 .DS_Store
 .env
 .env.backup
-.env.dusk.local
 .env.production
 .phpactor.json
 .phpunit.result.cache

@@ -10,6 +10,11 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "dependabot-updates"
+    ignore:
+      # typescript-eslint doesn't support TypeScript 7 yet (peer range <6.1).
+      # Remove once it does, or once we move linting to Biome.
+      - dependency-name: "typescript"
+        versions: [">=7"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

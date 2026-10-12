@@ -1,12 +1,15 @@
-import { createContext, use, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { createContext, use, useRef, useState } from 'react';
 import FeedSettingsController from '@/actions/App/Http/Controllers/Settings/FeedSettingsController';
 import { getXsrfToken } from '@/lib/csrf';
 import type { CwLike } from '@/lib/cw';
+import type { CwCategory } from '@/types/post';
 
 interface CwContextValue {
     isRevealed: (post: CwLike) => boolean;
     reveal: (post: CwLike) => void;
+    /** Reveals the post and persists its CW categories so future posts in them skip the overlay. */
+    revealAlways: (post: CwLike) => void;
 }
 
 const CwContext = createContext<CwContextValue | null>(null);
@@ -32,13 +35,33 @@ function persistAuthorWhitelist(authorHandle: string) {
     }
 }
 
+/** Best-effort background persist, same swallow-failures rationale as persistAuthorWhitelist. */
+function persistCategoryWhitelist(categories: CwCategory[]) {
+    try {
+        fetch(FeedSettingsController.whitelistCwCategories.url(), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-XSRF-TOKEN': getXsrfToken(),
+            },
+            body: JSON.stringify({ categories }),
+        }).catch(() => {});
+    } catch {
+        // getXsrfToken() throws when the session cookie is missing.
+    }
+}
+
 export function CwStateProvider({
     children,
     initialAuthorWhitelist = [],
+    initialLabelWhitelist = [],
 }: {
     children: ReactNode;
     /** Authors previously whitelisted via an author-level CW reveal (#229) — persists across sessions. */
     initialAuthorWhitelist?: string[];
+    /** CW categories previously set to "always show" — applies to posts already in the queue when they were fetched. */
+    initialLabelWhitelist?: CwCategory[];
 }) {
     const [revealedPostIds, setRevealedPostIds] = useState(
         () => new Set<string>(),
@@ -62,8 +85,22 @@ export function CwStateProvider({
 
     const persistedAuthors = persistedAuthorsRef.current;
 
+    const [revealedCategories, setRevealedCategories] = useState(
+        () => new Set<CwCategory>(initialLabelWhitelist),
+    );
+
+    // Mirrors FeedAggregator::clearCwFieldsIfWhitelisted — every category the CW
+    // touches must be whitelisted, so one allowed type can't hide an unrelated one.
+    const isCategoryRevealed = (post: CwLike) =>
+        !!post.cw_categories?.length &&
+        post.cw_categories.every((category) =>
+            revealedCategories.has(category),
+        );
+
     const isRevealed = (post: CwLike) =>
-        revealedPostIds.has(post.id) || revealedAuthors.has(post.author_handle);
+        revealedPostIds.has(post.id) ||
+        revealedAuthors.has(post.author_handle) ||
+        isCategoryRevealed(post);
 
     const reveal = (post: CwLike) => {
         setRevealedPostIds((prev) => new Set(prev).add(post.id));
@@ -81,7 +118,24 @@ export function CwStateProvider({
         }
     };
 
-    return <CwContext value={{ isRevealed, reveal }}>{children}</CwContext>;
+    const revealAlways = (post: CwLike) => {
+        reveal(post);
+
+        const categories = post.cw_categories ?? [];
+
+        if (categories.length === 0) {
+            return;
+        }
+
+        persistCategoryWhitelist(categories);
+        setRevealedCategories((prev) => new Set([...prev, ...categories]));
+    };
+
+    return (
+        <CwContext value={{ isRevealed, reveal, revealAlways }}>
+            {children}
+        </CwContext>
+    );
 }
 
 export function useCwState() {

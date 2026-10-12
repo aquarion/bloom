@@ -1,3 +1,4 @@
+import type { CwCategory } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
 
 export interface CwLike {
@@ -6,6 +7,8 @@ export interface CwLike {
     cw_text: string | null;
     cw_is_author_level: boolean;
     sensitive_media: boolean;
+    /** Whitelistable categories this CW touches — what "Always" persists. */
+    cw_categories?: CwCategory[];
     /** Absent for nested reply/quote posts (ReplyTo/QuotedPost), which have no separately-blurred media to except. */
     source?: 'mastodon' | 'bluesky';
 }
@@ -16,6 +19,8 @@ interface NestedCwSource {
     cw_text: string | null;
     cw_is_author_level: boolean;
     sensitive_media: boolean;
+    cw_categories?: CwCategory[];
+    cw_category?: CwCategory | null;
 }
 
 /**
@@ -32,6 +37,17 @@ function originUrlCwId(
     return original_url || `${author_handle}:${cw_text ?? ''}`;
 }
 
+function categoriesOf(fields: {
+    cw_categories?: CwCategory[];
+    cw_category?: CwCategory | null;
+}): CwCategory[] {
+    if (fields.cw_categories?.length) {
+        return fields.cw_categories;
+    }
+
+    return fields.cw_category ? [fields.cw_category] : [];
+}
+
 /**
  * ReplyTo/QuotedPost have no id of their own.
  */
@@ -46,6 +62,7 @@ export function nestedCwLike(nested: NestedCwSource): CwLike {
         cw_text: nested.cw_text,
         cw_is_author_level: nested.cw_is_author_level,
         sensitive_media: nested.sensitive_media,
+        cw_categories: categoriesOf(nested),
     };
 }
 
@@ -65,6 +82,8 @@ export function postCwLike(post: {
     cw_is_author_level: boolean;
     sensitive_media: boolean;
     source?: 'mastodon' | 'bluesky';
+    cw_categories?: CwCategory[];
+    cw_category?: CwCategory | null;
 }): CwLike {
     return {
         id: originUrlCwId(post.original_url, post.author_handle, post.cw_text),
@@ -73,6 +92,7 @@ export function postCwLike(post: {
         cw_is_author_level: post.cw_is_author_level,
         sensitive_media: post.sensitive_media,
         source: post.source,
+        cw_categories: categoriesOf(post),
     };
 }
 

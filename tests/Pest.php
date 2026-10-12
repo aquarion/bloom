@@ -2,12 +2,8 @@
 
 use App\Contracts\HostResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\DuskTestCase;
 use Tests\Support\FakeHostResolver;
 use Tests\TestCase;
-
-pest()->extend(DuskTestCase::class)
-    ->in('Browser');
 
 /*
 |--------------------------------------------------------------------------
@@ -29,7 +25,7 @@ pest()->extend(TestCase::class)
         // specifically exercise the private/reserved-IP rejection branch override this binding.
         $this->app->instance(HostResolver::class, new FakeHostResolver(['203.0.113.10']));
     })
-    ->in('Feature');
+    ->in('Feature', 'Browser');
 
 /*
 |--------------------------------------------------------------------------

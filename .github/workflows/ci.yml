@@ -84,11 +84,67 @@ jobs:
       - name: Run tests
         run: ./vendor/bin/pest
 
-  # dusk-tests disabled — Dusk + Inertia/React is too fragile for reliable CI.
-  # Browser tests need to be rewritten in Playwright. See issue #43.
+  browser-tests:
+    runs-on: ubuntu-latest
+    if: github.event.action != 'edited' || github.event.changes.base != null
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          extensions: redis,opentelemetry,sockets
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Copy environment file
+        run: cp .env.example .env
+
+      - name: Generate application key
+        run: php artisan key:generate
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        # Pest's browser plugin serves the app from inside the test process on
+        # PHP fibers, which the opentelemetry extension's context tracking
+        # rejects ("Access to not initialized OpenTelemetry context in fiber").
+        # This has to be an env var rather than a phpunit.xml <env>, because
+        # the instrumentation registers during Composer autoload — before
+        # PHPUnit reads its config.
+        env:
+          OTEL_PHP_DISABLED_INSTRUMENTATIONS: all
+        run: ./vendor/bin/pest tests/Browser
+
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-screenshots
+          path: tests/Browser/Screenshots
+          if-no-files-found: ignore
 
   build-and-push:
-    needs: [test]
+    needs: [test, browser-tests]
     runs-on: ubuntu-latest
     if: |
       github.ref != 'refs/heads/dependabot-updates' &&

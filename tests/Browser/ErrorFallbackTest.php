@@ -1,25 +1,24 @@
 <?php
 
-use Laravel\Dusk\Browser;
-
 test('the plain-DOM error fallback is present but hidden on a normal page load', function () {
-    $this->browse(function (Browser $browser) {
-        $browser->visit('/login')
-            ->assertPresent('#app-fallback')
-            ->assertMissing('#app-fallback');
-    });
+    visit('/login')
+        ->assertPresent('#app-fallback')
+        ->assertMissing('#app-fallback')
+        ->assertNoJavaScriptErrors();
 });
 
 test('the plain-DOM error fallback becomes visible with its reload link once revealed', function () {
-    $this->browse(function (Browser $browser) {
-        $browser->visit('/login')
-            ->script([
-                "document.getElementById('app-fallback').classList.remove('hidden')",
-                "document.getElementById('app-fallback').classList.add('flex')",
-            ]);
+    $page = visit('/login');
 
-        $browser->assertVisible('#app-fallback')
-            ->assertSee('Something went wrong.')
-            ->assertSeeLink('Reload page');
-    });
+    $page->script(<<<'JS'
+        () => {
+            const fallback = document.getElementById('app-fallback');
+            fallback.classList.remove('hidden');
+            fallback.classList.add('flex');
+        }
+    JS);
+
+    $page->assertVisible('#app-fallback')
+        ->assertSeeIn('#app-fallback', 'Something went wrong.')
+        ->assertSeeLink('Reload page');
 });

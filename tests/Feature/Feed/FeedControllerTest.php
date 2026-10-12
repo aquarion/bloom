@@ -44,6 +44,17 @@ it('passes the persisted cw author whitelist to the feed page', function () {
     );
 });
 
+it('passes the persisted cw label whitelist to the feed page', function () {
+    $user = User::factory()->withPasskey()->create([
+        'feed_preferences' => ['cw_label_whitelist' => ['generic']],
+    ]);
+
+    $this->actingAs($user)->withoutVite()->get(route('feed'))
+        ->assertInertia(fn ($page) => $page->component('feed', false)
+            ->where('cwLabelWhitelist', ['generic'])
+        );
+});
+
 it('passes the persisted reduce_motion preference to the feed page', function () {
     $user = User::factory()->withPasskey()->create([
         'feed_preferences' => ['reduce_motion' => true],

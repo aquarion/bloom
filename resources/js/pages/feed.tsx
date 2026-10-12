@@ -12,6 +12,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { registerFeedDebug, setupDebugWindow } from '@/lib/debug';
 import { cn } from '@/lib/utils';
+import type { CwCategory } from '@/types/post';
 
 function extractFirstLink(html: string): string | null {
     const match = html.match(/href="([^"]+)"/);
@@ -39,10 +40,14 @@ export default function Feed(props: {
     cwBehavior: 'skip' | 'blur' | 'show';
     sensitiveMediaBehavior: 'skip' | 'blur' | 'show';
     cwAuthorWhitelist: string[];
+    cwLabelWhitelist: CwCategory[];
     reduceMotion: boolean;
 }) {
     return (
-        <CwStateProvider initialAuthorWhitelist={props.cwAuthorWhitelist}>
+        <CwStateProvider
+            initialAuthorWhitelist={props.cwAuthorWhitelist}
+            initialLabelWhitelist={props.cwLabelWhitelist}
+        >
             <FeedView {...props} />
         </CwStateProvider>
     );

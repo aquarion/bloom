@@ -266,3 +266,30 @@ it('rejects invalid max_age_days for updateAccount', function () {
         ['max_posts' => 20, 'max_age_days' => 366]
     )->assertSessionHasErrors('max_age_days');
 });
+
+it('adds categories to cw_label_whitelist without duplicates', function () {
+    $user = User::factory()->withPasskey()->create([
+        'feed_preferences' => ['cw_label_whitelist' => ['adult']],
+    ]);
+
+    $this->actingAs($user)->postJson(route('feed.settings.whitelist-cw-categories'), [
+        'categories' => ['adult', 'generic'],
+    ])->assertNoContent();
+
+    $user->refresh();
+    expect($user->getPreference('cw_label_whitelist'))->toBe(['adult', 'generic']);
+});
+
+it('rejects an invalid category when whitelisting cw categories', function () {
+    $user = User::factory()->withPasskey()->create();
+
+    $this->actingAs($user)->postJson(route('feed.settings.whitelist-cw-categories'), [
+        'categories' => ['nope'],
+    ])->assertJsonValidationErrors('categories.0');
+});
+
+it('rejects whitelisting cw categories for guests', function () {
+    $this->postJson(route('feed.settings.whitelist-cw-categories'), [
+        'categories' => ['adult'],
+    ])->assertUnauthorized();
+});

@@ -7,6 +7,7 @@ use App\Models\SocialAccount;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -69,15 +70,45 @@ class FeedSettingsController extends Controller
             'author_handle' => ['required', 'string', 'max:255'],
         ]);
 
-        $user = $request->user();
-        $whitelist = $user->getPreference('cw_author_whitelist', []);
-
-        if (! in_array($validated['author_handle'], $whitelist, true)) {
-            $whitelist[] = $validated['author_handle'];
-            $user->setPreference('cw_author_whitelist', $whitelist);
-        }
+        $this->mergeIntoWhitelist($request, 'cw_author_whitelist', [$validated['author_handle']]);
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Persists an "Always" reveal from the feed: the content warning categories of the
+     * revealed post join cw_label_whitelist, so future posts carrying only those
+     * categories skip the overlay. Called via a plain fetch from useCwState.
+     */
+    public function whitelistCwCategories(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'categories' => ['required', 'array', 'min:1'],
+            'categories.*' => [Rule::in(['adult', 'graphic', 'safety', 'generic'])],
+        ]);
+
+        $this->mergeIntoWhitelist($request, 'cw_label_whitelist', $validated['categories']);
+
+        return response()->json(null, 204);
+    }
+
+    /**
+     * Re-reads the user row under a lock before merging, so two near-simultaneous
+     * reveals add to the stored whitelist instead of the last write dropping the other's entries.
+     *
+     * @param  array<int, string>  $additions
+     */
+    private function mergeIntoWhitelist(Request $request, string $preferenceKey, array $additions): void
+    {
+        DB::transaction(function () use ($request, $preferenceKey, $additions): void {
+            $user = $request->user()->newQuery()->lockForUpdate()->findOrFail($request->user()->getKey());
+            $whitelist = $user->getPreference($preferenceKey, []);
+            $merged = array_values(array_unique([...$whitelist, ...$additions]));
+
+            if ($merged !== $whitelist) {
+                $user->setPreference($preferenceKey, $merged);
+            }
+        });
     }
 
     public function updateAccount(Request $request, SocialAccount $account): RedirectResponse

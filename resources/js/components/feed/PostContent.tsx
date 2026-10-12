@@ -15,6 +15,7 @@ import { ThreadPost } from './ThreadPost';
 function CwOverlay({
     cwText,
     onReveal,
+    onRevealAlways,
     isAuthorLevel,
     labelSource,
     authorName,
@@ -24,6 +25,7 @@ function CwOverlay({
 }: {
     cwText: string;
     onReveal: () => void;
+    onRevealAlways: () => void;
     isAuthorLevel: boolean;
     labelSource: 'self' | 'external';
     authorName: string;
@@ -61,13 +63,24 @@ function CwOverlay({
                         : `This post has been labelled as ${cwText.toLowerCase()}`}
                 </p>
             )}
-            <button
-                type="button"
-                onClick={onReveal}
-                className="rounded-full bg-white/20 px-4 py-1.5 text-sm hover:bg-white/30"
-            >
-                {isAuthorLevel ? 'Show author' : 'Show anyway'}
-            </button>
+            <div className="flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={onReveal}
+                    className="rounded-full bg-white/20 px-4 py-1.5 text-sm hover:bg-white/30"
+                >
+                    {isAuthorLevel ? 'Show author' : 'Show anyway'}
+                </button>
+                {!isAuthorLevel && (
+                    <button
+                        type="button"
+                        onClick={onRevealAlways}
+                        className="rounded-full bg-white/10 px-4 py-1.5 text-sm hover:bg-white/30"
+                    >
+                        Always
+                    </button>
+                )}
+            </div>
         </div>
     );
 }
@@ -93,7 +106,7 @@ export function PostContent({
 }) {
     const colors = postDisplayColors(post);
     const [mediaRevealed, setMediaRevealed] = useState(false);
-    const { isRevealed, reveal } = useCwState();
+    const { isRevealed, reveal, revealAlways } = useCwState();
     const {
         visible: showCwSettingsTip,
         trigger: triggerCwSettingsTip,
@@ -125,6 +138,11 @@ export function PostContent({
 
     const revealCw = () => {
         reveal(postCwLike(post));
+        triggerCwSettingsTip();
+    };
+
+    const revealCwAlways = () => {
+        revealAlways(postCwLike(post));
         triggerCwSettingsTip();
     };
 
@@ -163,6 +181,7 @@ export function PostContent({
                 <CwOverlay
                     cwText={cwText}
                     onReveal={revealCw}
+                    onRevealAlways={revealCwAlways}
                     isAuthorLevel={isAuthorLevel}
                     labelSource={post.cw_label_source ?? 'self'}
                     authorName={post.author_name}

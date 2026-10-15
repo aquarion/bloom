@@ -36,7 +36,7 @@
 		"react-doctor": "^0.9.11",
 		"sharp": "^0.35.5",
 		"typescript-eslint": "^8.65.0",
-		"vitest": "^5.0.3"
+		"vitest": "^5.0.4"
 	},
 	"dependencies": {
 		"@biomejs/biome": "^2.5.14",

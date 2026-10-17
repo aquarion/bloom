@@ -12,8 +12,11 @@ return new class extends Migration
             return;
         }
 
+        // MySQL forbids a literal DEFAULT on BLOB/TEXT/JSON columns (error 1101);
+        // MariaDB allows it since it stores JSON as LONGTEXT. Stay nullable here
+        // and rely on the model's 'array' cast for the empty-array default.
         Schema::table('users', function (Blueprint $table) {
-            $table->json('roles')->default('[]')->after('email');
+            $table->json('roles')->nullable()->after('email');
         });
     }
 

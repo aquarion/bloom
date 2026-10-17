@@ -10,37 +10,46 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - storage:/app/storage
+      - "storage:/app/storage"
     restart: unless-stopped
-
   mysql:
-    image: mysql:8.0.46
+    image: "mariadb:11.4"
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-bloom}
-      MYSQL_USER: ${DB_USERNAME:-bloom}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret}
+      MYSQL_DATABASE: "${DB_DATABASE:-bloom}"
+      MYSQL_USER: "${DB_USERNAME:-bloom}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:-secret}"
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:-secret}"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - "mysql_data:/var/lib/mysql"
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+      test:
+        - CMD-SHELL
+        - "mariadb-admin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"
       interval: 5s
       timeout: 5s
       retries: 10
     restart: unless-stopped
-
   redis:
-    image: redis:7.4.9-alpine
+    image: "redis:7.4.9-alpine"
     volumes:
-      - redis_data:/data
+      - "redis_data:/data"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        - CMD
+        - redis-cli
+        - ping
       interval: 5s
       timeout: 3s
       retries: 5
     restart: unless-stopped
-
+  mailpit:
+    image: "axllent/mailpit:latest"
+    ports:
+      - "${FORWARD_MAILPIT_PORT:-1025}:1025"
+      - "${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
 volumes:
-  storage:
-  mysql_data:
-  redis_data:
+  storage: null
+  mysql_data: null
+  redis_data: null
+  sail-mysql:
+    driver: local

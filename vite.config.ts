@@ -55,4 +55,10 @@ export default defineConfig({
 	resolve: {
 		alias: { "@": "/resources/js" },
 	},
+	server: {
+		// Vite rejects requests whose Host header isn't localhost/the dev
+		// server's own address; the Cloudflare tunnel fronts the dev server
+		// under this hostname instead (see docker/cloudflared/config.yml).
+		allowedHosts: ["vite-bloom.istic.dev"],
+	},
 });

@@ -21,9 +21,9 @@ APP_INTERNAL_PORT="${OCTANE_PORT:-8000}"
 # If in Docker, wait for the main app to be ready
 if [[ "$IN_DOCKER" == true ]]; then
     echo "[cloudflared] Waiting for application to be ready on http://app:${APP_INTERNAL_PORT}..."
-    MAX_ATTEMPTS=60 # ~2 minutes at 2s intervals
+    MAX_ATTEMPTS=60 # ~2 minutes at 2s intervals, plus up to 5s per attempt waiting on a slow/hung response
     attempt=0
-    until curl -sS -f "http://app:${APP_INTERNAL_PORT}" > /tmp/cloudflared-health.log 2>&1; do
+    until curl -sS -f --connect-timeout 2 --max-time 5 "http://app:${APP_INTERNAL_PORT}" > /tmp/cloudflared-health.log 2>&1; do
         attempt=$((attempt + 1))
         if [[ "$attempt" -ge "$MAX_ATTEMPTS" ]]; then
             echo "[cloudflared] ERROR: application did not become ready after ${MAX_ATTEMPTS} attempts." >&2

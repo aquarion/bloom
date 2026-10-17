@@ -64,6 +64,8 @@ export default defineConfig({
 		cors: {
 			origin: [
 				`http://localhost:${process.env.OCTANE_PORT ?? 8000}`,
+				// php artisan serve prints (and binds) 127.0.0.1, not localhost.
+				`http://127.0.0.1:${process.env.OCTANE_PORT ?? 8000}`,
 				// The app's tunnel hostname is "vite-" stripped off this one
 				// (bloom.istic.dev / vite-bloom.istic.dev - see config.yml).
 				tunnelViteHost ? `https://${tunnelViteHost.replace(/^vite-/, "")}` : null,

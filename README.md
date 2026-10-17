@@ -78,6 +78,8 @@ Then fill in the real tunnel UUID and credentials filename in `docker/cloudflare
 
 Vite's dev-server origin and HMR default to `localhost`, which a page served over the tunnel's HTTPS can't load (mixed content) — set `CLOUDFLARE_VITE_HOSTNAME=vite-bloom.istic.dev` in `.env` to point them at the tunnel instead (see `.env.example`; pattern ported from `istic/alchemistic`).
 
+The app itself still thinks it's plain HTTP unless you also set `APP_URL=https://bloom.istic.dev` and `OCTANE_HTTPS=true` in `.env` — without that, Mastodon OAuth callbacks get generated as `http://`, and passkey login breaks outright (`WebAuthnService` derives its relying-party ID from `APP_URL`'s host, so it won't match the tunnel's actual origin). Recreate the `app` and `vite` containers after changing any of these.
+
 ## Connecting accounts
 
 ### Mastodon

@@ -56,8 +56,18 @@ export default defineConfig({
 		alias: { "@": "/resources/js" },
 	},
 	server: ((tunnelViteHost) => ({
-		headers: {
-			"Access-Control-Allow-Origin": "*",
+		// Scoped to the origins that actually embed these assets (the app
+		// page, not this dev server's own origin), rather than a wildcard:
+		// this dev server is reachable through the public Cloudflare tunnel
+		// (see docker/cloudflared/config.yml), so an open CORS policy would
+		// let any site read its responses.
+		cors: {
+			origin: [
+				`http://localhost:${process.env.OCTANE_PORT ?? 8000}`,
+				// The app's tunnel hostname is "vite-" stripped off this one
+				// (bloom.istic.dev / vite-bloom.istic.dev - see config.yml).
+				tunnelViteHost ? `https://${tunnelViteHost.replace(/^vite-/, "")}` : null,
+			].filter(Boolean),
 		},
 		// laravel-vite-plugin writes this origin into public/hot ONCE, at
 		// server start - it can't vary per-request. Left unset, it defaults

@@ -43,17 +43,20 @@ RUN mkdir -p bootstrap/cache storage/framework/sessions storage/framework/views 
     && php artisan key:generate --force \
     && php artisan package:discover --ansi \
     && APP_ENV=$APP_ENV VITE_APP_NAME=$APP_NAME VITE_APP_VERSION=$APP_VERSION VITE_APP_ENV=$APP_ENV VITE_APP_PR_NUMBER=$APP_PR_NUMBER VITE_APP_BRANCH=$APP_BRANCH VITE_OTEL_EXPORTER_OTLP_ENDPOINT=$VITE_OTEL_EXPORTER_OTLP_ENDPOINT npm run build \
-    && rm .env
+    && rm .env \
+    && chown -R 1000:1000 node_modules vendor bootstrap/cache
 
 # The `build` stage above still has PHP, vendor/ and node_modules/ in one
 # place, which is exactly what the Vite dev server needs (the Wayfinder
 # plugin shells out to `php artisan wayfinder:generate` on file changes).
 # docker-compose's `vite` service targets that stage directly instead of
-# duplicating it. Everything from here down is production-image-only.
+# duplicating it, running as uid 1000 (see the chown above) so Wayfinder
+# and the icon-generation plugin don't write root-owned files into the
+# bind-mounted checkout. Everything from here down is production-image-only.
 FROM build AS app
 RUN rm -rf node_modules
 
-RUN chown -R www-data:www-data storage bootstrap/cache public \
+RUN chown -R www-data:www-data storage bootstrap/cache public vendor \
     && chmod -R 775 storage bootstrap/cache
 
 COPY docker/entrypoint.sh /entrypoint.sh

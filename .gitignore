@@ -12,6 +12,7 @@
 /resources/js/routes
 /resources/js/wayfinder
 /vendor
+/docker/cloudflared/data
 .DS_Store
 .env
 .env.backup

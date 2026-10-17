@@ -76,6 +76,19 @@ services:
       - "/var/www/html/vendor"
       - "/var/www/html/bootstrap/cache"
     restart: unless-stopped
+  cloudflared:
+    build:
+      context: ./docker/cloudflared
+    env_file: .env
+    environment:
+      DOCKER: "true"
+    volumes:
+      - ".:/var/www/html"
+      - "./docker/cloudflared/data:/root/.cloudflared"
+    depends_on:
+      - app
+      - vite
+    restart: unless-stopped
 volumes:
   storage: null
   mariadb_data: null

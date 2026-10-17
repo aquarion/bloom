@@ -1,0 +1,9 @@
+tunnel: 8630127e-44b1-46bc-babe-0f355114536f
+credentials-file: /root/.cloudflared/8630127e-44b1-46bc-babe-0f355114536f.json
+
+ingress:
+  - hostname: bloom.istic.dev
+    service: http://app:8000
+  - hostname: vite-bloom.istic.dev
+    service: http://vite:5173
+  - service: http_status:404

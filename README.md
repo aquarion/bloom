@@ -59,6 +59,27 @@ npm run dev
 
 Then open [http://localhost:8000](http://localhost:8000), register an account, and connect your social accounts via **Settings → Manage Accounts**.
 
+Alternatively, `./vendor/bin/sail up` brings up the app, MySQL, MariaDB, Redis, Mailpit, and a Vite dev server as Docker services (see `docker-compose.yml`).
+
+### Cloudflare tunnel (optional, dev-only)
+
+`sail up` also starts a `cloudflared` service that proxies `bloom.istic.dev` / `vite-bloom.istic.dev` to the `app`/`vite` services, for sharing your local instance (e.g. testing OAuth callbacks that need a real HTTPS hostname). It needs a one-time, per-machine tunnel setup — until then it just loops logging an origin-cert error, which is harmless:
+
+```bash
+docker compose run --rm --no-deps --entrypoint cloudflared cloudflared tunnel login
+docker compose run --rm --no-deps --entrypoint cloudflared cloudflared tunnel create bloom
+docker compose run --rm --no-deps --entrypoint cloudflared cloudflared tunnel route dns bloom bloom.istic.dev
+docker compose run --rm --no-deps --entrypoint cloudflared cloudflared tunnel route dns bloom vite-bloom.istic.dev
+```
+
+Then fill in the real tunnel UUID and credentials filename in `docker/cloudflared/config.yml` (replacing the `<TUNNEL_UUID>` placeholders). Credentials live in `docker/cloudflared/data/` (gitignored, bind-mounted into the container).
+
+`cloudflared tunnel login` scopes the resulting cert to a *single* zone you pick in the browser flow — if you've logged in before for a different project, `tunnel route dns` will silently write into whatever zone that old cert is scoped to instead of `istic.dev` (showing up as a nested hostname like `bloom.istic.dev.<other-zone>`). Check which zone `docker/cloudflared/data/cert.pem` is actually scoped to before assuming the DNS records landed correctly.
+
+Vite's dev-server origin and HMR default to `localhost`, which a page served over the tunnel's HTTPS can't load (mixed content) — set `CLOUDFLARE_VITE_HOSTNAME=vite-bloom.istic.dev` in `.env` to point them at the tunnel instead (see `.env.example`; pattern ported from `istic/alchemistic`).
+
+The app itself still thinks it's plain HTTP unless you also set `APP_URL=https://bloom.istic.dev` and `OCTANE_HTTPS=true` in `.env` — without that, Mastodon OAuth callbacks get generated as `http://`, and passkey login breaks outright (`WebAuthnService` derives its relying-party ID from `APP_URL`'s host, so it won't match the tunnel's actual origin). Recreate the `app` and `vite` containers after changing any of these.
+
 ## Connecting accounts
 
 ### Mastodon

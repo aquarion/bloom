@@ -74,6 +74,10 @@ docker compose run --rm --no-deps --entrypoint cloudflared cloudflared tunnel ro
 
 Then fill in the real tunnel UUID and credentials filename in `docker/cloudflared/config.yml` (replacing the `<TUNNEL_UUID>` placeholders). Credentials live in `docker/cloudflared/data/` (gitignored, bind-mounted into the container).
 
+`cloudflared tunnel login` scopes the resulting cert to a *single* zone you pick in the browser flow — if you've logged in before for a different project, `tunnel route dns` will silently write into whatever zone that old cert is scoped to instead of `istic.dev` (showing up as a nested hostname like `bloom.istic.dev.<other-zone>`). Check which zone `docker/cloudflared/data/cert.pem` is actually scoped to before assuming the DNS records landed correctly.
+
+Vite's dev-server origin and HMR default to `localhost`, which a page served over the tunnel's HTTPS can't load (mixed content) — set `CLOUDFLARE_VITE_HOSTNAME=vite-bloom.istic.dev` in `.env` to point them at the tunnel instead (see `.env.example`; pattern ported from `istic/alchemistic`).
+
 ## Connecting accounts
 
 ### Mastodon

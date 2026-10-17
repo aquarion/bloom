@@ -55,10 +55,25 @@ export default defineConfig({
 	resolve: {
 		alias: { "@": "/resources/js" },
 	},
-	server: {
+	server: ((tunnelViteHost) => ({
+		headers: {
+			"Access-Control-Allow-Origin": "*",
+		},
+		// laravel-vite-plugin writes this origin into public/hot ONCE, at
+		// server start - it can't vary per-request. Left unset, it defaults
+		// to http://localhost:5173 (via LARAVEL_SAIL auto-detection), which
+		// a page served over the HTTPS tunnel can't load as mixed content.
+		// Set CLOUDFLARE_VITE_HOSTNAME=vite-bloom.istic.dev in .env when you
+		// need the tunnel to actually render (pattern from istic/alchemistic,
+		// the app this tunnel setup was ported from).
+		origin: tunnelViteHost ? `https://${tunnelViteHost}` : undefined,
+		// The HMR websocket doesn't go through laravel-vite-plugin at all, so
+		// it needs its own override: the tunnel only exposes 443 (wss), not
+		// container port 5173 directly.
+		hmr: tunnelViteHost ? { host: tunnelViteHost, protocol: "wss", clientPort: 443 } : { host: "localhost" },
 		// Vite rejects requests whose Host header isn't localhost/the dev
-		// server's own address; the Cloudflare tunnel fronts the dev server
-		// under this hostname instead (see docker/cloudflared/config.yml).
-		allowedHosts: ["vite-bloom.istic.dev"],
-	},
+		// server's own address; the tunnel fronts the dev server under this
+		// hostname instead (see docker/cloudflared/config.yml).
+		allowedHosts: tunnelViteHost ? [tunnelViteHost] : [],
+	}))(process.env.CLOUDFLARE_VITE_HOSTNAME),
 });

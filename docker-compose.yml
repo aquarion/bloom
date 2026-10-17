@@ -11,6 +11,7 @@ services:
         condition: service_healthy
     volumes:
       - "storage:/app/storage"
+      - "./public:/var/www/html/public"
     restart: unless-stopped
   mysql:
     image: "mariadb:11.4"
@@ -47,6 +48,34 @@ services:
     ports:
       - "127.0.0.1:${FORWARD_MAILPIT_PORT:-1025}:1025"
       - "127.0.0.1:${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
+  vite:
+    build:
+      context: .
+      target: build
+    # Matches the uid:gid the `build` stage chowns node_modules/vendor/
+    # bootstrap/cache to. Without this the container runs as root and
+    # Wayfinder/icon-generation write root-owned files into the
+    # bind-mounted checkout below.
+    user: "1000:1000"
+    working_dir: /var/www/html
+    command: ["npm", "run", "dev"]
+    env_file: .env
+    environment:
+      LARAVEL_SAIL: 1
+    ports:
+      - "127.0.0.1:5173:5173"
+    volumes:
+      - ".:/var/www/html"
+      # Anonymous volumes: keep the image's own --no-dev-consistent vendor/
+      # node_modules/cache instead of the host's dev install (see commit
+      # message). They're only populated from the image on first creation,
+      # so after changing composer.json/package.json you need
+      # `sail up --build --renew-anon-volumes vite` to pick up the change,
+      # not just a plain rebuild.
+      - "/var/www/html/node_modules"
+      - "/var/www/html/vendor"
+      - "/var/www/html/bootstrap/cache"
+    restart: unless-stopped
 volumes:
   storage: null
   mariadb_data: null

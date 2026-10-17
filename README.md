@@ -59,6 +59,21 @@ npm run dev
 
 Then open [http://localhost:8000](http://localhost:8000), register an account, and connect your social accounts via **Settings → Manage Accounts**.
 
+Alternatively, `./vendor/bin/sail up` brings up the app, MySQL, MariaDB, Redis, Mailpit, and a Vite dev server as Docker services (see `docker-compose.yml`).
+
+### Cloudflare tunnel (optional, dev-only)
+
+`sail up` also starts a `cloudflared` service that proxies `bloom.istic.dev` / `vite-bloom.istic.dev` to the `app`/`vite` services, for sharing your local instance (e.g. testing OAuth callbacks that need a real HTTPS hostname). It needs a one-time, per-machine tunnel setup — until then it just loops logging an origin-cert error, which is harmless:
+
+```bash
+docker compose run --rm --no-deps --entrypoint cloudflared cloudflared tunnel login
+docker compose run --rm --no-deps --entrypoint cloudflared cloudflared tunnel create bloom
+docker compose run --rm --no-deps --entrypoint cloudflared cloudflared tunnel route dns bloom bloom.istic.dev
+docker compose run --rm --no-deps --entrypoint cloudflared cloudflared tunnel route dns bloom vite-bloom.istic.dev
+```
+
+Then fill in the real tunnel UUID and credentials filename in `docker/cloudflared/config.yml` (replacing the `<TUNNEL_UUID>` placeholders). Credentials live in `docker/cloudflared/data/` (gitignored, bind-mounted into the container).
+
 ## Connecting accounts
 
 ### Mastodon

@@ -1,0 +1,9 @@
+tunnel: <TUNNEL_UUID>
+credentials-file: /root/.cloudflared/<TUNNEL_UUID>.json
+
+ingress:
+  - hostname: bloom.istic.dev
+    service: http://app:8000
+  - hostname: vite-bloom.istic.dev
+    service: http://vite:5173
+  - service: http_status:404

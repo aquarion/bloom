@@ -8,7 +8,7 @@ RUN npm ci
 # invalidating the Docker layer cache for every layer below on every
 # build, even when nothing in this repo changed. Dependabot's docker
 # ecosystem bumps this digest deliberately.
-FROM dunglas/frankenphp:1-php8.4-alpine@sha256:71c41d9427ecdd19efb3f427f03afebdef96e37374bb22ad9676916db222b379
+FROM dunglas/frankenphp:1-php8.4-alpine@sha256:71c41d9427ecdd19efb3f427f03afebdef96e37374bb22ad9676916db222b379 AS build
 WORKDIR /var/www/html
 
 ARG APP_ENV=production
@@ -43,8 +43,15 @@ RUN mkdir -p bootstrap/cache storage/framework/sessions storage/framework/views 
     && php artisan key:generate --force \
     && php artisan package:discover --ansi \
     && APP_ENV=$APP_ENV VITE_APP_NAME=$APP_NAME VITE_APP_VERSION=$APP_VERSION VITE_APP_ENV=$APP_ENV VITE_APP_PR_NUMBER=$APP_PR_NUMBER VITE_APP_BRANCH=$APP_BRANCH VITE_OTEL_EXPORTER_OTLP_ENDPOINT=$VITE_OTEL_EXPORTER_OTLP_ENDPOINT npm run build \
-    && rm .env \
-    && rm -rf node_modules
+    && rm .env
+
+# The `build` stage above still has PHP, vendor/ and node_modules/ in one
+# place, which is exactly what the Vite dev server needs (the Wayfinder
+# plugin shells out to `php artisan wayfinder:generate` on file changes).
+# docker-compose's `vite` service targets that stage directly instead of
+# duplicating it. Everything from here down is production-image-only.
+FROM build AS app
+RUN rm -rf node_modules
 
 RUN chown -R www-data:www-data storage bootstrap/cache public \
     && chmod -R 775 storage bootstrap/cache

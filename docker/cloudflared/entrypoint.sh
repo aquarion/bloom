@@ -18,6 +18,17 @@ fi
 # reason - cloudflared's config.yml isn't env-substituted).
 APP_INTERNAL_PORT="${OCTANE_PORT:-8000}"
 
+# config.yml's ingress rule for the app hostname hardcodes port 8000 (it
+# can't read OCTANE_PORT - see above). If you've changed OCTANE_PORT, the
+# tunnel would silently 502 instead of reaching the app; fail loudly here
+# instead, with the fix.
+if [[ "$APP_INTERNAL_PORT" != "8000" ]]; then
+    echo "[cloudflared] ERROR: OCTANE_PORT is ${APP_INTERNAL_PORT}, but docker/cloudflared/config.yml's" >&2
+    echo "[cloudflared] ingress rule for the app hostname hardcodes port 8000. Update that line to" >&2
+    echo "[cloudflared] match, or unset OCTANE_PORT to use the default." >&2
+    exit 1
+fi
+
 # If in Docker, wait for the main app to be ready
 if [[ "$IN_DOCKER" == true ]]; then
     echo "[cloudflared] Waiting for application to be ready on http://app:${APP_INTERNAL_PORT}..."

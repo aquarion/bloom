@@ -40,7 +40,7 @@ class AppServiceProvider extends ServiceProvider
         }
         Route::model('passkey', Passkey::class);
 
-        if (! $this->app->environment('local')) {
+        if (str_starts_with(config('app.url'), 'https://')) {
             \URL::forceScheme('https');
         }
 

@@ -59,6 +59,18 @@ RUN rm -rf node_modules
 RUN chown -R www-data:www-data storage bootstrap/cache public vendor \
     && chmod -R 775 storage bootstrap/cache
 
+# The base image points XDG_CONFIG_HOME/XDG_DATA_HOME at /config and /data for
+# Caddy's own config, owned by whatever uid built the image. docker-compose
+# overrides the container's user to the host checkout's uid:gid for local dev
+# (see docker-compose.yml), which doesn't match and can't chown /config or
+# /data itself (not root). Point both at storage/, which is already writable
+# in every case: chowned to www-data above for the built image, and matching
+# the host uid via the bind mount locally. Fixes Caddy's "unable to autosave
+# config"/"could not clean default/global storage" warnings and `artisan
+# tinker` (psysh) failing to write its history.
+ENV XDG_CONFIG_HOME=/var/www/html/storage/framework/xdg-config
+ENV XDG_DATA_HOME=/var/www/html/storage/framework/xdg-data
+
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

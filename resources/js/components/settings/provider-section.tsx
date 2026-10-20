@@ -255,7 +255,7 @@ export function DisconnectButton({
     connection: SocialConnection;
     label?: string;
 }) {
-    const { confirmIfNeeded, error: passkeyError } = usePasskey();
+    const { confirmIfNeeded, getError } = usePasskey();
     const [step, setStep] = useState<'idle' | 'confirming' | 'disconnecting'>(
         'idle',
     );
@@ -269,7 +269,11 @@ export function DisconnectButton({
         setStep('confirming');
 
         if (!(await confirmIfNeeded())) {
-            setError(passkeyError ?? 'Identity confirmation was cancelled.');
+            // getError(), not a destructured `error` value — confirmIfNeeded's
+            // own setError() call happens inside the await above, so a value
+            // destructured at render time would still be whatever it was
+            // before the click (see use-passkey.ts's getError doc comment).
+            setError(getError() ?? 'Identity confirmation was cancelled.');
             setStep('idle');
 
             return;

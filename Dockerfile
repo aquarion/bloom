@@ -57,7 +57,14 @@ FROM build AS app
 RUN rm -rf node_modules
 
 RUN chown -R www-data:www-data storage bootstrap/cache public vendor \
-    && chmod -R 775 storage bootstrap/cache
+    && chmod -R 775 storage \
+    # bootstrap/cache is anonymous-volumed (not bind-mounted) in local dev
+    # (see docker-compose.yml) specifically so container writes never leak
+    # container-resolved config into the host's own bootstrap/cache. That
+    # volume keeps this layer's www-data ownership, but the dev container runs
+    # as the host checkout's uid instead — world-writable so entrypoint.sh's
+    # config:cache/view:cache still succeed regardless of which uid runs it.
+    && chmod -R 777 bootstrap/cache
 
 # The base image points XDG_CONFIG_HOME/XDG_DATA_HOME at /config and /data for
 # Caddy's own config, owned by whatever uid built the image. docker-compose

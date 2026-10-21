@@ -27,6 +27,7 @@ const mockPasskey = (
     isSupported: true,
     loading: false,
     error: null,
+    getError: vi.fn().mockReturnValue(null),
     register: vi.fn().mockResolvedValue(true),
     authenticate: vi.fn(),
     confirmIdentity: vi.fn().mockResolvedValue(true),
@@ -62,6 +63,28 @@ describe('DisconnectButton step-up gating', () => {
 
         expect(confirmIfNeeded).toHaveBeenCalledOnce();
         expect(routerDelete).not.toHaveBeenCalled();
+        expect(
+            await screen.findByText('Identity confirmation was cancelled.'),
+        ).toBeInTheDocument();
+    });
+
+    it('shows the specific passkey error instead of the generic fallback', async () => {
+        const user = userEvent.setup();
+        const confirmIfNeeded = vi.fn().mockResolvedValue(false);
+        const getError = vi.fn().mockReturnValue('Device not recognized.');
+        vi.mocked(usePasskey).mockReturnValue(
+            mockPasskey({ confirmIfNeeded, getError }),
+        );
+
+        render(<DisconnectButton connection={connection} label="Disconnect" />);
+        await user.click(screen.getByText('Disconnect'));
+
+        expect(
+            await screen.findByText('Device not recognized.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Identity confirmation was cancelled.'),
+        ).not.toBeInTheDocument();
     });
 
     it('disconnects once the step-up is satisfied (reused within the window)', async () => {

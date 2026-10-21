@@ -40,7 +40,14 @@ class AppServiceProvider extends ServiceProvider
         }
         Route::model('passkey', Passkey::class);
 
-        if (! $this->app->environment('local')) {
+        // Forces HTTPS for generated URLs (signed links, WebAuthn RP origin, etc.)
+        // whenever APP_URL says the app is actually served over it — true for
+        // production, and also true for local dev behind the Cloudflare tunnel
+        // (see docker/cloudflared), which plain http://localhost dev isn't. The
+        // environment('production') fallback is a floor for a misconfigured
+        // APP_URL in a non-local deploy, matching this check's previous behaviour
+        // of always forcing HTTPS outside 'local'.
+        if (str_starts_with(config('app.url'), 'https://') || $this->app->environment('production')) {
             \URL::forceScheme('https');
         }
 

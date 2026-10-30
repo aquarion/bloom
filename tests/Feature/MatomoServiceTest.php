@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\MatomoService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -226,4 +227,32 @@ it('returns the tracker url in the config', function () {
     $config = (new MatomoService)->getConfig();
 
     expect($config['tracker_url'])->toBe('https://stat.istic.net');
+});
+
+it('caches a failed lookup and does not retry the api until it expires', function () {
+    Http::fake([
+        'stat.istic.net/*' => Http::response(null, 500),
+    ]);
+    Log::shouldReceive('warning')->once();
+
+    $service = new MatomoService;
+
+    expect($service->getConfig())->toBeNull();
+    expect($service->getConfig())->toBeNull();
+    Http::assertSentCount(1);
+
+    $this->travel(6)->minutes();
+
+    Log::shouldReceive('warning')->once();
+    expect($service->getConfig())->toBeNull();
+    Http::assertSentCount(2);
+});
+
+it('returns null when the matomo api connection times out', function () {
+    Http::fake([
+        'stat.istic.net/*' => fn () => throw new ConnectionException('cURL error 28: Operation timed out'),
+    ]);
+    Log::shouldReceive('warning')->once();
+
+    expect((new MatomoService)->getConfig())->toBeNull();
 });

@@ -12,6 +12,22 @@ class MatomoService
 
     private const CACHE_TTL = 3600;
 
+    /**
+     * How long to remember a failed lookup, so an unreachable Matomo doesn't
+     * slow down every request with fresh API calls.
+     */
+    private const FAILURE_CACHE_TTL = 300;
+
+    /**
+     * Cached in place of a config after a failed lookup, distinguishing it
+     * from a cache miss.
+     */
+    private const FAILURE_SENTINEL = 'failed';
+
+    private const CONNECT_TIMEOUT_SECONDS = 2;
+
+    private const TIMEOUT_SECONDS = 5;
+
     private const GOALS = [
         'registration' => 'Registration complete',
     ];
@@ -23,6 +39,9 @@ class MatomoService
         }
 
         $cached = Cache::get(self::CACHE_KEY);
+        if ($cached === self::FAILURE_SENTINEL) {
+            return null;
+        }
         if ($cached !== null) {
             return $cached;
         }
@@ -47,6 +66,8 @@ class MatomoService
                 'app_url' => config('app.url'),
                 'matomo_url' => config('services.matomo.url'),
             ]);
+
+            Cache::put(self::CACHE_KEY, self::FAILURE_SENTINEL, self::FAILURE_CACHE_TTL);
 
             return null;
         }
@@ -100,12 +121,15 @@ class MatomoService
 
     private function api(string $method, array $params = []): array
     {
-        $response = Http::asForm()->post(config('services.matomo.url').'/index.php', array_merge([
-            'module' => 'API',
-            'method' => $method,
-            'format' => 'json',
-            'token_auth' => config('services.matomo.auth_token'),
-        ], $params));
+        $response = Http::asForm()
+            ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS)
+            ->timeout(self::TIMEOUT_SECONDS)
+            ->post(config('services.matomo.url').'/index.php', array_merge([
+                'module' => 'API',
+                'method' => $method,
+                'format' => 'json',
+                'token_auth' => config('services.matomo.auth_token'),
+            ], $params));
 
         $response->throw();
 

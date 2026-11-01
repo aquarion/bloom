@@ -256,3 +256,39 @@ it('returns null when the matomo api connection times out', function () {
 
     expect((new MatomoService)->getConfig())->toBeNull();
 });
+
+it('does not overwrite a config cached by a concurrent request when its own lookup fails', function () {
+    $concurrentConfig = ['tracker_url' => 'https://stat.istic.net', 'site_id' => 3, 'goals' => ['registration' => 1]];
+
+    Http::fake([
+        'stat.istic.net/*' => function () use ($concurrentConfig) {
+            Cache::put('matomo:config', $concurrentConfig, 3600);
+
+            return Http::response(null, 500);
+        },
+    ]);
+    Log::shouldReceive('warning')->once();
+
+    expect((new MatomoService)->getConfig())->toBeNull();
+    expect(Cache::get('matomo:config'))->toBe($concurrentConfig);
+});
+
+it('returns null instead of throwing when the cache rejects writes', function () {
+    Http::fake([
+        'stat.istic.net/*' => function ($request) {
+            $method = $request->data()['method'] ?? '';
+
+            if ($method === 'SitesManager.getAllSites') {
+                return Http::response([['idsite' => '3', 'main_url' => 'https://bloom.example.com']]);
+            }
+
+            return Http::response([['idgoal' => '1', 'name' => 'Registration complete']]);
+        },
+    ]);
+    Cache::shouldReceive('get')->andReturnNull();
+    Cache::shouldReceive('put')->andThrow(new RuntimeException('cache is read-only'));
+    Cache::shouldReceive('add')->andThrow(new RuntimeException('cache is read-only'));
+    Log::shouldReceive('warning')->twice();
+
+    expect((new MatomoService)->getConfig())->toBeNull();
+});

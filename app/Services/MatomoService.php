@@ -67,9 +67,26 @@ class MatomoService
                 'matomo_url' => config('services.matomo.url'),
             ]);
 
-            Cache::put(self::CACHE_KEY, self::FAILURE_SENTINEL, self::FAILURE_CACHE_TTL);
+            $this->cacheFailure();
 
             return null;
+        }
+    }
+
+    /**
+     * Remember a failed lookup, best-effort. Uses add() so a concurrent
+     * request's successfully cached config is never overwritten, and swallows
+     * cache errors so an optional analytics lookup can't break the page.
+     */
+    private function cacheFailure(): void
+    {
+        try {
+            Cache::add(self::CACHE_KEY, self::FAILURE_SENTINEL, self::FAILURE_CACHE_TTL);
+        } catch (\Throwable $e) {
+            Log::warning('Matomo failure cache write failed', [
+                'message' => $e->getMessage(),
+                'exception' => $e,
+            ]);
         }
     }
 

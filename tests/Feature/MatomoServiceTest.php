@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\MatomoService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -226,4 +227,68 @@ it('returns the tracker url in the config', function () {
     $config = (new MatomoService)->getConfig();
 
     expect($config['tracker_url'])->toBe('https://stat.istic.net');
+});
+
+it('caches a failed lookup and does not retry the api until it expires', function () {
+    Http::fake([
+        'stat.istic.net/*' => Http::response(null, 500),
+    ]);
+    Log::shouldReceive('warning')->once();
+
+    $service = new MatomoService;
+
+    expect($service->getConfig())->toBeNull();
+    expect($service->getConfig())->toBeNull();
+    Http::assertSentCount(1);
+
+    $this->travel(6)->minutes();
+
+    Log::shouldReceive('warning')->once();
+    expect($service->getConfig())->toBeNull();
+    Http::assertSentCount(2);
+});
+
+it('returns null when the matomo api connection times out', function () {
+    Http::fake([
+        'stat.istic.net/*' => fn () => throw new ConnectionException('cURL error 28: Operation timed out'),
+    ]);
+    Log::shouldReceive('warning')->once();
+
+    expect((new MatomoService)->getConfig())->toBeNull();
+});
+
+it('does not overwrite a config cached by a concurrent request when its own lookup fails', function () {
+    $concurrentConfig = ['tracker_url' => 'https://stat.istic.net', 'site_id' => 3, 'goals' => ['registration' => 1]];
+
+    Http::fake([
+        'stat.istic.net/*' => function () use ($concurrentConfig) {
+            Cache::put('matomo:config', $concurrentConfig, 3600);
+
+            return Http::response(null, 500);
+        },
+    ]);
+    Log::shouldReceive('warning')->once();
+
+    expect((new MatomoService)->getConfig())->toBeNull();
+    expect(Cache::get('matomo:config'))->toBe($concurrentConfig);
+});
+
+it('returns null instead of throwing when the cache rejects writes', function () {
+    Http::fake([
+        'stat.istic.net/*' => function ($request) {
+            $method = $request->data()['method'] ?? '';
+
+            if ($method === 'SitesManager.getAllSites') {
+                return Http::response([['idsite' => '3', 'main_url' => 'https://bloom.example.com']]);
+            }
+
+            return Http::response([['idgoal' => '1', 'name' => 'Registration complete']]);
+        },
+    ]);
+    Cache::shouldReceive('get')->andReturnNull();
+    Cache::shouldReceive('put')->andThrow(new RuntimeException('cache is read-only'));
+    Cache::shouldReceive('add')->andThrow(new RuntimeException('cache is read-only'));
+    Log::shouldReceive('warning')->twice();
+
+    expect((new MatomoService)->getConfig())->toBeNull();
 });

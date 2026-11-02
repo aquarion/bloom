@@ -13,6 +13,23 @@ services:
     ports:
       - "${OCTANE_PORT:-8000}:${OCTANE_PORT:-8000}"
     env_file: .env
+    # Container-only service hostnames. These take precedence over env_file,
+    # so .env stays usable for host-run PHP (see .env.example).
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: "${DB_DATABASE:-bloom}"
+      DB_USERNAME: "${DB_USERNAME:-bloom}"
+      DB_PASSWORD: "${DB_PASSWORD:-secret}"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SESSION_DRIVER: redis
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      MAIL_MAILER: smtp
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
     depends_on:
       mysql:
         condition: service_healthy

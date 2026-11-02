@@ -7,7 +7,8 @@ if [ -z "${APP_KEY}" ]; then
 fi
 
 echo "[entrypoint] Creating storage directories..."
-mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs storage/app/public
+mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs storage/app/public \
+    storage/framework/xdg-config storage/framework/xdg-data
 
 echo "[entrypoint] Caching config..."
 php artisan config:cache || {

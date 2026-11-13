@@ -103,6 +103,12 @@ export type UsePasskeyReturn = {
     isSupported: boolean;
     loading: boolean;
     error: string | null;
+    /**
+     * Reads the latest error synchronously, bypassing React state's render-cycle
+     * lag — for callers that need the value immediately after an `await` on
+     * confirmIdentity()/confirmIfNeeded() rather than on next render.
+     */
+    getError: () => string | null;
     register: (name: string) => Promise<boolean>;
     authenticate: () => Promise<void>;
     confirmIdentity: () => Promise<boolean>;
@@ -117,7 +123,19 @@ export function usePasskey(): UsePasskeyReturn {
     const isSupported =
         typeof window !== 'undefined' && !!window.PublicKeyCredential;
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setErrorState] = useState<string | null>(null);
+    // Callers that read `error` after an `await` (e.g. right after
+    // confirmIfNeeded() resolves) can't rely on a destructured `error` value —
+    // it's a snapshot from whatever render created their closure, not the
+    // state set by the setError() call inside that same await. errorRef is
+    // updated synchronously alongside setError() so getError() always reflects
+    // the latest value regardless of render timing.
+    const errorRef = useRef<string | null>(null);
+    const setError = useCallback((value: string | null) => {
+        errorRef.current = value;
+        setErrorState(value);
+    }, []);
+    const getError = useCallback(() => errorRef.current, []);
     const abortRef = useRef<AbortController | null>(null);
     const confirmedUntil = usePage().props.passkeyConfirmedUntil;
 
@@ -431,6 +449,7 @@ export function usePasskey(): UsePasskeyReturn {
         isSupported,
         loading,
         error,
+        getError,
         register,
         authenticate,
         confirmIdentity,

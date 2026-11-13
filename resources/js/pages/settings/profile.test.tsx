@@ -57,6 +57,7 @@ const mockPasskey = (
     isSupported: true,
     loading: false,
     error: null,
+    getError: vi.fn().mockReturnValue(null),
     register: vi.fn().mockResolvedValue(true),
     authenticate: vi.fn(),
     confirmIdentity: vi.fn().mockResolvedValue(true),

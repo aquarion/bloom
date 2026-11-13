@@ -10,6 +10,8 @@ storage/app
 storage/framework/cache
 storage/framework/sessions
 storage/framework/views
+storage/framework/xdg-config
+storage/framework/xdg-data
 bootstrap/cache
 tests
 .dockerignore

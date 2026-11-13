@@ -7,6 +7,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { usePasskey } from '@/hooks/use-passkey';
 import bluesky from '@/routes/bluesky';
 import { destroy as disconnectAccount } from '@/routes/connections';
@@ -254,20 +255,31 @@ export function DisconnectButton({
     connection: SocialConnection;
     label?: string;
 }) {
-    const { confirmIfNeeded } = usePasskey();
-    const [processing, setProcessing] = useState(false);
+    const { confirmIfNeeded, getError } = usePasskey();
+    const [step, setStep] = useState<'idle' | 'confirming' | 'disconnecting'>(
+        'idle',
+    );
     const [error, setError] = useState<string | null>(null);
+    const processing = step !== 'idle';
 
     // Disconnecting is a step-up action, reusing a passkey confirmed in the last
     // 15 minutes rather than prompting again.
     const handleDisconnect = async () => {
         setError(null);
+        setStep('confirming');
 
         if (!(await confirmIfNeeded())) {
+            // getError(), not a destructured `error` value — confirmIfNeeded's
+            // own setError() call happens inside the await above, so a value
+            // destructured at render time would still be whatever it was
+            // before the click (see use-passkey.ts's getError doc comment).
+            setError(getError() ?? 'Identity confirmation was cancelled.');
+            setStep('idle');
+
             return;
         }
 
-        setProcessing(true);
+        setStep('disconnecting');
         router.delete(disconnectAccount.url({ account: connection.id }), {
             preserveScroll: true,
             onError: (errors) =>
@@ -275,7 +287,7 @@ export function DisconnectButton({
                     errors.passkey ??
                         'Could not disconnect that account. Please try again.',
                 ),
-            onFinish: () => setProcessing(false),
+            onFinish: () => setStep('idle'),
         });
     };
 
@@ -288,8 +300,14 @@ export function DisconnectButton({
                 disabled={processing}
                 onClick={handleDisconnect}
             >
+                {processing && <Spinner />}
                 {label}
             </Button>
+            {step === 'confirming' && (
+                <p className="text-muted-foreground text-xs">
+                    Follow your browser or device prompt to confirm it's you…
+                </p>
+            )}
             {error && <p className="text-destructive text-xs">{error}</p>}
         </div>
     );

@@ -46,7 +46,7 @@ repos:
             name: Graphify (rebuild knowledge graph)
             entry: bash -c 'PYTHONHASHSEED=0 graphify update .'
             language: python
-            additional_dependencies: ["graphifyy==0.9.12"]
+            additional_dependencies: ["graphifyy~=0.9.0"]
             types_or: [javascript, ts, tsx, jsx, php]
             exclude: ^graphify-out/
             pass_filenames: false

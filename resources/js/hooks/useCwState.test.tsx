@@ -25,6 +25,7 @@ function wrapperWithWhitelist(initialAuthorWhitelist: string[] = []) {
 
 describe('CwStateProvider', () => {
     beforeEach(() => {
+        // biome-ignore lint/suspicious/noDocumentCookie: jsdom has no Cookie Store API
         document.cookie = 'XSRF-TOKEN=test-token';
         vi.stubGlobal(
             'fetch',
@@ -33,7 +34,8 @@ describe('CwStateProvider', () => {
     });
 
     afterEach(() => {
-        document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        // biome-ignore lint/suspicious/noDocumentCookie: jsdom has no Cookie Store API
+        document.cookie = 'XSRF-TOKEN=;expires=Thu, 01 Jan 1970 00:00:00 GMT';
         vi.unstubAllGlobals();
     });
 

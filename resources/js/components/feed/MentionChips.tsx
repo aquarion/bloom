@@ -27,12 +27,13 @@ export function MentionChips({ mentions }: { mentions: Mention[] }) {
     const [fullWidths, setFullWidths] = useState<number[] | null>(null);
     const [availableWidth, setAvailableWidth] = useState<number | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const measureRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const measureRef = useRef<Record<string, HTMLDivElement | null>>({});
 
     useLayoutEffect(() => {
+        // eslint-disable-next-line @eslint-react/set-state-in-effect -- measuring rendered DOM widths requires a post-layout setState
         setFullWidths(
             uniqueMentions.map(
-                (m) => measureRefs.current[m.profile_url]?.offsetWidth ?? 0,
+                (m) => measureRef.current[m.profile_url]?.offsetWidth ?? 0,
             ),
         );
 
@@ -53,7 +54,7 @@ export function MentionChips({ mentions }: { mentions: Mention[] }) {
         // mentionKey is a stable proxy for uniqueMentions (a fresh array on
         // every render); depending on the array itself would re-run this
         // effect, and its setState calls, on every single render.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps, @eslint-react/exhaustive-deps
     }, [mentionKey]);
 
     if (uniqueMentions.length === 0) {
@@ -85,7 +86,7 @@ export function MentionChips({ mentions }: { mentions: Mention[] }) {
                         key={mention.profile_url}
                         data-mention-measure-id={mention.profile_url}
                         ref={(el) => {
-                            measureRefs.current[mention.profile_url] = el;
+                            measureRef.current[mention.profile_url] = el;
                         }}
                         className="inline-block"
                     >

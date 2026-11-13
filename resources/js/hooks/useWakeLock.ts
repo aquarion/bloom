@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 export function useWakeLock() {
     const [isActive, setIsActive] = useState(false);
     const [enabled, setEnabled] = useState(true);
-    const sentinelRef = useRef<any>(null);
+    const sentinelRef = useRef<WakeLockSentinel | null>(null);
     const mountedRef = useRef(true);
 
     useEffect(() => {

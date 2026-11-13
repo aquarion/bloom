@@ -1,12 +1,18 @@
 import { act, renderHook } from '@testing-library/react';
+import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWakeLock } from './useWakeLock';
 
 describe('useWakeLock', () => {
-    let mockRequest: any;
-    let mockRelease: any;
-    let mockSentinel: any;
-    let originalVisibilityState: any;
+    let mockRequest: Mock;
+    let mockRelease: Mock;
+    let mockSentinel: {
+        release: Mock;
+        addEventListener: Mock;
+        removeEventListener: Mock;
+        onRelease?: () => void;
+    };
+    let originalVisibilityState: PropertyDescriptor | undefined;
 
     beforeEach(() => {
         originalVisibilityState = Object.getOwnPropertyDescriptor(
@@ -201,7 +207,7 @@ describe('useWakeLock', () => {
 
     it('releases a late-resolving sentinel if hook unmounts before request() resolves', async () => {
         // Create a deferred promise so we control when request() resolves
-        let resolveRequest!: (sentinel: any) => void;
+        let resolveRequest!: (sentinel: unknown) => void;
         mockRequest.mockReturnValue(
             new Promise((resolve) => {
                 resolveRequest = resolve;

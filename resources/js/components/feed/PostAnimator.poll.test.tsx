@@ -29,7 +29,7 @@ vi.mock('gsap', () => ({
 }));
 
 vi.mock('@gsap/react', () => ({
-    useGSAP: (callback: () => void | (() => void)) => {
+    useGSAP: (callback: () => undefined | (() => void)) => {
         callback();
     },
 }));

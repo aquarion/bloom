@@ -123,6 +123,7 @@ export function usePasskey(): UsePasskeyReturn {
     const isSupported =
         typeof window !== 'undefined' && !!window.PublicKeyCredential;
     const [loading, setLoading] = useState(false);
+    // eslint-disable-next-line @eslint-react/use-state -- setError() below wraps this setter to keep errorRef in sync
     const [error, setErrorState] = useState<string | null>(null);
     // Callers that read `error` after an `await` (e.g. right after
     // confirmIfNeeded() resolves) can't rely on a destructured `error` value —
@@ -239,7 +240,7 @@ export function usePasskey(): UsePasskeyReturn {
                 setLoading(false);
             }
         },
-        [isSupported, fetchOptions, prepareCreationOptions],
+        [isSupported, fetchOptions, prepareCreationOptions, setError],
     );
 
     const performAssertion = useCallback(
@@ -350,7 +351,7 @@ export function usePasskey(): UsePasskeyReturn {
         } finally {
             setLoading(false);
         }
-    }, [isSupported, runAuthentication]);
+    }, [isSupported, runAuthentication, setError]);
 
     const startConditional = useCallback((): void => {
         if (!isSupported) {
@@ -379,7 +380,7 @@ export function usePasskey(): UsePasskeyReturn {
                 );
             },
         );
-    }, [isSupported, runAuthentication]);
+    }, [isSupported, runAuthentication, setError]);
 
     const abortConditional = useCallback((): void => {
         abortRef.current?.abort();
@@ -428,7 +429,7 @@ export function usePasskey(): UsePasskeyReturn {
         } finally {
             setLoading(false);
         }
-    }, [isSupported, performAssertion]);
+    }, [isSupported, performAssertion, setError]);
 
     // Confirm only when there's no recent confirmation still valid for step-up
     // actions (the 15-minute window). Used by moderately sensitive actions;

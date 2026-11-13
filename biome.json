@@ -1,5 +1,5 @@
 {
-    "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+    "$schema": "https://biomejs.dev/schemas/2.6.6/schema.json",
     "files": {
         "includes": [
             "resources/**/*.{js,jsx,ts,tsx,json,css}",
@@ -29,12 +29,9 @@
     "linter": {
         "rules": {
             "nursery": {
-                "useSortedClasses": {
+                "useTailwindSortedClasses": {
                     "level": "warn",
-                    "fix": "safe",
-                    "options": {
-                        "functions": ["cn", "clsx", "cva"]
-                    }
+                    "fix": "safe"
                 }
             }
         }

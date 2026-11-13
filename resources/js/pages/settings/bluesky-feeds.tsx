@@ -39,10 +39,10 @@ function FeedGeneratorRow({ feed }: { feed: FeedGeneratorSummary }) {
                 </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-sm">
+                <p className="truncate text-sm font-medium">
                     {feed.display_name}
                 </p>
-                <p className="truncate text-muted-foreground text-xs">
+                <p className="text-muted-foreground truncate text-xs">
                     {feed.creator_handle && <>by @{feed.creator_handle}</>}
                     {feed.description && <> — {feed.description}</>}
                 </p>
@@ -131,7 +131,7 @@ export default function BlueskyFeeds({
 
                 {statusMessage && (
                     <div
-                        className={`font-medium text-sm ${statusMessage.tone === 'success' ? 'text-green-600' : 'text-amber-600'}`}
+                        className={`text-sm font-medium ${statusMessage.tone === 'success' ? 'text-green-600' : 'text-amber-600'}`}
                     >
                         {statusMessage.text}
                     </div>
@@ -157,13 +157,13 @@ export default function BlueskyFeeds({
                             }}
                         />
                         {loading && (
-                            <Loader2 className="absolute top-2.5 right-2.5 size-4 animate-spin text-muted-foreground" />
+                            <Loader2 className="text-muted-foreground absolute top-2.5 right-2.5 size-4 animate-spin" />
                         )}
                     </div>
                 </div>
 
                 <div className="space-y-2">
-                    <p className="font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                    <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
                         {listHeading}
                     </p>
                     {listedFeeds.length === 0 ? (
@@ -179,11 +179,11 @@ export default function BlueskyFeeds({
                     )}
                 </div>
 
-                <div className="rounded-md border bg-muted/50 p-4">
+                <div className="bg-muted/50 rounded-md border p-4">
                     <button
                         type="button"
                         onClick={() => setManualOpen((o) => !o)}
-                        className="flex items-center gap-1 font-semibold text-muted-foreground text-xs uppercase tracking-wide hover:text-foreground"
+                        className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs font-semibold tracking-wide uppercase"
                     >
                         {manualOpen ? (
                             <ChevronUp className="h-3 w-3" />

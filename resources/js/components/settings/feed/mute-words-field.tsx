@@ -53,7 +53,7 @@ export default function MuteWordsField({
                     {data.mute_words.map((word) => (
                         <span
                             key={word}
-                            className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
+                            className="bg-muted flex items-center gap-1 rounded-full px-3 py-1 text-sm"
                         >
                             {word}
                             <button

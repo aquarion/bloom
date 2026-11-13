@@ -19,7 +19,7 @@ export function FeedSidebarPanel({ open, onOpenChange }: Props) {
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
                 side="left"
-                className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+                className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
                 style={{ '--sidebar-width': '18rem' } as CSSProperties}
             >
                 <SheetHeader className="sr-only">

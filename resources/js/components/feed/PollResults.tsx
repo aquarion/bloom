@@ -27,7 +27,7 @@ export function PollResults({
 
     return (
         <div className={PANEL_CLASS}>
-            <div className="mb-2 flex items-center justify-between gap-2 text-white/50 text-xs">
+            <div className="mb-2 flex items-center justify-between gap-2 text-xs text-white/50">
                 <span>{pollStatus(poll)}</span>
                 {poll.multiple && <span>Multiple choice</span>}
             </div>
@@ -76,14 +76,14 @@ export function PollResults({
                 })}
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
-                <span className="text-white/50 text-xs">
+                <span className="text-xs text-white/50">
                     {total} votes total
                 </span>
                 <a
                     href={originalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-white/80 text-xs underline hover:text-white"
+                    className="text-xs text-white/80 underline hover:text-white"
                 >
                     Vote →
                 </a>

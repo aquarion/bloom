@@ -81,9 +81,9 @@ export default function PasskeyList({ passkeys }: Props) {
                         className="flex items-center justify-between rounded-md border px-4 py-3"
                     >
                         <div className="flex items-center gap-3">
-                            <KeyRound className="h-4 w-4 text-muted-foreground" />
+                            <KeyRound className="text-muted-foreground h-4 w-4" />
                             <div>
-                                <p className="font-medium text-sm">{pk.name}</p>
+                                <p className="text-sm font-medium">{pk.name}</p>
                                 <p className="text-muted-foreground text-xs">
                                     {pk.last_used_at
                                         ? `Last used ${new Date(pk.last_used_at).toLocaleDateString()}`

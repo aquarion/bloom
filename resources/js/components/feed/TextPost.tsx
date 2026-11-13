@@ -2,6 +2,7 @@ import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
 import { Quote, Reply } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
+import { useAutoFitText } from '@/hooks/useAutoFitText';
 import { fade, pickTemplate, SplitText } from '@/lib/animations';
 import type { AnimationTemplate } from '@/lib/animations/types';
 import { postLevelCwLabel } from '@/lib/cw';
@@ -11,7 +12,6 @@ import type { PostColors } from '@/lib/post-colors';
 import { postColors } from '@/lib/post-colors';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
-import { useAutoFitText } from '@/hooks/useAutoFitText';
 import { ContextPanel } from './ContextPanel';
 import { CwTag } from './CwTag';
 import { LinkCard } from './LinkCard';
@@ -153,7 +153,7 @@ export function TextPost({
                 <div
                     key={post.id}
                     ref={textRef}
-                    className={`w-full font-extrabold leading-none tracking-tight ${post.reply_to || post.quoted_post ? 'min-w-[40ch]' : ''}`}
+                    className={`w-full leading-none font-extrabold tracking-tight ${post.reply_to || post.quoted_post ? 'min-w-[40ch]' : ''}`}
                     style={{
                         visibility: fontSizes ? 'visible' : 'hidden',
                         color: textColor,

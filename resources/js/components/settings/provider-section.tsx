@@ -101,7 +101,7 @@ export function AccountFeedSettings({
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
-                className="flex items-center gap-1 text-muted-foreground text-xs hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
             >
                 {open ? (
                     <ChevronUp className="h-3 w-3" />
@@ -158,7 +158,7 @@ export function AccountFeedSettings({
                                     placeholder="inherit"
                                     disabled={data.max_age_days === null}
                                 />
-                                <label className="flex items-center gap-1 text-muted-foreground text-xs">
+                                <label className="text-muted-foreground flex items-center gap-1 text-xs">
                                     <input
                                         type="checkbox"
                                         checked={data.max_age_days === null}
@@ -190,7 +190,7 @@ export function BlueskyReauthForm({
 }) {
     return (
         <div className="space-y-2">
-            <p className="text-amber-600 text-sm">
+            <p className="text-sm text-amber-600">
                 <strong>{connection.handle}</strong> — credentials expired
             </p>
             <Form {...bluesky.update.form(connection)}>
@@ -230,7 +230,7 @@ export function MastodonReauthForm({
 }) {
     return (
         <div className="flex items-center justify-between gap-2">
-            <p className="text-amber-600 text-sm">
+            <p className="text-sm text-amber-600">
                 <strong>{connection.handle}</strong> — credentials expired
             </p>
             <div className="flex gap-2">
@@ -304,7 +304,7 @@ export function ProviderSection<C extends SocialConnection>({
 
     return (
         <div className="rounded-lg border p-6">
-            <h3 className="mb-4 flex items-center gap-2 font-semibold text-base">
+            <h3 className="mb-4 flex items-center gap-2 text-base font-semibold">
                 {config.icon} {config.label}
             </h3>
 
@@ -312,7 +312,7 @@ export function ProviderSection<C extends SocialConnection>({
                 <div className="mb-4 space-y-3">
                     {primary.connections.length > 0 && (
                         <div>
-                            <p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                            <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
                                 {primary.heading}
                             </p>
                             <ul className="space-y-2">
@@ -357,7 +357,7 @@ export function ProviderSection<C extends SocialConnection>({
                 <div className="space-y-3">
                     {secondary.connections.length > 0 && (
                         <div>
-                            <p className="mb-2 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                            <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
                                 {secondary.heading}
                             </p>
                             <ul className="space-y-2">

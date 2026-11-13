@@ -13,11 +13,11 @@ export default function DocsPageLayout({
 }>) {
     return (
         <div className="mx-auto max-w-prose px-4 py-10">
-            <h1 className="mb-1 font-semibold text-2xl text-foreground">
+            <h1 className="text-foreground mb-1 text-2xl font-semibold">
                 {title}
             </h1>
             {lastUpdated && (
-                <p className="mb-8 text-muted-foreground text-sm">
+                <p className="text-muted-foreground mb-8 text-sm">
                     Last updated {lastUpdated}
                 </p>
             )}

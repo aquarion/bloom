@@ -43,6 +43,7 @@ export function PollResults({
 
                     return (
                         <div
+                            // eslint-disable-next-line @eslint-react/no-array-index-key -- poll options are a fixed list and can share identical titles
                             key={`${poll.id}-${index}`}
                             data-testid={`poll-option-${index}`}
                             data-voted={isOwnVote}

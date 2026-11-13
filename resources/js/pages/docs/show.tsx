@@ -55,6 +55,7 @@ export default function Show({
                 subnav={isLegalDoc && <LegalDocsSubnav activeSlug={slug} />}
             >
                 {/* content is server-rendered HTML from our own Markdown files */}
+                {/* eslint-disable-next-line @eslint-react/dom-no-dangerously-set-innerhtml */}
                 <div dangerouslySetInnerHTML={{ __html: content }} />
             </DocsPageLayout>
         </DocsLayout>

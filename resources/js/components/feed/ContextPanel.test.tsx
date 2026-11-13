@@ -60,6 +60,7 @@ describe('ContextPanel — CW gating for nested posts', () => {
 
     it('persists the nested post categories when clicking "Always"', async () => {
         const user = userEvent.setup();
+        // biome-ignore lint/suspicious/noDocumentCookie: jsdom has no Cookie Store API
         document.cookie = 'XSRF-TOKEN=test-token';
         const fetchMock = vi.fn().mockResolvedValue({ ok: true } as Response);
         vi.stubGlobal('fetch', fetchMock);

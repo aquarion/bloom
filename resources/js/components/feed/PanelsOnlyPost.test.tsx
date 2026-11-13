@@ -19,7 +19,7 @@ vi.mock('gsap', () => ({
 // attached by the time the callback runs — a plain synchronous invocation
 // during render would see panelsRef.current as still null.
 vi.mock('@gsap/react', () => ({
-    useGSAP: (callback: () => void | (() => void)) => {
+    useGSAP: (callback: () => undefined | (() => void)) => {
         useLayoutEffect(() => {
             callback();
         });

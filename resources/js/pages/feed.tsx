@@ -26,7 +26,7 @@ function AccountFailureBanner({ failedAccounts }: { failedAccounts: number }) {
     }
 
     return (
-        <div className="absolute top-4 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/70 px-3 py-1 text-white/70 text-xs">
+        <div className="absolute top-4 left-1/2 z-30 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs whitespace-nowrap text-white/70">
             Couldn&apos;t load {failedAccounts} account
             {failedAccounts > 1 ? 's' : ''} — retrying…
         </div>

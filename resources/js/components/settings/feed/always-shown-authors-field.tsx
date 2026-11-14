@@ -29,7 +29,7 @@ export default function AlwaysShownAuthorsField({
                 {data.cw_author_whitelist.map((handle) => (
                     <span
                         key={handle}
-                        className="flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-sm"
+                        className="bg-muted flex items-center gap-1 rounded-full px-3 py-1 text-sm"
                     >
                         {handle}
                         <button

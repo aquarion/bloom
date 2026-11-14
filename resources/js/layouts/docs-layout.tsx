@@ -6,11 +6,11 @@ import docs from '@/routes/docs';
 
 export default function DocsLayout({ children }: PropsWithChildren) {
     return (
-        <div className="flex min-h-svh flex-col bg-background">
+        <div className="bg-background flex min-h-svh flex-col">
             <header className="border-b px-6 py-4">
                 <Link
                     href={home()}
-                    className="inline-flex items-center gap-2 font-semibold text-sm hover:opacity-80"
+                    className="inline-flex items-center gap-2 text-sm font-semibold hover:opacity-80"
                 >
                     <AppLogoIcon className="size-5" aria-hidden="true" />
                     <span>Bloom</span>
@@ -20,7 +20,7 @@ export default function DocsLayout({ children }: PropsWithChildren) {
             <main className="flex-1">{children}</main>
 
             <footer className="border-t px-6 py-4">
-                <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-muted-foreground text-xs">
+                <nav className="text-muted-foreground flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs">
                     <Link
                         href={docs.show('privacy')}
                         className="hover:underline"

@@ -33,13 +33,13 @@ export default function PasskeySetup({ status }: Props) {
             <Head title="Set up a passkey" />
 
             <div className="flex flex-col items-center gap-6 text-center">
-                <KeyRound className="h-12 w-12 text-primary" />
+                <KeyRound className="text-primary h-12 w-12" />
 
                 <div className="space-y-2">
-                    <h1 className="font-semibold text-2xl">
+                    <h1 className="text-2xl font-semibold">
                         {isRecovery ? 'Add a new passkey' : 'Set up a passkey'}
                     </h1>
-                    <p className="max-w-sm text-muted-foreground text-sm">
+                    <p className="text-muted-foreground max-w-sm text-sm">
                         {isRecovery
                             ? 'Your recovery link was verified. Add a passkey to regain access to your account.'
                             : 'Passkeys let you sign in with your fingerprint, face, or device PIN. You must add a passkey to access your account.'}

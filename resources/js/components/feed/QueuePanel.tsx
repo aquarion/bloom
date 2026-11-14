@@ -6,8 +6,8 @@ import {
     Terminal,
     X,
 } from 'lucide-react';
-import { useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import { useState } from 'react';
 import { CwTag } from '@/components/feed/CwTag';
 import { PROVIDER_ICONS } from '@/lib/providers';
 import type { Post } from '@/types/post';
@@ -57,6 +57,8 @@ function PostRow({
     };
 
     return (
+        // biome-ignore lint/a11y/noStaticElementInteractions: role/handlers are applied conditionally for non-current items
+        // biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-label is only set alongside role="button"
         <div
             role={isCurrent ? undefined : 'button'}
             tabIndex={isCurrent ? undefined : 0}
@@ -65,7 +67,7 @@ function PostRow({
             aria-label={
                 isCurrent ? undefined : `Jump to post by ${post.author_name}`
             }
-            className={`flex gap-2 border-white/10 border-b p-3 ${
+            className={`flex gap-2 border-b border-white/10 p-3 ${
                 isCurrent
                     ? 'border-l-2 border-l-white bg-white/5'
                     : 'cursor-pointer hover:bg-white/5'
@@ -78,7 +80,7 @@ function PostRow({
             />
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                    <span className="truncate font-medium text-white text-xs">
+                    <span className="truncate text-xs font-medium text-white">
                         {post.author_name}
                     </span>
                     <SourceIcon className="size-3 shrink-0 text-white/40" />
@@ -89,7 +91,7 @@ function PostRow({
                         />
                     )}
                     {isCurrent && (
-                        <span className="ml-auto shrink-0 rounded bg-white/20 px-1 py-0.5 font-bold text-[10px] text-white">
+                        <span className="ml-auto shrink-0 rounded bg-white/20 px-1 py-0.5 text-[10px] font-bold text-white">
                             NOW
                         </span>
                     )}
@@ -103,7 +105,7 @@ function PostRow({
                     </div>
                 )}
                 {post.body && (
-                    <p className="mt-1 line-clamp-2 text-white/70 text-xs">
+                    <p className="mt-1 line-clamp-2 text-xs text-white/70">
                         {post.body}
                     </p>
                 )}
@@ -198,8 +200,8 @@ export function QueuePanel({
                     {/* Panel — slides in from the right so it never overlaps the
                         left-anchored settings sidebar (FeedSidebarPanel). */}
                     <div className="fixed inset-y-0 right-0 z-40 flex w-80 flex-col bg-black/85 backdrop-blur-sm">
-                        <div className="flex items-center justify-between border-white/10 border-b px-3 py-2">
-                            <span className="font-bold text-white text-xs">
+                        <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
+                            <span className="text-xs font-bold text-white">
                                 Up next · {allPosts.length} posts
                             </span>
                             <button
@@ -222,7 +224,7 @@ export function QueuePanel({
                                 />
                             ))}
                             {allPosts.length === 0 && (
-                                <p className="p-4 text-white/30 text-xs">
+                                <p className="p-4 text-xs text-white/30">
                                     No posts in queue.
                                 </p>
                             )}

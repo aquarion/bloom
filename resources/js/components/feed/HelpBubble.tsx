@@ -15,7 +15,7 @@ export function HelpBubble({
     }
 
     return (
-        <div className="pointer-events-auto flex max-w-xs items-center gap-2 rounded-full bg-black/80 px-4 py-2 text-white text-xs shadow-lg backdrop-blur-sm">
+        <div className="pointer-events-auto flex max-w-xs items-center gap-2 rounded-full bg-black/80 px-4 py-2 text-xs text-white shadow-lg backdrop-blur-sm">
             <span>{children}</span>
             <button
                 type="button"

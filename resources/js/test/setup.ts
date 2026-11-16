@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 
 // Polyfill ResizeObserver for HeadlessUI components in jsdom
 if (typeof ResizeObserver === 'undefined') {

@@ -199,10 +199,10 @@ describe('Feed', () => {
         expect(overlay).toHaveClass('opacity-100');
         expect(screen.getByRole('status', { name: /loading/i })).toBeVisible();
 
-        const { onReady } = vi.mocked(PostContent).mock.calls.at(-1)![0] as {
-            onReady?: () => void;
-        };
-        act(() => onReady?.());
+        const lastProps = vi.mocked(PostContent).mock.calls.at(-1)?.[0] as
+            | { onReady?: () => void }
+            | undefined;
+        act(() => lastProps?.onReady?.());
 
         expect(overlay).toHaveClass('opacity-0');
     });

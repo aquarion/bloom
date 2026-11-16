@@ -127,7 +127,7 @@ export function MentionChips({ mentions }: { mentions: Mention[] }) {
                     ),
                 )}
                 {hiddenCount > 0 && (
-                    <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-white/50 text-xs">
+                    <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-xs text-white/50">
                         +{hiddenCount}
                     </span>
                 )}

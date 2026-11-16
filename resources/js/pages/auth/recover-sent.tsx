@@ -8,7 +8,7 @@ export default function RecoverSent() {
         <>
             <Head title="Check your email" />
             <div className="flex flex-col items-center gap-4 text-center">
-                <MailCheck className="h-12 w-12 text-primary" />
+                <MailCheck className="text-primary h-12 w-12" />
                 <p className="text-muted-foreground text-sm">
                     If an account with that email exists, we've sent a recovery
                     link. Check your inbox and follow the link to add a new

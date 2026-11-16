@@ -39,7 +39,7 @@ export default function Recover() {
                             Send recovery link
                         </Button>
 
-                        <div className="text-center text-muted-foreground text-sm">
+                        <div className="text-muted-foreground text-center text-sm">
                             <TextLink href={login()}>Back to sign in</TextLink>
                         </div>
                     </>

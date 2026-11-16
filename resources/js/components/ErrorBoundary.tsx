@@ -29,13 +29,13 @@ export class ErrorBoundary extends Component<Props, State> {
     render() {
         if (this.state.error) {
             return (
-                <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-8 text-center text-foreground">
-                    <p className="font-semibold text-lg">
+                <div className="bg-background text-foreground flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
+                    <p className="text-lg font-semibold">
                         Something went wrong.
                     </p>
                     <button
                         type="button"
-                        className="rounded-md border px-4 py-2 text-sm hover:bg-muted"
+                        className="hover:bg-muted rounded-md border px-4 py-2 text-sm"
                         onClick={() => window.location.reload()}
                     >
                         Reload page

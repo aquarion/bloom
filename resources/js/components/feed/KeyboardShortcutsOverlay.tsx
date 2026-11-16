@@ -17,7 +17,7 @@ export function KeyboardShortcutsOverlay({ open }: { open: boolean }) {
     return (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70">
             <div className="rounded-lg bg-white/10 p-6 text-white backdrop-blur-sm">
-                <h2 className="mb-4 font-semibold text-lg">
+                <h2 className="mb-4 text-lg font-semibold">
                     Keyboard Shortcuts
                 </h2>
                 <table className="w-full text-sm">
@@ -25,7 +25,7 @@ export function KeyboardShortcutsOverlay({ open }: { open: boolean }) {
                         {SHORTCUTS.map(({ key, description }) => (
                             <tr
                                 key={key}
-                                className="border-white/10 border-b last:border-0"
+                                className="border-b border-white/10 last:border-0"
                             >
                                 <td className="py-2 pr-8">
                                     <kbd className="rounded bg-white/20 px-2 py-0.5 font-mono text-xs">

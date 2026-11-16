@@ -1,11 +1,11 @@
 import { Quote, Reply } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
+import { postLevelCwLabel } from '@/lib/cw';
+import { EmojiText } from '@/lib/emoji-text';
 import type { Post } from '@/types/post';
 import type { ContentBehavior } from '@/types/preferences';
-import { postLevelCwLabel } from '@/lib/cw';
 import { ContextPanel } from './ContextPanel';
 import { CwTag } from './CwTag';
-import { EmojiText } from '@/lib/emoji-text';
 import { ImageCarousel } from './ImageCarousel';
 import { LinkCard } from './LinkCard';
 import { PollResults } from './PollResults';
@@ -60,12 +60,12 @@ export function MediaPost({
                     onProgress={onProgress}
                 />
                 {post.body && (
-                    <div className="shrink-0 border-white/10 border-t px-4 py-3 text-sm text-white/80 leading-snug">
+                    <div className="shrink-0 border-t border-white/10 px-4 py-3 text-sm leading-snug text-white/80">
                         <EmojiText text={post.body} emojis={post.emojis} />
                     </div>
                 )}
                 {post.poll && (
-                    <div className="shrink-0 border-white/10 border-t px-4 py-3">
+                    <div className="shrink-0 border-t border-white/10 px-4 py-3">
                         <PollResults
                             poll={post.poll}
                             originalUrl={post.original_url}
@@ -73,7 +73,7 @@ export function MediaPost({
                     </div>
                 )}
                 {(post.reply_to || post.quoted_post || post.link_url) && (
-                    <div className="flex shrink-0 flex-col gap-2 border-white/10 border-t px-4 py-3">
+                    <div className="flex shrink-0 flex-col gap-2 border-t border-white/10 px-4 py-3">
                         {post.reply_to && (
                             <ContextPanel
                                 icon={<Reply className="size-3.5" />}

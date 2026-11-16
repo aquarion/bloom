@@ -28,7 +28,7 @@ export default function AgeCutoffField({
                     className="w-24"
                     placeholder="7"
                 />
-                <label className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                <label className="text-muted-foreground flex items-center gap-1.5 text-sm">
                     <input
                         type="checkbox"
                         checked={data.max_age_days === null}

@@ -7,6 +7,7 @@ export default function ReduceMotionField({
 }: FeedSettingsFieldProps) {
     return (
         <div className="space-y-2">
+            {/* biome-ignore lint/a11y/noLabelWithoutControl: Radix Checkbox renders a button inside the label */}
             <label className="flex items-center gap-2 text-sm">
                 <Checkbox
                     checked={data.reduce_motion}

@@ -104,6 +104,7 @@ export function ContextPanel({
             /* keep raw */
         }
     }
+
     // Inside the gate, the "Marked as X" / "Labelled as X" copy below already states
     // the label — showing it a second time on the chip badge would be redundant.
     const gatedChip = (

@@ -122,8 +122,8 @@ export default function Connections({
                 </>
             ),
             addForm: (
-                <div className="rounded-md border bg-muted/50 p-4">
-                    <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                <div className="bg-muted/50 rounded-md border p-4">
+                    <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
                         Add account
                     </p>
                     <Form {...mastodon.redirect.form()} className="space-y-3">
@@ -156,18 +156,18 @@ export default function Connections({
                 <p className="text-muted-foreground text-sm">
                     {c.instance_url}
                     {c.auth_failed_at && (
-                        <span className="ml-2 text-amber-600 text-xs">
+                        <span className="ml-2 text-xs text-amber-600">
                             (requires auth — add account above)
                         </span>
                     )}
                 </p>
             ),
             addForm: (
-                <div className="rounded-md border bg-muted/50 p-4">
-                    <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                <div className="bg-muted/50 rounded-md border p-4">
+                    <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
                         Add public timeline
                     </p>
-                    <p className="mb-3 text-muted-foreground text-xs">
+                    <p className="text-muted-foreground mb-3 text-xs">
                         Follow any instance's public timeline without an
                         account.
                     </p>
@@ -209,8 +209,8 @@ export default function Connections({
             showFeedSettings: true,
             renderLabel: (c) => <strong>{c.handle}</strong>,
             addForm: (
-                <div className="rounded-md border bg-muted/50 p-4">
-                    <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                <div className="bg-muted/50 rounded-md border p-4">
+                    <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
                         Add account
                     </p>
                     <Form {...bluesky.store.form()} className="space-y-3">
@@ -245,7 +245,7 @@ export default function Connections({
                                 <div className="space-y-1">
                                     <Label htmlFor="pds_url">
                                         PDS URL{' '}
-                                        <span className="font-normal text-muted-foreground text-xs">
+                                        <span className="text-muted-foreground text-xs font-normal">
                                             (optional — leave blank for
                                             bsky.social)
                                         </span>
@@ -291,11 +291,11 @@ export default function Connections({
                 </div>
             ),
             addForm: hasBlueskyHomeAccount && (
-                <div className="rounded-md border bg-muted/50 p-4">
-                    <p className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+                <div className="bg-muted/50 rounded-md border p-4">
+                    <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
                         Add algorithmic feed
                     </p>
-                    <p className="mb-3 text-muted-foreground text-xs">
+                    <p className="text-muted-foreground mb-3 text-xs">
                         Browse or search Bluesky's curated feeds.
                     </p>
                     <Button asChild>
@@ -323,7 +323,7 @@ export default function Connections({
 
                 {statusMessage && (
                     <div
-                        className={`font-medium text-sm ${statusMessage.tone === 'success' ? 'text-green-600' : 'text-amber-600'}`}
+                        className={`text-sm font-medium ${statusMessage.tone === 'success' ? 'text-green-600' : 'text-amber-600'}`}
                     >
                         {statusMessage.text}
                     </div>

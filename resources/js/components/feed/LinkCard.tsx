@@ -121,11 +121,11 @@ export function LinkCard({
                             </p>
                         )}
                         {description && (
-                            <p className="line-clamp-2 text-white/60 text-xs">
+                            <p className="line-clamp-2 text-xs text-white/60">
                                 {description}
                             </p>
                         )}
-                        <p className="truncate text-white/50 text-xs">
+                        <p className="truncate text-xs text-white/50">
                             {hostname}
                         </p>
                     </div>
@@ -162,11 +162,11 @@ export function LinkCard({
                         </p>
                     )}
                     {description && (
-                        <p className="line-clamp-2 text-white/60 text-xs">
+                        <p className="line-clamp-2 text-xs text-white/60">
                             {description}
                         </p>
                     )}
-                    <p className="truncate text-white/50 text-xs">{hostname}</p>
+                    <p className="truncate text-xs text-white/50">{hostname}</p>
                 </div>
             </div>
         </a>

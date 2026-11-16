@@ -109,7 +109,7 @@ export function AppSidebarContents() {
             <SidebarFooter>
                 <NavFooter items={footerNavItems} className="mt-auto" />
                 {appVersion && (
-                    <div className="px-3 pb-1 text-neutral-500 text-xs group-data-[collapsible=icon]:hidden dark:text-neutral-400">
+                    <div className="px-3 pb-1 text-xs text-neutral-500 group-data-[collapsible=icon]:hidden dark:text-neutral-400">
                         {appVersion.url ? (
                             <a
                                 href={appVersion.url}
@@ -134,7 +134,7 @@ export function AppSidebarContents() {
                         <SidebarMenuButton asChild size="sm">
                             <Link
                                 href={docsShow('privacy')}
-                                className="text-neutral-500 text-xs dark:text-neutral-400"
+                                className="text-xs text-neutral-500 dark:text-neutral-400"
                             >
                                 <span>Terms and Conditions</span>
                             </Link>

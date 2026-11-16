@@ -153,16 +153,16 @@ function WelcomeView({
                                     className="size-5"
                                     aria-hidden="true"
                                 />
-                                <span className="font-semibold text-white/60 text-xs uppercase tracking-widest">
+                                <span className="text-xs font-semibold tracking-widest text-white/60 uppercase">
                                     Bloom
                                 </span>
                             </div>
-                            <p className="text-center font-semibold text-white text-xl leading-tight">
+                            <p className="text-center text-xl leading-tight font-semibold text-white">
                                 Social media.
                                 <br />
                                 Without the scroll.
                             </p>
-                            <p className="text-center text-white/50 text-xs">
+                            <p className="text-center text-xs text-white/50">
                                 Full-screen · Mastodon &amp; Bluesky · No
                                 algorithm
                             </p>
@@ -170,7 +170,7 @@ function WelcomeView({
                                 {canRegister && (
                                     <Link
                                         href={register()}
-                                        className="flex-1 rounded-lg bg-white py-2.5 text-center font-semibold text-black text-sm hover:bg-white/90"
+                                        className="flex-1 rounded-lg bg-white py-2.5 text-center text-sm font-semibold text-black hover:bg-white/90"
                                         onClick={() =>
                                             trackEvent(
                                                 'welcome',
@@ -183,7 +183,7 @@ function WelcomeView({
                                 )}
                                 <Link
                                     href={login()}
-                                    className="flex-1 rounded-lg border border-white/20 bg-white/10 py-2.5 text-center font-medium text-sm text-white/80 hover:bg-white/15"
+                                    className="flex-1 rounded-lg border border-white/20 bg-white/10 py-2.5 text-center text-sm font-medium text-white/80 hover:bg-white/15"
                                 >
                                     Log in
                                 </Link>
@@ -201,7 +201,7 @@ function WelcomeView({
                         </div>
                     </div>
 
-                    <div className="pointer-events-auto flex justify-center gap-4 pb-2 text-white/40 text-xs">
+                    <div className="pointer-events-auto flex justify-center gap-4 pb-2 text-xs text-white/40">
                         <Link
                             href={docsShow('privacy')}
                             className="hover:text-white/60"

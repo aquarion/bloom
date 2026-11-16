@@ -121,7 +121,6 @@ export function useAutoFitText(body: string) {
             return;
         }
 
-        // eslint-disable-next-line @eslint-react/set-state-in-effect
         setFontSizeState({ body, sizes });
     }, [lines, body, paragraphStarts]);
 

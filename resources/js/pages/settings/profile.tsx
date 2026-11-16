@@ -107,7 +107,7 @@ export default function Profile({ status }: { status?: string }) {
                     )}
 
                     {status && (
-                        <p className="font-medium text-green-600 text-sm">
+                        <p className="text-sm font-medium text-green-600">
                             {status}
                         </p>
                     )}

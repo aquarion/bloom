@@ -51,14 +51,14 @@ export default function FeedSettings({
                 />
 
                 {status === 'feed-settings-updated' && (
-                    <p className="font-medium text-green-600 text-sm">
+                    <p className="text-sm font-medium text-green-600">
                         Feed settings saved.
                     </p>
                 )}
 
                 {/* Limits */}
                 <section className="rounded-lg border p-6">
-                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-base">
+                    <h3 className="mb-4 flex items-center gap-2 text-base font-semibold">
                         <Filter className="size-4" /> Limits
                     </h3>
                     <div className="space-y-4">
@@ -69,7 +69,7 @@ export default function FeedSettings({
 
                 {/* Content Warnings */}
                 <section className="rounded-lg border p-6">
-                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-base">
+                    <h3 className="mb-4 flex items-center gap-2 text-base font-semibold">
                         <TriangleAlert className="size-4" /> Content Warnings
                     </h3>
                     <div className="space-y-4">
@@ -82,7 +82,7 @@ export default function FeedSettings({
 
                 {/* Appearance */}
                 <section className="rounded-lg border p-6">
-                    <h3 className="mb-4 flex items-center gap-2 font-semibold text-base">
+                    <h3 className="mb-4 flex items-center gap-2 text-base font-semibold">
                         <Palette className="size-4" /> Appearance
                     </h3>
                     <div className="space-y-4">

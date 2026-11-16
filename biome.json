@@ -35,5 +35,9 @@
                 }
             }
         }
+    },
+    "tailwind": {
+        "mergeFunctions": ["cn", "clsx"],
+        "variantFunctions": ["cva"]
     }
 }

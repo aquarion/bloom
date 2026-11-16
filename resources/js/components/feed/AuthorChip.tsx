@@ -33,7 +33,7 @@ export function AuthorChip({
                 className="h-10 w-10 shrink-0 rounded-full object-cover"
             />
             <div className="min-w-0 flex-1">
-                <p className="truncate font-bold text-white text-xs leading-tight">
+                <p className="truncate text-xs leading-tight font-bold text-white">
                     <EmojiText text={name} emojis={emojis} />
                     {cwLabel && (
                         <span
@@ -45,12 +45,12 @@ export function AuthorChip({
                         </span>
                     )}
                 </p>
-                <p className="truncate text-[0.65rem] text-white/50 leading-tight">
+                <p className="truncate text-[0.65rem] leading-tight text-white/50">
                     {account}
                 </p>
                 {time !== undefined && (
                     <p
-                        className="truncate text-[0.65rem] text-white/40 leading-tight"
+                        className="truncate text-[0.65rem] leading-tight text-white/40"
                         title={absoluteTime}
                     >
                         {time}

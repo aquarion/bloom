@@ -36,6 +36,7 @@ function runFallbackScript() {
     // not a duplicate reimplementation, so these tests can't drift from
     // what actually ships in the Blade template.
     // biome-ignore lint/security/noGlobalEval: exercising the literal inline script from app.blade.php
+    // biome-ignore lint/complexity/noCommaOperator: `(0, eval)` is the idiom for indirect eval
     (0, eval)(extractFallbackScript());
 }
 
